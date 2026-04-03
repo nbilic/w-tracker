@@ -394,6 +394,9 @@
       align-items: center;
       gap: 10px;
       margin-bottom: 4px;
+      cursor: pointer;
+      -webkit-user-select: none;
+      user-select: none;
     }
     .ex-icon {
       width: 36px;
@@ -407,7 +410,27 @@
     .ex-icon.barbell { background: var(--red-dim); color: var(--accent); }
     .ex-icon.machine { background: var(--purple-dim); color: var(--accent2); }
     .ex-icon svg { width: 20px; height: 20px; }
-    .ex-header h3 { font-size: 15px; font-weight: 700; letter-spacing: -0.2px; }
+    .ex-header h3 { font-size: 15px; font-weight: 700; letter-spacing: -0.2px; flex: 1; }
+    .ex-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: var(--surface2);
+      color: var(--text3);
+    }
+    .ex-badge.has-done {
+      background: var(--green-dim);
+      color: var(--green);
+    }
+    .ex-chevron {
+      color: var(--text3);
+      transition: transform 0.2s;
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+    }
+    .exercise-card.collapsed .ex-chevron { transform: rotate(-90deg); }
     .ex-target {
       font-size: 12px;
       color: var(--text2);
@@ -415,6 +438,9 @@
       margin-left: 46px;
       font-weight: 400;
     }
+    .ex-body { overflow: hidden; }
+    .exercise-card.collapsed .ex-body { display: none; }
+    .exercise-card.collapsed .ex-target { margin-bottom: 0; }
 
     /* Set header row */
     .set-header {
@@ -1071,6 +1097,26 @@
       showScreen('workout');
     }
 
+    const collapsedExercises = new Set();
+
+    function toggleCollapse(ei) {
+      if (collapsedExercises.has(ei)) {
+        collapsedExercises.delete(ei);
+      } else {
+        collapsedExercises.add(ei);
+      }
+      const card = document.getElementById('ex-' + ei);
+      if (card) card.classList.toggle('collapsed');
+      // Update badge in case it changed
+      const ex = currentSession.exercises[ei];
+      const doneCount = ex.sets.filter(s => s.completed).length;
+      const badge = card.querySelector('.ex-badge');
+      if (badge) {
+        badge.textContent = doneCount + '/' + ex.sets.length;
+        badge.className = doneCount > 0 ? 'ex-badge has-done' : 'ex-badge';
+      }
+    }
+
     function renderExercises() {
       const container = document.getElementById('exercises-container');
       const unit = appData.settings.unit;
@@ -1079,13 +1125,20 @@
       currentSession.exercises.forEach((ex, ei) => {
         const iconType = ex.barbell ? 'barbell' : 'machine';
         const stepLabel = ex.barbell ? '2.5' : '1';
+        const doneCount = ex.sets.filter(s => s.completed).length;
+        const totalCount = ex.sets.length;
+        const badgeClass = doneCount > 0 ? 'ex-badge has-done' : 'ex-badge';
+        const collapsed = collapsedExercises.has(ei) ? ' collapsed' : '';
 
-        html += `<div class="exercise-card" id="ex-${ei}">
-          <div class="ex-header">
+        html += `<div class="exercise-card${collapsed}" id="ex-${ei}">
+          <div class="ex-header" onclick="toggleCollapse(${ei})">
             <div class="ex-icon ${iconType}">${getExIcon(ex.name)}</div>
             <h3>${ex.name}</h3>
+            <span class="${badgeClass}">${doneCount}/${totalCount}</span>
+            <svg class="ex-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </div>
           <div class="ex-target">${ex.targetSets} &times; ${ex.targetReps} &middot; &plusmn;${stepLabel} ${unit}</div>
+          <div class="ex-body">
           <div class="set-header">
             <span></span><span>${unit.toUpperCase()}</span><span>REPS</span><span></span>
           </div>`;
@@ -1099,7 +1152,7 @@
         if (ex.sets.length > 1) {
           html += `<button class="remove-set-btn" onclick="removeSet(${ei})">Remove</button>`;
         }
-        html += `</div></div>`;
+        html += `</div></div></div>`;
       });
 
       container.innerHTML = html;
@@ -1174,7 +1227,7 @@
       const set = currentSession.exercises[ei].sets[si];
       set.completed = !set.completed;
 
-      // Targeted update for check button only
+      // Targeted update for check button
       const btn = document.getElementById('sc-' + ei + '-' + si);
       if (btn) {
         if (set.completed) {
@@ -1183,6 +1236,18 @@
         } else {
           btn.classList.remove('done');
           btn.innerHTML = '';
+        }
+      }
+
+      // Update badge count
+      const ex = currentSession.exercises[ei];
+      const doneCount = ex.sets.filter(s => s.completed).length;
+      const card = document.getElementById('ex-' + ei);
+      if (card) {
+        const badge = card.querySelector('.ex-badge');
+        if (badge) {
+          badge.textContent = doneCount + '/' + ex.sets.length;
+          badge.className = doneCount > 0 ? 'ex-badge has-done' : 'ex-badge';
         }
       }
 
