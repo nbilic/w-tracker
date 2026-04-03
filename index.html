@@ -416,45 +416,83 @@
     }
     #rest-banner .dismiss { background: rgba(0,0,0,0.2); }
 
-    /* ========== WARMUP CARD ========== */
-    .warmup-card {
+    /* ========== NOTES BUTTON (in header) ========== */
+    .notes-btn {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 16px;
-      margin-bottom: 16px;
-    }
-    .warmup-card .wc-header {
+      color: var(--text2);
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-bottom: 12px;
+      justify-content: center;
+      position: relative;
+      transition: border-color 0.15s;
     }
-    .warmup-card .wc-header svg { color: var(--orange); }
-    .warmup-card .wc-header span { font-size: 15px; font-weight: 600; color: var(--orange); }
-    .warmup-timer-display {
-      font-size: 40px;
-      font-weight: 800;
-      font-variant-numeric: tabular-nums;
-      text-align: center;
-      margin: 4px 0 12px;
-      letter-spacing: 2px;
+    .notes-btn.has-notes { border-color: var(--accent); color: var(--accent); }
+    .notes-btn svg { width: 18px; height: 18px; }
+
+    /* Notes Modal */
+    .notes-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 300;
+      align-items: flex-end;
+      justify-content: center;
     }
-    .warmup-controls { display: flex; gap: 8px; justify-content: center; margin-bottom: 12px; }
-    .warmup-notes {
+    .notes-overlay.active { display: flex; }
+    .notes-modal {
+      background: var(--surface);
+      border-radius: var(--radius) var(--radius) 0 0;
+      padding: 20px 16px 32px;
+      width: 100%;
+      max-width: 480px;
+      animation: slideUp 0.2s ease-out;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    .notes-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .notes-modal-header h3 {
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .notes-modal-close {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .notes-modal textarea {
       width: 100%;
       background: var(--bg);
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       color: var(--text);
-      padding: 10px 12px;
+      padding: 12px;
       font-size: 14px;
       font-family: inherit;
       resize: vertical;
-      min-height: 38px;
+      min-height: 120px;
     }
-    .warmup-notes:focus { outline: none; border-color: var(--orange); }
-    .warmup-notes::placeholder { color: var(--text3); }
+    .notes-modal textarea:focus { outline: none; border-color: var(--accent); }
+    .notes-modal textarea::placeholder { color: var(--text3); }
 
     /* ========== EXERCISE CARD ========== */
     .exercise-card {
@@ -686,24 +724,6 @@
     }
     .remove-set-btn:active { opacity: 1; }
 
-    /* Session Notes */
-    .session-notes-container {
-      margin-bottom: 16px;
-    }
-    .session-notes {
-      width: 100%;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      color: var(--text);
-      padding: 12px;
-      font-size: 14px;
-      font-family: inherit;
-      resize: vertical;
-      min-height: 44px;
-    }
-    .session-notes:focus { outline: none; border-color: var(--accent); }
-    .session-notes::placeholder { color: var(--text3); }
     .hi-notes {
       font-size: 12px;
       color: var(--text2);
@@ -764,12 +784,6 @@
     .hi-type .type-dot.a { background: var(--accent); }
     .hi-type .type-dot.b { background: var(--accent2); }
     .hi-date { color: var(--text2); font-size: 12px; font-weight: 500; }
-    .hi-warmup {
-      color: var(--orange);
-      font-size: 12px;
-      margin-top: 4px;
-      font-weight: 500;
-    }
     .hi-details {
       display: none;
       margin-top: 12px;
@@ -1009,27 +1023,23 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
       <h2 id="workout-title">Workout A</h2>
+      <button class="notes-btn" id="notes-btn" onclick="openNotesModal()" title="Workout notes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+      </button>
       <span class="elapsed-badge" id="elapsed-display">00:00</span>
-    </div>
-
-    <div class="warmup-card">
-      <div class="wc-header">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        <span>Warmup</span>
-      </div>
-      <div class="warmup-timer-display" id="warmup-display">00:00</div>
-      <div class="warmup-controls">
-        <button class="btn btn-secondary btn-small" id="warmup-btn" onclick="toggleWarmup()">Start</button>
-        <button class="btn btn-secondary btn-small" onclick="resetWarmup()">Reset</button>
-      </div>
-      <textarea class="warmup-notes" id="warmup-notes" placeholder="Warmup notes..." rows="1"></textarea>
     </div>
 
     <div id="exercises-container"></div>
 
-    <!-- Session Notes -->
-    <div class="session-notes-container">
-      <textarea class="session-notes" id="session-notes" placeholder="Workout notes..." rows="2"></textarea>
+    <!-- Notes Modal -->
+    <div class="notes-overlay" id="notes-overlay" onclick="closeNotesModal(event)">
+      <div class="notes-modal">
+        <div class="notes-modal-header">
+          <h3>Workout Notes</h3>
+          <button class="notes-modal-close" onclick="closeNotesModal()">&times;</button>
+        </div>
+        <textarea id="session-notes" placeholder="How did the workout feel? Any observations..." rows="5"></textarea>
+      </div>
     </div>
 
     <div class="finish-bar">
@@ -1228,7 +1238,8 @@
       if (weight === '' || weight === null || weight === 0) return false;
       const numWeight = Number(weight);
       const current = appData.personalRecords[exerciseName];
-      if (!current || numWeight > current.maxWeight) {
+      if (!current) return false; // No existing record to beat — not a PR
+      if (numWeight > current.maxWeight) {
         appData.personalRecords[exerciseName] = {
           maxWeight: numWeight,
           date: new Date().toISOString().slice(0, 10)
@@ -1489,9 +1500,6 @@
 
     // ==================== ACTIVE WORKOUT ====================
     let currentSession = null;
-    let warmupInterval = null;
-    let warmupSeconds = 0;
-    let warmupRunning = false;
     let elapsedInterval = null;
     let elapsedSeconds = 0;
 
@@ -1504,8 +1512,6 @@
         id: Date.now(),
         type: type,
         date: today,
-        warmupDuration: 0,
-        warmupNotes: '',
         notes: '',
         exercises: template.map(t => {
           const lastEx = lastSession ? lastSession.exercises.find(e => e.name === t.name) : null;
@@ -1520,10 +1526,6 @@
         })
       };
 
-      warmupSeconds = 0;
-      warmupRunning = false;
-      clearInterval(warmupInterval);
-
       // Start elapsed workout timer
       elapsedSeconds = 0;
       clearInterval(elapsedInterval);
@@ -1534,10 +1536,8 @@
 
       document.getElementById('workout-title').textContent = 'Workout ' + type;
       document.getElementById('elapsed-display').textContent = '00:00';
-      document.getElementById('warmup-display').textContent = '00:00';
-      document.getElementById('warmup-btn').textContent = 'Start';
-      document.getElementById('warmup-notes').value = '';
       document.getElementById('session-notes').value = '';
+      document.getElementById('notes-btn').classList.remove('has-notes');
 
       collapsedExercises.clear();
       renderExercises();
@@ -1877,28 +1877,18 @@
       dragState = null;
     }
 
-    // ==================== WARMUP TIMER ====================
-    function toggleWarmup() {
-      if (warmupRunning) {
-        clearInterval(warmupInterval);
-        warmupRunning = false;
-        document.getElementById('warmup-btn').textContent = 'Resume';
-      } else {
-        warmupRunning = true;
-        document.getElementById('warmup-btn').textContent = 'Pause';
-        warmupInterval = setInterval(() => {
-          warmupSeconds++;
-          document.getElementById('warmup-display').textContent = formatTime(warmupSeconds);
-        }, 1000);
-      }
+    // ==================== NOTES MODAL ====================
+    function openNotesModal() {
+      document.getElementById('notes-overlay').classList.add('active');
+      document.getElementById('session-notes').focus();
     }
 
-    function resetWarmup() {
-      clearInterval(warmupInterval);
-      warmupRunning = false;
-      warmupSeconds = 0;
-      document.getElementById('warmup-display').textContent = '00:00';
-      document.getElementById('warmup-btn').textContent = 'Start';
+    function closeNotesModal(e) {
+      if (e && e.target !== e.currentTarget && !e.target.closest('.notes-modal-close')) return;
+      document.getElementById('notes-overlay').classList.remove('active');
+      // Update button indicator
+      const hasText = document.getElementById('session-notes').value.trim().length > 0;
+      document.getElementById('notes-btn').classList.toggle('has-notes', hasText);
     }
 
     function formatTime(totalSec) {
@@ -1972,12 +1962,8 @@
         return;
       }
 
-      clearInterval(warmupInterval);
       clearInterval(elapsedInterval);
-      warmupRunning = false;
-      currentSession.warmupDuration = warmupSeconds;
       currentSession.totalDuration = elapsedSeconds;
-      currentSession.warmupNotes = document.getElementById('warmup-notes').value.trim();
       currentSession.notes = document.getElementById('session-notes').value.trim();
       dismissRest();
 
@@ -2006,9 +1992,7 @@
           if (!confirm('Leave workout? Unsaved progress will be lost.')) return;
         }
       }
-      clearInterval(warmupInterval);
       clearInterval(elapsedInterval);
-      warmupRunning = false;
       dismissRest();
       currentSession = null;
       showScreen('home');
@@ -2033,10 +2017,6 @@
         const dotClass = session.type === 'A' ? 'a' : 'b';
         const durationStr = session.totalDuration > 0
           ? `<div style="font-size:12px;color:var(--green);margin-top:4px;font-weight:500;">Duration: ${formatTime(session.totalDuration)}</div>` : '';
-        const warmupStr = session.warmupDuration > 0
-          ? `<div class="hi-warmup">Warmup: ${formatTime(session.warmupDuration)}</div>` : '';
-        const warmupNotes = session.warmupNotes
-          ? `<div style="font-size:11px;color:var(--text3);margin-top:2px;">Notes: ${escapeHtml(session.warmupNotes)}</div>` : '';
         const sessionNotes = session.notes
           ? `<div class="hi-notes">${escapeHtml(session.notes)}</div>` : '';
 
@@ -2078,7 +2058,7 @@
             <span class="hi-type"><span class="type-dot ${dotClass}"></span>Workout ${session.type}</span>
             <span class="hi-date">${formatDate(session.date)}</span>
           </div>
-          ${durationStr}${warmupStr}${warmupNotes}${sessionNotes}
+          ${durationStr}${sessionNotes}
           <div class="hi-expand-hint">Tap to expand</div>
           <div class="hi-details">${details}</div>
         </div>`;
