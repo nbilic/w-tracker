@@ -31,6 +31,8 @@
       --orange-dim: rgba(251,191,36,0.12);
       --red-dim: rgba(233,69,96,0.1);
       --purple-dim: rgba(124,58,237,0.12);
+      --gold: #fbbf24;
+      --gold-dim: rgba(251,191,36,0.15);
       --radius: 14px;
       --radius-sm: 10px;
     }
@@ -44,6 +46,14 @@
       overflow-x: hidden;
       -webkit-tap-highlight-color: transparent;
       -webkit-font-smoothing: antialiased;
+    }
+
+    #confetti-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 9999;
     }
 
     .screen { display: none; padding: 20px 16px; padding-bottom: 110px; max-width: 480px; margin: 0 auto; }
@@ -206,7 +216,7 @@
       box-shadow: 0 4px 24px rgba(124,58,237,0.2);
     }
 
-    .home-actions { display: flex; gap: 10px; }
+    .home-actions { display: flex; gap: 10px; margin-bottom: 20px; }
 
     .btn-ghost {
       background: var(--surface);
@@ -247,6 +257,71 @@
     .lw-title { font-size: 13px; font-weight: 600; }
     .lw-sub { font-size: 11px; color: var(--text2); margin-top: 1px; }
     .lw-arrow { color: var(--text3); font-size: 14px; }
+
+    /* Personal Records Section */
+    .pr-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-bottom: 16px;
+    }
+    .pr-section-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--gold);
+    }
+    .pr-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .pr-item {
+      background: var(--gold-dim);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+    }
+    .pr-item-name {
+      font-size: 11px;
+      color: var(--text2);
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .pr-item-value {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--gold);
+      letter-spacing: -0.3px;
+    }
+    .pr-item-date {
+      font-size: 10px;
+      color: var(--text3);
+    }
+
+    /* PR badge animation in workout */
+    .pr-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--gold-dim);
+      color: var(--gold);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+      animation: prPulse 0.6s ease-out;
+    }
+    @keyframes prPulse {
+      0% { transform: scale(0.5); opacity: 0; }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); opacity: 1; }
+    }
 
     /* ========== SHARED BUTTONS ========== */
     .btn {
@@ -388,6 +463,18 @@
       border-radius: var(--radius);
       padding: 16px;
       margin-bottom: 12px;
+      transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+      position: relative;
+    }
+    .exercise-card.dragging {
+      opacity: 0.9;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      z-index: 100;
+    }
+    .exercise-card.drag-placeholder {
+      opacity: 0.3;
+      border: 2px dashed var(--text3);
+      background: transparent;
     }
     .ex-header {
       display: flex;
@@ -398,6 +485,16 @@
       -webkit-user-select: none;
       user-select: none;
     }
+    .drag-handle {
+      color: var(--text3);
+      cursor: grab;
+      padding: 4px 2px;
+      display: flex;
+      align-items: center;
+      touch-action: none;
+      flex-shrink: 0;
+    }
+    .drag-handle:active { cursor: grabbing; }
     .ex-icon {
       width: 36px;
       height: 36px;
@@ -438,9 +535,21 @@
       margin-left: 46px;
       font-weight: 400;
     }
+    .overload-hint {
+      font-size: 11px;
+      color: var(--green);
+      margin-left: 46px;
+      margin-bottom: 10px;
+      font-weight: 500;
+      padding: 4px 8px;
+      background: var(--green-dim);
+      border-radius: 6px;
+      display: inline-block;
+    }
     .ex-body { overflow: hidden; }
     .exercise-card.collapsed .ex-body { display: none; }
     .exercise-card.collapsed .ex-target { margin-bottom: 0; }
+    .exercise-card.collapsed .overload-hint { display: none; }
 
     /* Set header row */
     .set-header {
@@ -540,6 +649,10 @@
       border-color: var(--green);
       color: #0f0f1a;
     }
+    .set-check.done.is-pr {
+      background: var(--gold);
+      border-color: var(--gold);
+    }
     .set-check svg { width: 16px; height: 16px; }
 
     .set-actions {
@@ -572,6 +685,34 @@
       opacity: 0.6;
     }
     .remove-set-btn:active { opacity: 1; }
+
+    /* Session Notes */
+    .session-notes-container {
+      margin-bottom: 16px;
+    }
+    .session-notes {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      padding: 12px;
+      font-size: 14px;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 44px;
+    }
+    .session-notes:focus { outline: none; border-color: var(--accent); }
+    .session-notes::placeholder { color: var(--text3); }
+    .hi-notes {
+      font-size: 12px;
+      color: var(--text2);
+      margin-top: 6px;
+      padding: 6px 10px;
+      background: var(--surface2);
+      border-radius: 6px;
+      font-style: italic;
+    }
 
     /* ========== FINISH BAR ========== */
     .finish-bar {
@@ -650,11 +791,39 @@
     }
     .hi-set-line .hi-check { color: var(--green); font-size: 11px; }
     .hi-set-line .hi-miss { color: var(--text3); font-size: 11px; }
+    .hi-set-line .hi-pr { color: var(--gold); font-size: 10px; font-weight: 700; }
     .hi-expand-hint {
       text-align: center;
       margin-top: 6px;
       font-size: 11px;
       color: var(--text3);
+    }
+
+    /* ========== PROGRESS SCREEN ========== */
+    #progress { padding-top: 20px; }
+    .progress-chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .progress-chart-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      letter-spacing: -0.2px;
+    }
+    .progress-chart-card canvas {
+      width: 100%;
+      height: 160px;
+      display: block;
+    }
+    .progress-empty {
+      text-align: center;
+      color: var(--text3);
+      padding: 32px 16px;
+      font-size: 13px;
     }
 
     /* ========== SETTINGS ========== */
@@ -680,6 +849,33 @@
     }
     .setting-row input:focus, .setting-row select:focus { outline: none; border-color: var(--accent); }
 
+    /* Toggle switch */
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      cursor: pointer;
+    }
+    .toggle-switch input { display: none; }
+    .toggle-slider {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--surface3);
+      border-radius: 12px;
+      transition: background 0.2s;
+    }
+    .toggle-slider::after {
+      content: '';
+      position: absolute;
+      width: 18px; height: 18px;
+      left: 3px; top: 3px;
+      background: var(--text2);
+      border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+    }
+    .toggle-switch input:checked + .toggle-slider { background: var(--green); }
+    .toggle-switch input:checked + .toggle-slider::after { transform: translateX(20px); background: #fff; }
+
     .danger-zone {
       margin-top: 32px;
       padding: 16px;
@@ -688,6 +884,31 @@
       background: var(--red-dim);
     }
     .danger-zone h3 { color: var(--accent); margin-bottom: 12px; font-size: 14px; font-weight: 600; }
+
+    /* ========== SWIPE NAV DOTS ========== */
+    .nav-dots {
+      position: fixed;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 6px;
+      z-index: 100;
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: rgba(15,15,26,0.8);
+    }
+    .nav-dots.hidden { display: none; }
+    .nav-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--text3);
+      transition: background 0.2s, transform 0.2s;
+    }
+    .nav-dot.active {
+      background: var(--text);
+      transform: scale(1.3);
+    }
 
     /* ========== EMPTY STATE ========== */
     .empty-state { text-align: center; color: var(--text3); padding: 48px 20px; }
@@ -710,6 +931,9 @@
 </head>
 <body>
 
+  <!-- Confetti Canvas -->
+  <canvas id="confetti-canvas"></canvas>
+
   <!-- Rest Timer Banner -->
   <div id="rest-banner">
     <span class="rest-label">REST</span>
@@ -719,6 +943,13 @@
       <button onclick="adjustRest(30)">+30s</button>
     </div>
     <button class="dismiss" onclick="dismissRest()">Skip</button>
+  </div>
+
+  <!-- Navigation Dots -->
+  <div class="nav-dots" id="nav-dots">
+    <div class="nav-dot" data-screen="history"></div>
+    <div class="nav-dot active" data-screen="home"></div>
+    <div class="nav-dot" data-screen="settings"></div>
   </div>
 
   <!-- Home Screen -->
@@ -746,6 +977,9 @@
     <!-- Last workout -->
     <div id="last-workout-container"></div>
 
+    <!-- Personal Records -->
+    <div id="pr-container"></div>
+
     <!-- Start buttons -->
     <div class="workout-buttons">
       <button class="btn-workout btn-a" onclick="startWorkout('A')">Workout A</button>
@@ -756,6 +990,10 @@
       <button class="btn-ghost" onclick="showScreen('history')">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         History
+      </button>
+      <button class="btn-ghost" onclick="showScreen('progress')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Progress
       </button>
       <button class="btn-ghost" onclick="showScreen('settings')">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -789,6 +1027,11 @@
 
     <div id="exercises-container"></div>
 
+    <!-- Session Notes -->
+    <div class="session-notes-container">
+      <textarea class="session-notes" id="session-notes" placeholder="Workout notes..." rows="2"></textarea>
+    </div>
+
     <div class="finish-bar">
       <button onclick="finishWorkout()">Finish Workout</button>
     </div>
@@ -803,6 +1046,17 @@
       <h2>History</h2>
     </div>
     <div id="history-list"></div>
+  </div>
+
+  <!-- Progress Screen -->
+  <div id="progress" class="screen">
+    <div class="header">
+      <button class="back" onclick="showScreen('home')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <h2>Progress</h2>
+    </div>
+    <div id="progress-charts"></div>
   </div>
 
   <!-- Settings Screen -->
@@ -826,6 +1080,13 @@
         <option value="kg">kg</option>
         <option value="lbs">lbs</option>
       </select>
+    </div>
+    <div class="setting-row">
+      <label>Haptic Feedback</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="set-haptics" checked>
+        <span class="toggle-slider"></span>
+      </label>
     </div>
     <div style="padding:16px 0;">
       <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
@@ -872,6 +1133,8 @@
 
     const CHECK_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
     const BACK_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>`;
+    const DRAG_HANDLE_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>`;
+    const TROPHY_SVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`;
 
     // ==================== DATA ====================
     const TEMPLATES = {
@@ -897,20 +1160,181 @@
     function loadData() {
       const raw = localStorage.getItem('workoutData');
       if (raw) return JSON.parse(raw);
-      return { sessions: [], settings: { defaultRestTime: 90, unit: 'kg' } };
+      return { sessions: [], settings: { defaultRestTime: 90, unit: 'kg', hapticsEnabled: true }, personalRecords: {} };
     }
 
     function saveData(data) { localStorage.setItem('workoutData', JSON.stringify(data)); }
 
     let appData = loadData();
 
+    // ==================== DATA MIGRATION ====================
+    function migrateData() {
+      if (!appData.personalRecords) appData.personalRecords = {};
+      if (appData.settings.hapticsEnabled === undefined) appData.settings.hapticsEnabled = true;
+      appData.sessions.forEach(s => {
+        if (s.notes === undefined) s.notes = '';
+      });
+      rebuildAllPRs();
+      saveData(appData);
+    }
+    migrateData();
+
+    // ==================== HAPTIC FEEDBACK ====================
+    function triggerHaptic(type) {
+      if (!appData.settings.hapticsEnabled || !navigator.vibrate) return;
+      const patterns = {
+        setComplete: [30],
+        pr: [50, 30, 50, 30, 100],
+        restTimerDone: [200, 100, 200, 100, 200],
+        workoutFinished: [100, 50, 100, 50, 200],
+        dragStart: [20],
+        weightAdjust: [10]
+      };
+      navigator.vibrate(patterns[type] || [20]);
+    }
+
+    // ==================== PERSONAL RECORDS ====================
+    function computePR(exerciseName) {
+      let maxWeight = 0;
+      let prDate = '';
+      appData.sessions.forEach(s => {
+        s.exercises.forEach(ex => {
+          if (ex.name === exerciseName) {
+            ex.sets.forEach(set => {
+              if (set.completed && set.weight !== '' && set.weight !== null && Number(set.weight) > maxWeight) {
+                maxWeight = Number(set.weight);
+                prDate = s.date;
+              }
+            });
+          }
+        });
+      });
+      return maxWeight > 0 ? { maxWeight, date: prDate } : null;
+    }
+
+    function rebuildAllPRs() {
+      const allExercises = new Set();
+      appData.sessions.forEach(s => {
+        s.exercises.forEach(ex => allExercises.add(ex.name));
+      });
+      appData.personalRecords = {};
+      allExercises.forEach(name => {
+        const pr = computePR(name);
+        if (pr) appData.personalRecords[name] = pr;
+      });
+    }
+
+    function checkForNewPR(exerciseName, weight) {
+      if (weight === '' || weight === null || weight === 0) return false;
+      const numWeight = Number(weight);
+      const current = appData.personalRecords[exerciseName];
+      if (!current || numWeight > current.maxWeight) {
+        appData.personalRecords[exerciseName] = {
+          maxWeight: numWeight,
+          date: new Date().toISOString().slice(0, 10)
+        };
+        return true;
+      }
+      return false;
+    }
+
+    function renderPRSection() {
+      const container = document.getElementById('pr-container');
+      const prs = appData.personalRecords;
+      const names = Object.keys(prs);
+      if (names.length === 0) {
+        container.innerHTML = '';
+        return;
+      }
+      const unit = appData.settings.unit;
+      let items = '';
+      names.forEach(name => {
+        const pr = prs[name];
+        items += `<div class="pr-item">
+          <div class="pr-item-name">${escapeHtml(name)}</div>
+          <div class="pr-item-value">${pr.maxWeight} ${unit}</div>
+          <div class="pr-item-date">${formatDate(pr.date)}</div>
+        </div>`;
+      });
+      container.innerHTML = `<div class="pr-section">
+        <div class="pr-section-title">${TROPHY_SVG} Personal Records</div>
+        <div class="pr-grid">${items}</div>
+      </div>`;
+    }
+
+    // ==================== CONFETTI ====================
+    const confettiCanvas = document.getElementById('confetti-canvas');
+    const confettiCtx = confettiCanvas.getContext('2d');
+    let confettiParticles = [];
+    let confettiAnimId = null;
+
+    function resizeConfetti() {
+      confettiCanvas.width = window.innerWidth;
+      confettiCanvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeConfetti);
+    resizeConfetti();
+
+    function launchConfetti() {
+      confettiParticles = [];
+      const colors = ['#e94560', '#7c3aed', '#34d399', '#fbbf24', '#3b82f6', '#ec4899'];
+      for (let i = 0; i < 80; i++) {
+        confettiParticles.push({
+          x: Math.random() * confettiCanvas.width,
+          y: -10 - Math.random() * 40,
+          w: 6 + Math.random() * 6,
+          h: 4 + Math.random() * 4,
+          vx: (Math.random() - 0.5) * 6,
+          vy: 2 + Math.random() * 4,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          rotation: Math.random() * 360,
+          rotSpeed: (Math.random() - 0.5) * 10,
+          life: 1
+        });
+      }
+      if (!confettiAnimId) animateConfetti();
+    }
+
+    function animateConfetti() {
+      confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+      let alive = false;
+      confettiParticles.forEach(p => {
+        if (p.life <= 0) return;
+        alive = true;
+        p.x += p.vx;
+        p.vy += 0.1;
+        p.y += p.vy;
+        p.rotation += p.rotSpeed;
+        p.life -= 0.005;
+        if (p.y > confettiCanvas.height + 20) { p.life = 0; return; }
+        confettiCtx.save();
+        confettiCtx.translate(p.x, p.y);
+        confettiCtx.rotate(p.rotation * Math.PI / 180);
+        confettiCtx.globalAlpha = Math.max(0, p.life);
+        confettiCtx.fillStyle = p.color;
+        confettiCtx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        confettiCtx.restore();
+      });
+      if (alive) {
+        confettiAnimId = requestAnimationFrame(animateConfetti);
+      } else {
+        confettiAnimId = null;
+        confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+      }
+    }
+
     // ==================== SCREENS ====================
+    let activeScreen = 'home';
+
     function showScreen(id) {
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       document.getElementById(id).classList.add('active');
+      activeScreen = id;
       if (id === 'home') renderHome();
       if (id === 'history') renderHistory();
       if (id === 'settings') loadSettings();
+      if (id === 'progress') renderProgress();
+      updateNavDots();
     }
 
     // ==================== HOME ====================
@@ -939,6 +1363,7 @@
       renderStats();
       renderCalendar();
       renderLastWorkout();
+      renderPRSection();
     }
 
     function renderStats() {
@@ -1045,6 +1470,23 @@
         </div>`;
     }
 
+    // ==================== PROGRESSIVE OVERLOAD ====================
+    function getOverloadSuggestion(exerciseName, step) {
+      const lastSession = [...appData.sessions].reverse().find(s =>
+        s.exercises.some(e => e.name === exerciseName)
+      );
+      if (!lastSession) return null;
+      const lastEx = lastSession.exercises.find(e => e.name === exerciseName);
+      if (!lastEx) return null;
+      const allCompleted = lastEx.sets.every(s => s.completed);
+      if (!allCompleted) return null;
+      const maxWeight = Math.max(...lastEx.sets.filter(s => s.weight !== '' && s.weight !== null).map(s => Number(s.weight)));
+      if (maxWeight <= 0 || isNaN(maxWeight)) return null;
+      const suggested = +(maxWeight + step).toFixed(1);
+      const unit = appData.settings.unit;
+      return `Last: ${maxWeight}${unit} → Try: ${suggested}${unit}`;
+    }
+
     // ==================== ACTIVE WORKOUT ====================
     let currentSession = null;
     let warmupInterval = null;
@@ -1064,12 +1506,15 @@
         date: today,
         warmupDuration: 0,
         warmupNotes: '',
+        notes: '',
         exercises: template.map(t => {
           const lastEx = lastSession ? lastSession.exercises.find(e => e.name === t.name) : null;
           const lastWeight = lastEx ? (lastEx.sets.find(s => s.weight !== '' && s.weight !== null) || {}).weight || '' : '';
           const sets = [];
           for (let i = 0; i < t.sets; i++) {
-            sets.push({ weight: lastWeight, reps: '', completed: false });
+            const lastReps = lastEx && lastEx.sets[i] && lastEx.sets[i].reps !== '' && lastEx.sets[i].reps !== null
+              ? lastEx.sets[i].reps : '';
+            sets.push({ weight: lastWeight, reps: lastReps, completed: false });
           }
           return { name: t.name, targetSets: t.sets, targetReps: t.reps, barbell: t.barbell, step: t.barbell ? 2.5 : 1, sets: sets };
         })
@@ -1092,7 +1537,9 @@
       document.getElementById('warmup-display').textContent = '00:00';
       document.getElementById('warmup-btn').textContent = 'Start';
       document.getElementById('warmup-notes').value = '';
+      document.getElementById('session-notes').value = '';
 
+      collapsedExercises.clear();
       renderExercises();
       showScreen('workout');
     }
@@ -1130,14 +1577,20 @@
         const badgeClass = doneCount > 0 ? 'ex-badge has-done' : 'ex-badge';
         const collapsed = collapsedExercises.has(ei) ? ' collapsed' : '';
 
-        html += `<div class="exercise-card${collapsed}" id="ex-${ei}">
-          <div class="ex-header" onclick="toggleCollapse(${ei})">
-            <div class="ex-icon ${iconType}">${getExIcon(ex.name)}</div>
-            <h3>${ex.name}</h3>
+        // Progressive overload hint
+        const hint = getOverloadSuggestion(ex.name, ex.step);
+        const hintHtml = hint ? `<div class="overload-hint">${hint}</div>` : '';
+
+        html += `<div class="exercise-card${collapsed}" id="ex-${ei}" data-ei="${ei}">
+          <div class="ex-header">
+            <div class="drag-handle" data-ei="${ei}">${DRAG_HANDLE_SVG}</div>
+            <div class="ex-icon ${iconType}" onclick="toggleCollapse(${ei})">${getExIcon(ex.name)}</div>
+            <h3 onclick="toggleCollapse(${ei})">${ex.name}</h3>
             <span class="${badgeClass}">${doneCount}/${totalCount}</span>
-            <svg class="ex-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            <svg class="ex-chevron" onclick="toggleCollapse(${ei})" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </div>
           <div class="ex-target">${ex.targetSets} &times; ${ex.targetReps} &middot; &plusmn;${stepLabel} ${unit}</div>
+          ${hintHtml}
           <div class="ex-body">
           <div class="set-header">
             <span></span><span>${unit.toUpperCase()}</span><span>REPS</span><span></span>
@@ -1156,10 +1609,12 @@
       });
 
       container.innerHTML = html;
+      initDragHandles();
     }
 
     function buildSetRowHTML(ei, si, set) {
       const doneClass = set.completed ? 'done' : '';
+      const prClass = set.completed && set.isPR ? ' is-pr' : '';
       const checkIcon = set.completed ? CHECK_SVG : '';
       const weightVal = set.weight !== '' && set.weight !== null ? set.weight : '';
       return `<div class="set-row" id="sr-${ei}-${si}">
@@ -1172,7 +1627,7 @@
         </div>
         <input type="number" inputmode="numeric" placeholder="-" id="ri-${ei}-${si}"
           value="${set.reps}" onchange="updateSet(${ei},${si},'reps',this.value)">
-        <button class="set-check ${doneClass}" id="sc-${ei}-${si}" onclick="toggleSet(${ei},${si})">
+        <button class="set-check ${doneClass}${prClass}" id="sc-${ei}-${si}" onclick="toggleSet(${ei},${si})">
           ${checkIcon}
         </button>
       </div>`;
@@ -1211,6 +1666,7 @@
       const newWeight = Math.max(0, +(current + direction * step).toFixed(1));
       ex.sets[si].weight = newWeight;
       updateWeightInput(ei, si);
+      triggerHaptic('weightAdjust');
 
       // If set 1, also fill empty subsequent sets
       if (si === 0) {
@@ -1229,12 +1685,36 @@
 
       // Targeted update for check button
       const btn = document.getElementById('sc-' + ei + '-' + si);
-      if (btn) {
-        if (set.completed) {
-          btn.classList.add('done');
-          btn.innerHTML = CHECK_SVG;
+
+      let isPR = false;
+      if (set.completed) {
+        // Check for PR
+        const exName = currentSession.exercises[ei].name;
+        const weight = set.weight;
+        isPR = checkForNewPR(exName, weight);
+        set.isPR = isPR;
+
+        if (isPR) {
+          triggerHaptic('pr');
+          launchConfetti();
+          // Show gold button
+          if (btn) {
+            btn.classList.add('done', 'is-pr');
+            btn.innerHTML = CHECK_SVG;
+          }
         } else {
-          btn.classList.remove('done');
+          triggerHaptic('setComplete');
+          if (btn) {
+            btn.classList.add('done');
+            btn.classList.remove('is-pr');
+            btn.innerHTML = CHECK_SVG;
+          }
+        }
+      } else {
+        set.isPR = false;
+        triggerHaptic('setComplete');
+        if (btn) {
+          btn.classList.remove('done', 'is-pr');
           btn.innerHTML = '';
         }
       }
@@ -1267,6 +1747,134 @@
         ex.sets.pop();
         renderExercises();
       }
+    }
+
+    // ==================== REORDER EXERCISES (DRAG) ====================
+    let dragState = null;
+
+    function initDragHandles() {
+      const handles = document.querySelectorAll('.drag-handle');
+      handles.forEach(handle => {
+        handle.addEventListener('touchstart', onDragTouchStart, { passive: false });
+        handle.addEventListener('mousedown', onDragMouseStart);
+      });
+    }
+
+    function onDragTouchStart(e) {
+      const ei = parseInt(e.currentTarget.getAttribute('data-ei'));
+      e.preventDefault();
+      const touch = e.touches[0];
+      startDrag(ei, touch.clientY);
+
+      const moveHandler = (ev) => {
+        ev.preventDefault();
+        moveDrag(ev.touches[0].clientY);
+      };
+      const endHandler = () => {
+        endDrag();
+        document.removeEventListener('touchmove', moveHandler);
+        document.removeEventListener('touchend', endHandler);
+      };
+      document.addEventListener('touchmove', moveHandler, { passive: false });
+      document.addEventListener('touchend', endHandler);
+    }
+
+    function onDragMouseStart(e) {
+      const ei = parseInt(e.currentTarget.getAttribute('data-ei'));
+      e.preventDefault();
+      startDrag(ei, e.clientY);
+
+      const moveHandler = (ev) => { moveDrag(ev.clientY); };
+      const endHandler = () => {
+        endDrag();
+        document.removeEventListener('mousemove', moveHandler);
+        document.removeEventListener('mouseup', endHandler);
+      };
+      document.addEventListener('mousemove', moveHandler);
+      document.addEventListener('mouseup', endHandler);
+    }
+
+    function startDrag(ei, startY) {
+      const card = document.getElementById('ex-' + ei);
+      if (!card) return;
+
+      triggerHaptic('dragStart');
+      const cards = document.querySelectorAll('.exercise-card');
+      const rects = [];
+      cards.forEach(c => rects.push(c.getBoundingClientRect()));
+
+      dragState = {
+        ei: ei,
+        startY: startY,
+        currentY: startY,
+        card: card,
+        rects: rects,
+        originalOrder: currentSession.exercises.map((_, i) => i)
+      };
+      card.classList.add('dragging');
+    }
+
+    function moveDrag(clientY) {
+      if (!dragState) return;
+      dragState.currentY = clientY;
+      const delta = clientY - dragState.startY;
+      dragState.card.style.transform = `translateY(${delta}px)`;
+
+      // Determine new position
+      const cards = document.querySelectorAll('.exercise-card');
+      const dragRect = dragState.rects[dragState.ei];
+      const dragCenter = dragRect.top + dragRect.height / 2 + delta;
+
+      let newIndex = dragState.ei;
+      for (let i = 0; i < dragState.rects.length; i++) {
+        if (i === dragState.ei) continue;
+        const r = dragState.rects[i];
+        const center = r.top + r.height / 2;
+        if (dragState.ei < i && dragCenter > center) newIndex = i;
+        if (dragState.ei > i && dragCenter < center) newIndex = i;
+      }
+
+      // Visual feedback on other cards
+      cards.forEach((c, i) => {
+        if (i === dragState.ei) return;
+        if (dragState.ei < newIndex && i > dragState.ei && i <= newIndex) {
+          c.style.transform = `translateY(-${dragRect.height + 12}px)`;
+        } else if (dragState.ei > newIndex && i < dragState.ei && i >= newIndex) {
+          c.style.transform = `translateY(${dragRect.height + 12}px)`;
+        } else {
+          c.style.transform = '';
+        }
+      });
+
+      dragState.targetIndex = newIndex;
+    }
+
+    function endDrag() {
+      if (!dragState) return;
+      const { ei, targetIndex } = dragState;
+      const cards = document.querySelectorAll('.exercise-card');
+      cards.forEach(c => {
+        c.style.transform = '';
+        c.classList.remove('dragging');
+      });
+
+      if (targetIndex !== undefined && targetIndex !== ei) {
+        const [moved] = currentSession.exercises.splice(ei, 1);
+        currentSession.exercises.splice(targetIndex, 0, moved);
+
+        // Update collapsed indices
+        const newCollapsed = new Set();
+        const oldCollapsed = new Set(collapsedExercises);
+        collapsedExercises.clear();
+        // Re-map collapsed state
+        currentSession.exercises.forEach((ex, i) => {
+          // Find where this exercise was before
+          // Simple approach: just clear and let user re-collapse
+        });
+
+        renderExercises();
+      }
+      dragState = null;
     }
 
     // ==================== WARMUP TIMER ====================
@@ -1335,7 +1943,7 @@
     }
 
     function restFinished() {
-      if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
+      triggerHaptic('restTimerDone');
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         for (let i = 0; i < 3; i++) {
@@ -1370,6 +1978,7 @@
       currentSession.warmupDuration = warmupSeconds;
       currentSession.totalDuration = elapsedSeconds;
       currentSession.warmupNotes = document.getElementById('warmup-notes').value.trim();
+      currentSession.notes = document.getElementById('session-notes').value.trim();
       dismissRest();
 
       currentSession.exercises.forEach(ex => {
@@ -1377,9 +1986,17 @@
       });
 
       appData.sessions.push(currentSession);
+      rebuildAllPRs();
       saveData(appData);
-      currentSession = null;
-      showScreen('home');
+
+      triggerHaptic('workoutFinished');
+      launchConfetti();
+
+      // Delay screen transition to show confetti
+      setTimeout(() => {
+        currentSession = null;
+        showScreen('home');
+      }, 1200);
     }
 
     function confirmExit() {
@@ -1420,6 +2037,25 @@
           ? `<div class="hi-warmup">Warmup: ${formatTime(session.warmupDuration)}</div>` : '';
         const warmupNotes = session.warmupNotes
           ? `<div style="font-size:11px;color:var(--text3);margin-top:2px;">Notes: ${escapeHtml(session.warmupNotes)}</div>` : '';
+        const sessionNotes = session.notes
+          ? `<div class="hi-notes">${escapeHtml(session.notes)}</div>` : '';
+
+        // Check which sets were PRs at the time
+        const sessionPRs = {};
+        session.exercises.forEach(ex => {
+          let maxInSession = 0;
+          ex.sets.forEach(s => {
+            if (s.completed && s.weight !== '' && s.weight !== null) {
+              maxInSession = Math.max(maxInSession, Number(s.weight));
+            }
+          });
+          if (maxInSession > 0) {
+            const currentPR = appData.personalRecords[ex.name];
+            if (currentPR && currentPR.maxWeight === maxInSession && currentPR.date === session.date) {
+              sessionPRs[ex.name] = maxInSession;
+            }
+          }
+        });
 
         let details = '';
         session.exercises.forEach(ex => {
@@ -1430,7 +2066,9 @@
             const r = s.reps !== '' && s.reps !== null ? s.reps : '-';
             const checkClass = s.completed ? 'hi-check' : 'hi-miss';
             const checkMark = s.completed ? '&#10003;' : '&#9675;';
-            details += `<div class="hi-set-line"><span class="${checkClass}">${checkMark}</span> Set ${si + 1}: ${w} &times; ${r} reps</div>`;
+            const isPRSet = s.completed && sessionPRs[ex.name] && Number(s.weight) === sessionPRs[ex.name];
+            const prBadge = isPRSet ? ` <span class="hi-pr">${TROPHY_SVG} PR</span>` : '';
+            details += `<div class="hi-set-line"><span class="${checkClass}">${checkMark}</span> Set ${si + 1}: ${w} &times; ${r} reps${prBadge}</div>`;
           });
           details += '</div>';
         });
@@ -1440,7 +2078,7 @@
             <span class="hi-type"><span class="type-dot ${dotClass}"></span>Workout ${session.type}</span>
             <span class="hi-date">${formatDate(session.date)}</span>
           </div>
-          ${durationStr}${warmupStr}${warmupNotes}
+          ${durationStr}${warmupStr}${warmupNotes}${sessionNotes}
           <div class="hi-expand-hint">Tap to expand</div>
           <div class="hi-details">${details}</div>
         </div>`;
@@ -1449,17 +2087,286 @@
       list.innerHTML = html;
     }
 
+    // ==================== PROGRESS CHARTS ====================
+    function getExerciseProgressData(exerciseName) {
+      const data = [];
+      appData.sessions.forEach(s => {
+        const ex = s.exercises.find(e => e.name === exerciseName);
+        if (!ex) return;
+        let maxW = 0;
+        ex.sets.forEach(set => {
+          if (set.completed && set.weight !== '' && set.weight !== null) {
+            maxW = Math.max(maxW, Number(set.weight));
+          }
+        });
+        if (maxW > 0) {
+          data.push({ date: s.date, weight: maxW });
+        }
+      });
+      return data;
+    }
+
+    function drawProgressChart(canvas, data, exerciseName) {
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+      const w = rect.width;
+      const h = rect.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      if (data.length < 2) {
+        ctx.fillStyle = '#55556a';
+        ctx.font = '12px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Need at least 2 sessions', w / 2, h / 2);
+        return;
+      }
+
+      const padding = { top: 20, right: 16, bottom: 30, left: 40 };
+      const chartW = w - padding.left - padding.right;
+      const chartH = h - padding.top - padding.bottom;
+
+      const weights = data.map(d => d.weight);
+      const minW = Math.min(...weights) - 5;
+      const maxW = Math.max(...weights) + 5;
+      const range = maxW - minW || 1;
+
+      // Draw axes
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.lineWidth = 1;
+
+      // Y-axis labels
+      const ySteps = 4;
+      ctx.fillStyle = '#55556a';
+      ctx.font = '10px -apple-system, sans-serif';
+      ctx.textAlign = 'right';
+      for (let i = 0; i <= ySteps; i++) {
+        const val = minW + (range * i / ySteps);
+        const y = padding.top + chartH - (chartH * i / ySteps);
+        ctx.fillText(Math.round(val), padding.left - 6, y + 3);
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(w - padding.right, y);
+        ctx.stroke();
+      }
+
+      // X-axis labels
+      ctx.textAlign = 'center';
+      const xStep = Math.max(1, Math.floor(data.length / 5));
+      data.forEach((d, i) => {
+        if (i % xStep === 0 || i === data.length - 1) {
+          const x = padding.left + (chartW * i / (data.length - 1));
+          const dateLabel = d.date.slice(5); // MM-DD
+          ctx.fillText(dateLabel, x, h - 6);
+        }
+      });
+
+      // Draw gradient fill
+      const points = data.map((d, i) => ({
+        x: padding.left + (chartW * i / (data.length - 1)),
+        y: padding.top + chartH - (chartH * (d.weight - minW) / range)
+      }));
+
+      const gradient = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartH);
+      gradient.addColorStop(0, 'rgba(233,69,96,0.25)');
+      gradient.addColorStop(1, 'rgba(233,69,96,0)');
+
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, padding.top + chartH);
+      points.forEach(p => ctx.lineTo(p.x, p.y));
+      ctx.lineTo(points[points.length - 1].x, padding.top + chartH);
+      ctx.closePath();
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // Draw line
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
+      }
+      ctx.strokeStyle = '#e94560';
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      // Draw dots
+      points.forEach((p, i) => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#e94560';
+        ctx.fill();
+        ctx.strokeStyle = '#0f0f1a';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      });
+    }
+
+    function renderProgress() {
+      const container = document.getElementById('progress-charts');
+      const allExercises = new Set();
+      appData.sessions.forEach(s => {
+        s.exercises.forEach(ex => allExercises.add(ex.name));
+      });
+
+      if (allExercises.size === 0) {
+        container.innerHTML = '<div class="progress-empty">No workout data yet. Complete some workouts to see progress charts.</div>';
+        return;
+      }
+
+      let html = '';
+      allExercises.forEach(name => {
+        const data = getExerciseProgressData(name);
+        if (data.length === 0) return;
+        html += `<div class="progress-chart-card">
+          <div class="progress-chart-title">${escapeHtml(name)}</div>
+          <canvas class="progress-canvas" data-exercise="${escapeHtml(name)}"></canvas>
+        </div>`;
+      });
+
+      if (!html) {
+        container.innerHTML = '<div class="progress-empty">No completed sets with weights yet.</div>';
+        return;
+      }
+
+      container.innerHTML = html;
+
+      // Draw charts after DOM update
+      requestAnimationFrame(() => {
+        container.querySelectorAll('.progress-canvas').forEach(canvas => {
+          const name = canvas.getAttribute('data-exercise');
+          const data = getExerciseProgressData(name);
+          drawProgressChart(canvas, data, name);
+        });
+      });
+    }
+
+    // ==================== SWIPE GESTURES ====================
+    const SWIPE_SCREENS = ['history', 'home', 'settings'];
+    let swipeState = null;
+
+    function updateNavDots() {
+      const dots = document.getElementById('nav-dots');
+      const idx = SWIPE_SCREENS.indexOf(activeScreen);
+      // Hide dots during workout and progress
+      if (currentSession || activeScreen === 'workout' || activeScreen === 'progress') {
+        dots.classList.add('hidden');
+        return;
+      }
+      dots.classList.remove('hidden');
+      dots.querySelectorAll('.nav-dot').forEach((dot, i) => {
+        dot.classList.toggle('active', i === idx);
+      });
+    }
+
+    function initSwipeGestures() {
+      document.addEventListener('touchstart', onSwipeTouchStart, { passive: true });
+      document.addEventListener('touchmove', onSwipeTouchMove, { passive: false });
+      document.addEventListener('touchend', onSwipeTouchEnd, { passive: true });
+    }
+
+    function onSwipeTouchStart(e) {
+      // Disable during workout, progress, or when dragging exercises
+      if (currentSession || activeScreen === 'workout' || activeScreen === 'progress') return;
+      if (SWIPE_SCREENS.indexOf(activeScreen) === -1) return;
+      // Don't start swipe on interactive elements
+      const tag = e.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON') return;
+      if (e.target.closest('.drag-handle')) return;
+      if (dragState) return;
+
+      const touch = e.touches[0];
+      swipeState = {
+        startX: touch.clientX,
+        startY: touch.clientY,
+        currentX: touch.clientX,
+        locked: false,
+        isHorizontal: null,
+        startTime: Date.now()
+      };
+    }
+
+    function onSwipeTouchMove(e) {
+      if (!swipeState) return;
+      const touch = e.touches[0];
+      swipeState.currentX = touch.clientX;
+      const dx = touch.clientX - swipeState.startX;
+      const dy = touch.clientY - swipeState.startY;
+
+      // Determine direction lock
+      if (swipeState.isHorizontal === null && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
+        swipeState.isHorizontal = Math.abs(dx) > Math.abs(dy);
+      }
+
+      if (!swipeState.isHorizontal) return;
+
+      e.preventDefault();
+
+      // Visual feedback
+      const screen = document.getElementById(activeScreen);
+      if (screen) {
+        const clampedDx = Math.max(-120, Math.min(120, dx));
+        screen.style.transform = `translateX(${clampedDx}px)`;
+        screen.style.transition = 'none';
+      }
+    }
+
+    function onSwipeTouchEnd(e) {
+      if (!swipeState || !swipeState.isHorizontal) {
+        if (swipeState) {
+          const screen = document.getElementById(activeScreen);
+          if (screen) {
+            screen.style.transform = '';
+            screen.style.transition = '';
+          }
+        }
+        swipeState = null;
+        return;
+      }
+
+      const dx = swipeState.currentX - swipeState.startX;
+      const elapsed = Date.now() - swipeState.startTime;
+      const velocity = Math.abs(dx) / elapsed;
+      const threshold = 60;
+      const idx = SWIPE_SCREENS.indexOf(activeScreen);
+
+      const screen = document.getElementById(activeScreen);
+      if (screen) {
+        screen.style.transform = '';
+        screen.style.transition = 'transform 0.2s ease-out';
+        setTimeout(() => { screen.style.transition = ''; }, 200);
+      }
+
+      if ((Math.abs(dx) > threshold || velocity > 0.5)) {
+        if (dx > 0 && idx > 0) {
+          showScreen(SWIPE_SCREENS[idx - 1]);
+        } else if (dx < 0 && idx < SWIPE_SCREENS.length - 1) {
+          showScreen(SWIPE_SCREENS[idx + 1]);
+        }
+      }
+
+      swipeState = null;
+    }
+
     // ==================== SETTINGS ====================
     function loadSettings() {
       document.getElementById('set-rest').value = appData.settings.defaultRestTime;
       document.getElementById('set-unit').value = appData.settings.unit;
+      document.getElementById('set-haptics').checked = appData.settings.hapticsEnabled !== false;
     }
 
     function saveSettings() {
       const rest = parseInt(document.getElementById('set-rest').value) || 90;
       const unit = document.getElementById('set-unit').value;
+      const haptics = document.getElementById('set-haptics').checked;
       appData.settings.defaultRestTime = Math.max(10, Math.min(600, rest));
       appData.settings.unit = unit;
+      appData.settings.hapticsEnabled = haptics;
       saveData(appData);
       showScreen('home');
     }
@@ -1468,7 +2375,7 @@
       if (confirm('Delete ALL workout history? This cannot be undone.')) {
         if (confirm('Are you really sure?')) {
           localStorage.removeItem('workoutData');
-          appData = { sessions: [], settings: { defaultRestTime: 90, unit: 'kg' } };
+          appData = { sessions: [], settings: { defaultRestTime: 90, unit: 'kg', hapticsEnabled: true }, personalRecords: {} };
           showScreen('home');
         }
       }
@@ -1488,6 +2395,8 @@
 
     // ==================== INIT ====================
     renderHome();
+    initSwipeGestures();
+    updateNavDots();
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(() => {});
