@@ -394,7 +394,7 @@
       box-shadow: 0 8px 32px rgba(233,69,96,0.35);
     }
     #rest-banner.active { display: flex; align-items: center; justify-content: center; gap: 14px; }
-    #rest-banner .rest-label { font-size: 14px; opacity: 0.85; font-weight: 500; }
+    #rest-banner .rest-label { font-size: 13px; opacity: 0.85; font-weight: 500; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #rest-banner .rest-time {
       font-size: 28px;
       font-variant-numeric: tabular-nums;
@@ -1052,6 +1052,71 @@
     .swap-item-meta { font-size: 11px; color: var(--text2); margin-top: 1px; }
     .swap-item-weight { font-size: 12px; color: var(--text3); font-weight: 500; flex-shrink: 0; }
 
+    /* Exercise History Modal */
+    .history-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 300;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .history-overlay.active { display: flex; }
+    .history-modal {
+      background: var(--surface);
+      border-radius: var(--radius) var(--radius) 0 0;
+      padding: 20px 16px 32px;
+      width: 100%;
+      max-width: 480px;
+      max-height: 70vh;
+      display: flex;
+      flex-direction: column;
+      animation: slideUp 0.2s ease-out;
+    }
+    .history-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      flex-shrink: 0;
+    }
+    .history-modal-header h3 { font-size: 16px; font-weight: 700; }
+    .history-list {
+      overflow-y: auto;
+      flex: 1;
+      -webkit-overflow-scrolling: touch;
+    }
+    .history-session-item {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .history-session-item:last-child { border-bottom: none; }
+    .history-session-date {
+      font-size: 12px;
+      color: var(--text2);
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .history-session-sets {
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .history-session-sets .hist-set-line {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .history-session-sets .hist-check { color: var(--green); font-size: 11px; }
+    .history-session-sets .hist-miss { color: var(--text3); font-size: 11px; }
+    .history-empty {
+      text-align: center;
+      color: var(--text3);
+      padding: 24px 16px;
+      font-size: 13px;
+    }
+
     /* Save Routine Modal */
     .save-routine-overlay {
       display: none;
@@ -1275,6 +1340,17 @@
       </div>
     </div>
 
+    <!-- Exercise History Modal -->
+    <div class="history-overlay" id="exercise-history-overlay" onclick="closeExerciseHistory(event)">
+      <div class="history-modal">
+        <div class="history-modal-header">
+          <h3 id="exercise-history-title">Exercise History</h3>
+          <button class="notes-modal-close" onclick="closeExerciseHistory()">&times;</button>
+        </div>
+        <div class="history-list" id="exercise-history-list"></div>
+      </div>
+    </div>
+
     <!-- Save Routine Modal -->
     <div class="save-routine-overlay" id="save-routine-overlay">
       <div class="save-routine-modal">
@@ -1391,67 +1467,67 @@
     // ==================== EXERCISE LIBRARY ====================
     const EXERCISE_LIBRARY = [
       // Chest
-      { id:'bench-press-bb', name:'Bench Press (Barbell)', category:'Chest', equipment:'barbell', defaultSets:3, defaultReps:'10' },
-      { id:'bench-press-db', name:'Bench Press (Dumbbell)', category:'Chest', equipment:'dumbbell', defaultSets:3, defaultReps:'10' },
-      { id:'incline-bench-bb', name:'Incline Bench (Barbell)', category:'Chest', equipment:'barbell', defaultSets:3, defaultReps:'10' },
-      { id:'incline-bench-db', name:'Incline Bench (Dumbbell)', category:'Chest', equipment:'dumbbell', defaultSets:3, defaultReps:'10' },
-      { id:'decline-bench', name:'Decline Bench', category:'Chest', equipment:'barbell', defaultSets:3, defaultReps:'10' },
-      { id:'chest-fly', name:'Chest Fly', category:'Chest', equipment:'dumbbell', defaultSets:3, defaultReps:'12' },
-      { id:'cable-fly', name:'Cable Fly', category:'Chest', equipment:'cable', defaultSets:3, defaultReps:'12' },
-      { id:'chest-press-machine', name:'Chest Press Machine', category:'Chest', equipment:'machine', defaultSets:3, defaultReps:'12' },
-      { id:'push-ups', name:'Push-ups', category:'Chest', equipment:'bodyweight', defaultSets:3, defaultReps:'15' },
-      { id:'dips-chest', name:'Dips (Chest)', category:'Chest', equipment:'bodyweight', defaultSets:3, defaultReps:'10' },
+      { id:'bench-press-bb', name:'Bench Press (Barbell)', category:'Chest', equipment:'barbell', defaultSets:3, defaultReps:'10', defaultRest:180 },
+      { id:'bench-press-db', name:'Bench Press (Dumbbell)', category:'Chest', equipment:'dumbbell', defaultSets:3, defaultReps:'10', defaultRest:120 },
+      { id:'incline-bench-bb', name:'Incline Bench (Barbell)', category:'Chest', equipment:'barbell', defaultSets:3, defaultReps:'10', defaultRest:180 },
+      { id:'incline-bench-db', name:'Incline Bench (Dumbbell)', category:'Chest', equipment:'dumbbell', defaultSets:3, defaultReps:'10', defaultRest:120 },
+      { id:'decline-bench', name:'Decline Bench', category:'Chest', equipment:'barbell', defaultSets:3, defaultReps:'10', defaultRest:180 },
+      { id:'chest-fly', name:'Chest Fly', category:'Chest', equipment:'dumbbell', defaultSets:3, defaultReps:'12', defaultRest:90 },
+      { id:'cable-fly', name:'Cable Fly', category:'Chest', equipment:'cable', defaultSets:3, defaultReps:'12', defaultRest:90 },
+      { id:'chest-press-machine', name:'Chest Press Machine', category:'Chest', equipment:'machine', defaultSets:3, defaultReps:'12', defaultRest:90 },
+      { id:'push-ups', name:'Push-ups', category:'Chest', equipment:'bodyweight', defaultSets:3, defaultReps:'15', defaultRest:60 },
+      { id:'dips-chest', name:'Dips (Chest)', category:'Chest', equipment:'bodyweight', defaultSets:3, defaultReps:'10', defaultRest:90 },
       // Back
-      { id:'deadlift', name:'Deadlift', category:'Back', equipment:'barbell', defaultSets:4, defaultReps:'8' },
-      { id:'barbell-row', name:'Barbell Row', category:'Back', equipment:'barbell', defaultSets:3, defaultReps:'10' },
-      { id:'dumbbell-row', name:'Dumbbell Row', category:'Back', equipment:'dumbbell', defaultSets:3, defaultReps:'10' },
-      { id:'lat-pulldown', name:'Lat Pulldown', category:'Back', equipment:'cable', defaultSets:3, defaultReps:'10-12' },
-      { id:'pull-ups', name:'Pull-ups', category:'Back', equipment:'bodyweight', defaultSets:3, defaultReps:'8-10' },
-      { id:'chin-ups', name:'Chin-ups', category:'Back', equipment:'bodyweight', defaultSets:3, defaultReps:'8-10' },
-      { id:'seated-cable-row', name:'Seated Cable Row', category:'Back', equipment:'cable', defaultSets:3, defaultReps:'10-12' },
-      { id:'machine-row', name:'Machine Row', category:'Back', equipment:'machine', defaultSets:3, defaultReps:'10-12' },
-      { id:'t-bar-row', name:'T-Bar Row', category:'Back', equipment:'barbell', defaultSets:3, defaultReps:'10' },
-      { id:'face-pull', name:'Face Pull', category:'Back', equipment:'cable', defaultSets:3, defaultReps:'15' },
+      { id:'deadlift', name:'Deadlift', category:'Back', equipment:'barbell', defaultSets:4, defaultReps:'8', defaultRest:180 },
+      { id:'barbell-row', name:'Barbell Row', category:'Back', equipment:'barbell', defaultSets:3, defaultReps:'10', defaultRest:180 },
+      { id:'dumbbell-row', name:'Dumbbell Row', category:'Back', equipment:'dumbbell', defaultSets:3, defaultReps:'10', defaultRest:120 },
+      { id:'lat-pulldown', name:'Lat Pulldown', category:'Back', equipment:'cable', defaultSets:3, defaultReps:'10-12', defaultRest:90 },
+      { id:'pull-ups', name:'Pull-ups', category:'Back', equipment:'bodyweight', defaultSets:3, defaultReps:'8-10', defaultRest:90 },
+      { id:'chin-ups', name:'Chin-ups', category:'Back', equipment:'bodyweight', defaultSets:3, defaultReps:'8-10', defaultRest:90 },
+      { id:'seated-cable-row', name:'Seated Cable Row', category:'Back', equipment:'cable', defaultSets:3, defaultReps:'10-12', defaultRest:90 },
+      { id:'machine-row', name:'Machine Row', category:'Back', equipment:'machine', defaultSets:3, defaultReps:'10-12', defaultRest:90 },
+      { id:'t-bar-row', name:'T-Bar Row', category:'Back', equipment:'barbell', defaultSets:3, defaultReps:'10', defaultRest:120 },
+      { id:'face-pull', name:'Face Pull', category:'Back', equipment:'cable', defaultSets:3, defaultReps:'15', defaultRest:60 },
       // Shoulders
-      { id:'ohp-bb', name:'Overhead Press (Barbell)', category:'Shoulders', equipment:'barbell', defaultSets:4, defaultReps:'8' },
-      { id:'ohp-db', name:'Overhead Press (Dumbbell)', category:'Shoulders', equipment:'dumbbell', defaultSets:3, defaultReps:'10' },
-      { id:'lateral-raise', name:'Lateral Raise', category:'Shoulders', equipment:'dumbbell', defaultSets:3, defaultReps:'12-15' },
-      { id:'front-raise', name:'Front Raise', category:'Shoulders', equipment:'dumbbell', defaultSets:3, defaultReps:'12' },
-      { id:'reverse-fly', name:'Reverse Fly', category:'Shoulders', equipment:'dumbbell', defaultSets:3, defaultReps:'12-15' },
-      { id:'arnold-press', name:'Arnold Press', category:'Shoulders', equipment:'dumbbell', defaultSets:3, defaultReps:'10' },
-      { id:'cable-lateral-raise', name:'Cable Lateral Raise', category:'Shoulders', equipment:'cable', defaultSets:3, defaultReps:'12-15' },
-      { id:'shrugs-bb', name:'Shrugs (Barbell)', category:'Shoulders', equipment:'barbell', defaultSets:3, defaultReps:'12' },
-      { id:'shrugs-db', name:'Shrugs (Dumbbell)', category:'Shoulders', equipment:'dumbbell', defaultSets:3, defaultReps:'12' },
+      { id:'ohp-bb', name:'Overhead Press (Barbell)', category:'Shoulders', equipment:'barbell', defaultSets:4, defaultReps:'8', defaultRest:180 },
+      { id:'ohp-db', name:'Overhead Press (Dumbbell)', category:'Shoulders', equipment:'dumbbell', defaultSets:3, defaultReps:'10', defaultRest:120 },
+      { id:'lateral-raise', name:'Lateral Raise', category:'Shoulders', equipment:'dumbbell', defaultSets:3, defaultReps:'12-15', defaultRest:60 },
+      { id:'front-raise', name:'Front Raise', category:'Shoulders', equipment:'dumbbell', defaultSets:3, defaultReps:'12', defaultRest:60 },
+      { id:'reverse-fly', name:'Reverse Fly', category:'Shoulders', equipment:'dumbbell', defaultSets:3, defaultReps:'12-15', defaultRest:60 },
+      { id:'arnold-press', name:'Arnold Press', category:'Shoulders', equipment:'dumbbell', defaultSets:3, defaultReps:'10', defaultRest:120 },
+      { id:'cable-lateral-raise', name:'Cable Lateral Raise', category:'Shoulders', equipment:'cable', defaultSets:3, defaultReps:'12-15', defaultRest:60 },
+      { id:'shrugs-bb', name:'Shrugs (Barbell)', category:'Shoulders', equipment:'barbell', defaultSets:3, defaultReps:'12', defaultRest:90 },
+      { id:'shrugs-db', name:'Shrugs (Dumbbell)', category:'Shoulders', equipment:'dumbbell', defaultSets:3, defaultReps:'12', defaultRest:90 },
       // Legs
-      { id:'squat-bb', name:'Squat (Barbell)', category:'Legs', equipment:'barbell', defaultSets:4, defaultReps:'8' },
-      { id:'front-squat', name:'Front Squat', category:'Legs', equipment:'barbell', defaultSets:3, defaultReps:'8' },
-      { id:'goblet-squat', name:'Goblet Squat', category:'Legs', equipment:'dumbbell', defaultSets:3, defaultReps:'10' },
-      { id:'leg-press', name:'Leg Press', category:'Legs', equipment:'machine', defaultSets:3, defaultReps:'10-15' },
-      { id:'rdl', name:'Romanian Deadlift', category:'Legs', equipment:'barbell', defaultSets:3, defaultReps:'10' },
-      { id:'lunges', name:'Lunges', category:'Legs', equipment:'dumbbell', defaultSets:3, defaultReps:'10' },
-      { id:'bulgarian-split-squat', name:'Bulgarian Split Squat', category:'Legs', equipment:'dumbbell', defaultSets:3, defaultReps:'10' },
-      { id:'leg-extension', name:'Leg Extension', category:'Legs', equipment:'machine', defaultSets:3, defaultReps:'12' },
-      { id:'leg-curl', name:'Leg Curl', category:'Legs', equipment:'machine', defaultSets:3, defaultReps:'12' },
-      { id:'calf-raise', name:'Calf Raise', category:'Legs', equipment:'machine', defaultSets:4, defaultReps:'15' },
-      { id:'hip-thrust', name:'Hip Thrust', category:'Legs', equipment:'barbell', defaultSets:3, defaultReps:'10' },
+      { id:'squat-bb', name:'Squat (Barbell)', category:'Legs', equipment:'barbell', defaultSets:4, defaultReps:'8', defaultRest:180 },
+      { id:'front-squat', name:'Front Squat', category:'Legs', equipment:'barbell', defaultSets:3, defaultReps:'8', defaultRest:180 },
+      { id:'goblet-squat', name:'Goblet Squat', category:'Legs', equipment:'dumbbell', defaultSets:3, defaultReps:'10', defaultRest:120 },
+      { id:'leg-press', name:'Leg Press', category:'Legs', equipment:'machine', defaultSets:3, defaultReps:'10-15', defaultRest:120 },
+      { id:'rdl', name:'Romanian Deadlift', category:'Legs', equipment:'barbell', defaultSets:3, defaultReps:'10', defaultRest:120 },
+      { id:'lunges', name:'Lunges', category:'Legs', equipment:'dumbbell', defaultSets:3, defaultReps:'10', defaultRest:90 },
+      { id:'bulgarian-split-squat', name:'Bulgarian Split Squat', category:'Legs', equipment:'dumbbell', defaultSets:3, defaultReps:'10', defaultRest:90 },
+      { id:'leg-extension', name:'Leg Extension', category:'Legs', equipment:'machine', defaultSets:3, defaultReps:'12', defaultRest:90 },
+      { id:'leg-curl', name:'Leg Curl', category:'Legs', equipment:'machine', defaultSets:3, defaultReps:'12', defaultRest:90 },
+      { id:'calf-raise', name:'Calf Raise', category:'Legs', equipment:'machine', defaultSets:4, defaultReps:'15', defaultRest:60 },
+      { id:'hip-thrust', name:'Hip Thrust', category:'Legs', equipment:'barbell', defaultSets:3, defaultReps:'10', defaultRest:120 },
       // Arms
-      { id:'bicep-curl-bb', name:'Bicep Curl (Barbell)', category:'Arms', equipment:'barbell', defaultSets:3, defaultReps:'10-15' },
-      { id:'bicep-curl-db', name:'Bicep Curl (Dumbbell)', category:'Arms', equipment:'dumbbell', defaultSets:3, defaultReps:'10-15' },
-      { id:'hammer-curl', name:'Hammer Curl', category:'Arms', equipment:'dumbbell', defaultSets:3, defaultReps:'10-12' },
-      { id:'cable-curl', name:'Cable Curl', category:'Arms', equipment:'cable', defaultSets:3, defaultReps:'12' },
-      { id:'preacher-curl', name:'Preacher Curl', category:'Arms', equipment:'barbell', defaultSets:3, defaultReps:'10' },
-      { id:'tricep-pushdown', name:'Tricep Pushdown', category:'Arms', equipment:'cable', defaultSets:3, defaultReps:'12' },
-      { id:'overhead-extension', name:'Overhead Extension', category:'Arms', equipment:'dumbbell', defaultSets:3, defaultReps:'12' },
-      { id:'skull-crushers', name:'Skull Crushers', category:'Arms', equipment:'barbell', defaultSets:3, defaultReps:'10' },
-      { id:'close-grip-bench', name:'Close Grip Bench', category:'Arms', equipment:'barbell', defaultSets:3, defaultReps:'10' },
-      { id:'dips-tricep', name:'Dips (Tricep)', category:'Arms', equipment:'bodyweight', defaultSets:3, defaultReps:'10' },
+      { id:'bicep-curl-bb', name:'Bicep Curl (Barbell)', category:'Arms', equipment:'barbell', defaultSets:3, defaultReps:'10-15', defaultRest:90 },
+      { id:'bicep-curl-db', name:'Bicep Curl (Dumbbell)', category:'Arms', equipment:'dumbbell', defaultSets:3, defaultReps:'10-15', defaultRest:60 },
+      { id:'hammer-curl', name:'Hammer Curl', category:'Arms', equipment:'dumbbell', defaultSets:3, defaultReps:'10-12', defaultRest:60 },
+      { id:'cable-curl', name:'Cable Curl', category:'Arms', equipment:'cable', defaultSets:3, defaultReps:'12', defaultRest:60 },
+      { id:'preacher-curl', name:'Preacher Curl', category:'Arms', equipment:'barbell', defaultSets:3, defaultReps:'10', defaultRest:90 },
+      { id:'tricep-pushdown', name:'Tricep Pushdown', category:'Arms', equipment:'cable', defaultSets:3, defaultReps:'12', defaultRest:60 },
+      { id:'overhead-extension', name:'Overhead Extension', category:'Arms', equipment:'dumbbell', defaultSets:3, defaultReps:'12', defaultRest:60 },
+      { id:'skull-crushers', name:'Skull Crushers', category:'Arms', equipment:'barbell', defaultSets:3, defaultReps:'10', defaultRest:90 },
+      { id:'close-grip-bench', name:'Close Grip Bench', category:'Arms', equipment:'barbell', defaultSets:3, defaultReps:'10', defaultRest:120 },
+      { id:'dips-tricep', name:'Dips (Tricep)', category:'Arms', equipment:'bodyweight', defaultSets:3, defaultReps:'10', defaultRest:60 },
       // Core
-      { id:'plank', name:'Plank', category:'Core', equipment:'bodyweight', defaultSets:3, defaultReps:'60s' },
-      { id:'hanging-leg-raise', name:'Hanging Leg Raise', category:'Core', equipment:'bodyweight', defaultSets:3, defaultReps:'12' },
-      { id:'cable-crunch', name:'Cable Crunch', category:'Core', equipment:'cable', defaultSets:3, defaultReps:'15' },
-      { id:'ab-wheel', name:'Ab Wheel', category:'Core', equipment:'bodyweight', defaultSets:3, defaultReps:'10' },
-      { id:'russian-twist', name:'Russian Twist', category:'Core', equipment:'bodyweight', defaultSets:3, defaultReps:'20' },
-      { id:'decline-sit-up', name:'Decline Sit-up', category:'Core', equipment:'bodyweight', defaultSets:3, defaultReps:'15' },
+      { id:'plank', name:'Plank', category:'Core', equipment:'bodyweight', defaultSets:3, defaultReps:'60s', defaultRest:60 },
+      { id:'hanging-leg-raise', name:'Hanging Leg Raise', category:'Core', equipment:'bodyweight', defaultSets:3, defaultReps:'12', defaultRest:60 },
+      { id:'cable-crunch', name:'Cable Crunch', category:'Core', equipment:'cable', defaultSets:3, defaultReps:'15', defaultRest:60 },
+      { id:'ab-wheel', name:'Ab Wheel', category:'Core', equipment:'bodyweight', defaultSets:3, defaultReps:'10', defaultRest:60 },
+      { id:'russian-twist', name:'Russian Twist', category:'Core', equipment:'bodyweight', defaultSets:3, defaultReps:'20', defaultRest:60 },
+      { id:'decline-sit-up', name:'Decline Sit-up', category:'Core', equipment:'bodyweight', defaultSets:3, defaultReps:'15', defaultRest:60 },
     ];
 
     const LIBRARY_MAP = {};
@@ -1772,8 +1848,8 @@
       const thisMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
       const monthSessions = appData.sessions.filter(s => s.date.startsWith(thisMonth));
       const totalWorkouts = monthSessions.length;
-      const totalSets = monthSessions.reduce((sum, s) =>
-        sum + s.exercises.reduce((esum, ex) => esum + ex.sets.filter(st => st.completed).length, 0), 0);
+      const totalVolume = monthSessions.reduce((sum, s) => sum + calcSessionVolume(s), 0);
+      const unit = appData.settings.unit;
 
       document.getElementById('stats-row').innerHTML = `
         <div class="stat-card">
@@ -1781,8 +1857,8 @@
           <div class="stat-label">Workouts this month</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value accent-b">${totalSets}</div>
-          <div class="stat-label">Sets this month</div>
+          <div class="stat-value accent-b">${formatVolume(totalVolume)}</div>
+          <div class="stat-label">Volume this month (${unit})</div>
         </div>`;
     }
 
@@ -1997,7 +2073,7 @@
           <div class="ex-header">
             <div class="drag-handle" data-ei="${ei}">${DRAG_HANDLE_SVG}</div>
             <div class="ex-icon ${eqType}" onclick="toggleCollapse(${ei})">${getExIcon(eqType)}</div>
-            <h3 onclick="toggleCollapse(${ei})">${escapeHtml(ex.name)}</h3>
+            <h3 onclick="openExerciseHistory(${ei})">${escapeHtml(ex.name)}</h3>
             <span class="${badgeClass}">${doneCount}/${totalCount}</span>
             <button class="swap-btn" onclick="event.stopPropagation();openSwapModal(${ei})" title="Swap exercise">${SWAP_SVG}</button>
             <button class="swap-btn" onclick="event.stopPropagation();removeExercise(${ei})" title="Remove exercise" style="color:var(--accent)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
@@ -2147,7 +2223,7 @@
         }
       }
 
-      if (set.completed) startRestTimer();
+      if (set.completed) startRestTimer(ei);
     }
 
     function addSet(ei) {
@@ -2316,6 +2392,53 @@
       document.getElementById('notes-btn').classList.toggle('has-notes', hasText);
     }
 
+    // ==================== EXERCISE HISTORY QUICK-VIEW ====================
+    function getExerciseHistory(name, limit = 5) {
+      const results = [];
+      for (let i = appData.sessions.length - 1; i >= 0 && results.length < limit; i--) {
+        const ex = appData.sessions[i].exercises.find(e => e.name === name);
+        if (ex) results.push({ date: appData.sessions[i].date, sets: ex.sets });
+      }
+      return results;
+    }
+
+    function openExerciseHistory(ei) {
+      if (!currentSession) return;
+      const ex = currentSession.exercises[ei];
+      const history = getExerciseHistory(ex.name);
+      const unit = appData.settings.unit;
+
+      document.getElementById('exercise-history-title').textContent = ex.name;
+
+      if (history.length === 0) {
+        document.getElementById('exercise-history-list').innerHTML =
+          '<div class="history-empty">No previous sessions found for this exercise.</div>';
+      } else {
+        let html = '';
+        history.forEach(h => {
+          html += '<div class="history-session-item">';
+          html += `<div class="history-session-date">${formatDate(h.date)}</div>`;
+          html += '<div class="history-session-sets">';
+          h.sets.forEach((s, si) => {
+            const w = s.weight !== '' && s.weight !== null ? s.weight + ' ' + unit : '-';
+            const r = s.reps !== '' && s.reps !== null ? s.reps : '-';
+            const checkClass = s.completed ? 'hist-check' : 'hist-miss';
+            const checkMark = s.completed ? '&#10003;' : '&#9675;';
+            html += `<div class="hist-set-line"><span class="${checkClass}">${checkMark}</span> Set ${si + 1}: ${w} &times; ${r} reps</div>`;
+          });
+          html += '</div></div>';
+        });
+        document.getElementById('exercise-history-list').innerHTML = html;
+      }
+
+      document.getElementById('exercise-history-overlay').classList.add('active');
+    }
+
+    function closeExerciseHistory(e) {
+      if (e && e.target !== e.currentTarget && !e.target.closest('.notes-modal-close')) return;
+      document.getElementById('exercise-history-overlay').classList.remove('active');
+    }
+
     function formatTime(totalSec) {
       const m = Math.floor(totalSec / 60);
       const s = totalSec % 60;
@@ -2326,9 +2449,20 @@
     let restInterval = null;
     let restRemaining = 0;
 
-    function startRestTimer() {
+    function startRestTimer(ei) {
       clearInterval(restInterval);
-      restRemaining = appData.settings.defaultRestTime;
+      let restTime = appData.settings.defaultRestTime;
+      let restExName = 'REST';
+      if (ei !== undefined && currentSession && currentSession.exercises[ei]) {
+        const ex = currentSession.exercises[ei];
+        restExName = ex.name;
+        const libEx = EXERCISE_LIBRARY.find(e => e.name === ex.name);
+        if (libEx && libEx.defaultRest) {
+          restTime = libEx.defaultRest;
+        }
+      }
+      restRemaining = restTime;
+      document.querySelector('#rest-banner .rest-label').textContent = restExName;
       document.getElementById('rest-banner').classList.add('active');
       updateRestDisplay();
 
@@ -2397,6 +2531,7 @@
 
       clearInterval(elapsedInterval);
       currentSession.totalDuration = elapsedSeconds;
+      currentSession.totalVolume = calcSessionVolume(currentSession);
       currentSession.notes = document.getElementById('session-notes').value.trim();
       dismissRest();
 
@@ -2655,6 +2790,9 @@
         const rName = session.routineName || ('Workout ' + (session.type || '?'));
         const durationStr = session.totalDuration > 0
           ? `<div style="font-size:12px;color:var(--green);margin-top:4px;font-weight:500;">Duration: ${formatTime(session.totalDuration)}</div>` : '';
+        const sessionVol = calcSessionVolume(session);
+        const volumeStr = sessionVol > 0
+          ? `<div style="font-size:12px;color:var(--accent2);margin-top:2px;font-weight:500;">Volume: ${formatVolume(sessionVol)} ${unit}</div>` : '';
         const sessionNotes = session.notes
           ? `<div class="hi-notes">${escapeHtml(session.notes)}</div>` : '';
 
@@ -2696,7 +2834,7 @@
             <span class="hi-type"><span class="type-dot" style="background:${dotColor}"></span>${escapeHtml(rName)}</span>
             <span class="hi-date">${formatDate(session.date)}</span>
           </div>
-          ${durationStr}${sessionNotes}
+          ${durationStr}${volumeStr}${sessionNotes}
           <div class="hi-expand-hint">Tap to expand</div>
           <div class="hi-details">${details}</div>
         </div>`;
@@ -3009,6 +3147,20 @@
       const div = document.createElement('div');
       div.textContent = str;
       return div.innerHTML;
+    }
+
+    // ==================== VOLUME TRACKING ====================
+    function calcSessionVolume(session) {
+      return session.exercises.reduce((total, ex) =>
+        total + ex.sets.reduce((sum, s) => {
+          if (s.completed && s.weight && s.reps)
+            return sum + Number(s.weight) * Number(s.reps);
+          return sum;
+        }, 0), 0);
+    }
+
+    function formatVolume(vol) {
+      return vol.toLocaleString('en-US');
     }
 
     // ==================== INIT ====================
