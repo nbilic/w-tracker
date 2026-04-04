@@ -616,11 +616,11 @@
       display: inline-block;
     }
     .ex-body { overflow: hidden; transition: max-height 0.3s ease-out, opacity 0.25s ease-out; opacity: 1; }
-    .exercise-card.collapsed .ex-body { max-height: 0 !important; opacity: 0; pointer-events: none; }
+    .exercise-card.collapsed .ex-body { opacity: 0; pointer-events: none; }
     .ex-target { transition: margin-bottom 0.25s ease-out, opacity 0.25s ease-out; }
     .exercise-card.collapsed .ex-target { margin-bottom: 0; opacity: 0.5; }
     .overload-hint { transition: max-height 0.25s ease-out, opacity 0.25s ease-out, margin 0.25s ease-out; overflow: hidden; }
-    .exercise-card.collapsed .overload-hint { max-height: 0 !important; opacity: 0; margin: 0; padding: 0; }
+    .exercise-card.collapsed .overload-hint { opacity: 0; margin: 0; padding: 0; }
 
     /* Set header row */
     .set-header {
@@ -2294,11 +2294,15 @@
           setTimeout(() => { hint.style.maxHeight = ''; }, 300);
         }
       } else {
-        // Collapsing - set explicit height first so transition works
+        // Collapsing - set explicit height, force reflow, then transition to 0
         collapsedExercises.add(ei);
         if (body) body.style.maxHeight = body.scrollHeight + 'px';
         if (hint) hint.style.maxHeight = hint.scrollHeight + 'px';
-        requestAnimationFrame(() => { card.classList.add('collapsed'); });
+        // Force browser to register the current height before animating
+        card.offsetHeight;
+        if (body) body.style.maxHeight = '0px';
+        if (hint) hint.style.maxHeight = '0px';
+        card.classList.add('collapsed');
       }
 
       // Update badge
