@@ -615,10 +615,12 @@
       border-radius: 6px;
       display: inline-block;
     }
-    .ex-body { overflow: hidden; }
-    .exercise-card.collapsed .ex-body { display: none; }
-    .exercise-card.collapsed .ex-target { margin-bottom: 0; }
-    .exercise-card.collapsed .overload-hint { display: none; }
+    .ex-body { overflow: hidden; transition: max-height 0.3s ease-out, opacity 0.25s ease-out; opacity: 1; }
+    .exercise-card.collapsed .ex-body { max-height: 0 !important; opacity: 0; pointer-events: none; }
+    .ex-target { transition: margin-bottom 0.25s ease-out, opacity 0.25s ease-out; }
+    .exercise-card.collapsed .ex-target { margin-bottom: 0; opacity: 0.5; }
+    .overload-hint { transition: max-height 0.25s ease-out, opacity 0.25s ease-out, margin 0.25s ease-out; overflow: hidden; }
+    .exercise-card.collapsed .overload-hint { max-height: 0 !important; opacity: 0; margin: 0; padding: 0; }
 
     /* Set header row */
     .set-header {
@@ -2274,14 +2276,32 @@
     const collapsedExercises = new Set();
 
     function toggleCollapse(ei) {
-      if (collapsedExercises.has(ei)) {
-        collapsedExercises.delete(ei);
-      } else {
-        collapsedExercises.add(ei);
-      }
       const card = document.getElementById('ex-' + ei);
-      if (card) card.classList.toggle('collapsed');
-      // Update badge in case it changed
+      if (!card) return;
+      const body = card.querySelector('.ex-body');
+      const hint = card.querySelector('.overload-hint');
+
+      if (collapsedExercises.has(ei)) {
+        // Expanding
+        collapsedExercises.delete(ei);
+        card.classList.remove('collapsed');
+        if (body) {
+          body.style.maxHeight = body.scrollHeight + 'px';
+          setTimeout(() => { body.style.maxHeight = ''; }, 300);
+        }
+        if (hint) {
+          hint.style.maxHeight = hint.scrollHeight + 'px';
+          setTimeout(() => { hint.style.maxHeight = ''; }, 300);
+        }
+      } else {
+        // Collapsing - set explicit height first so transition works
+        collapsedExercises.add(ei);
+        if (body) body.style.maxHeight = body.scrollHeight + 'px';
+        if (hint) hint.style.maxHeight = hint.scrollHeight + 'px';
+        requestAnimationFrame(() => { card.classList.add('collapsed'); });
+      }
+
+      // Update badge
       const ex = currentSession.exercises[ei];
       const doneCount = ex.sets.filter(s => s.completed).length;
       const badge = card.querySelector('.ex-badge');
