@@ -2000,7 +2000,7 @@
 
       // Show continue button if workout is active
       if (currentSession) {
-        const elapsed = formatTime(elapsedSeconds);
+        const elapsed = formatTime(getElapsedSeconds());
         html += `<button class="btn-continue-workout" onclick="showScreen('workout')">
           Continue ${escapeHtml(currentSession.routineName || 'Workout')}
           <span class="continue-timer">${elapsed}</span>
@@ -2204,7 +2204,6 @@
       if (currentSession) {
         localStorage.setItem('workoutBackup', JSON.stringify({
           session: currentSession,
-          elapsed: elapsedSeconds,
           timestamp: Date.now()
         }));
       }
@@ -2231,15 +2230,12 @@
         }
         // Silently restore the workout - user can resume from home screen
         currentSession = backup.session;
-        elapsedSeconds = backup.elapsed || 0;
         clearInterval(elapsedInterval);
         elapsedInterval = setInterval(() => {
-          elapsedSeconds++;
-          document.getElementById('elapsed-display').textContent = formatTime(elapsedSeconds);
-          if (elapsedSeconds % 60 === 0) saveSessionBackup();
+          document.getElementById('elapsed-display').textContent = formatTime(getElapsedSeconds());
         }, 1000);
         document.getElementById('workout-title').textContent = currentSession.routineName || 'Workout';
-        document.getElementById('elapsed-display').textContent = formatTime(elapsedSeconds);
+        document.getElementById('elapsed-display').textContent = formatTime(getElapsedSeconds());
         document.getElementById('session-notes').value = currentSession.notes || '';
         document.getElementById('notes-btn').classList.toggle('has-notes', !!(currentSession.notes && currentSession.notes.trim()));
         collapsedExercises.clear();
@@ -2255,7 +2251,11 @@
     // ==================== ACTIVE WORKOUT ====================
     let currentSession = null;
     let elapsedInterval = null;
-    let elapsedSeconds = 0;
+
+    function getElapsedSeconds() {
+      if (!currentSession || !currentSession.startedAt) return 0;
+      return Math.floor((Date.now() - currentSession.startedAt) / 1000);
+    }
 
     function findLastSessionWithExercise(name) {
       for (let i = appData.sessions.length - 1; i >= 0; i--) {
@@ -2280,6 +2280,7 @@
 
       currentSession = {
         id: Date.now(),
+        startedAt: Date.now(),
         routineId: routine.id,
         routineName: routine.name,
         type: routine.id === 'default-a' ? 'A' : routine.id === 'default-b' ? 'B' : 'C',
@@ -2316,12 +2317,9 @@
         })
       };
 
-      elapsedSeconds = 0;
       clearInterval(elapsedInterval);
       elapsedInterval = setInterval(() => {
-        elapsedSeconds++;
-        document.getElementById('elapsed-display').textContent = formatTime(elapsedSeconds);
-        if (elapsedSeconds % 60 === 0) saveSessionBackup();
+        document.getElementById('elapsed-display').textContent = formatTime(getElapsedSeconds());
       }, 1000);
       saveSessionBackup();
 
@@ -2900,7 +2898,7 @@
       clearInterval(elapsedInterval);
       clearSessionBackup();
       releaseWakeLock();
-      currentSession.totalDuration = elapsedSeconds;
+      currentSession.totalDuration = getElapsedSeconds();
       currentSession.totalVolume = calcSessionVolume(currentSession);
       currentSession.notes = document.getElementById('session-notes').value.trim();
       dismissRest();
