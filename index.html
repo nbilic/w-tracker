@@ -354,11 +354,21 @@
     .btn-small { padding: 7px 14px; font-size: 13px; }
 
     /* ========== HEADER ========== */
+    .workout-sticky-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--bg);
+      padding: 0 0 8px;
+      margin: 0 -16px;
+      padding-left: 16px;
+      padding-right: 16px;
+    }
     .header {
       display: flex;
       align-items: center;
       gap: 12px;
-      margin-bottom: 24px;
+      margin-bottom: 0;
       padding-top: 4px;
     }
     .header .back {
@@ -394,29 +404,30 @@
       border-radius: 8px;
       border: 1px solid rgba(52,211,153,0.15);
       letter-spacing: 0.5px;
-      cursor: default;
-      transition: background 0.2s, color 0.2s, border-color 0.2s;
-    }
-    .elapsed-badge.resting {
-      background: var(--red-dim);
-      color: var(--accent);
-      border-color: rgba(233,69,96,0.25);
-      cursor: pointer;
     }
 
     /* ========== REST CONTROLS BAR ========== */
     .rest-controls {
       display: none;
       align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 8px 0 4px;
+      gap: 10px;
+      padding: 10px 0 4px;
+      border-top: 1px solid var(--border);
+      margin-top: 10px;
     }
     .rest-controls.active { display: flex; }
+    .rest-controls .rest-time-display {
+      font-size: 20px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: var(--accent);
+      letter-spacing: 0.5px;
+      min-width: 52px;
+    }
     .rest-controls .rest-ex-name {
       font-size: 11px;
       color: var(--text2);
-      max-width: 120px;
+      flex: 1;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -425,9 +436,9 @@
       background: var(--surface2);
       border: 1px solid var(--border);
       color: var(--text2);
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 11px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 13px;
       font-weight: 600;
       cursor: pointer;
     }
@@ -1353,22 +1364,25 @@
 
   <!-- Active Workout Screen -->
   <div id="workout" class="screen">
-    <div class="header">
-      <button class="back" onclick="confirmExit()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
-      <h2 id="workout-title">Workout A</h2>
-      <button class="notes-btn" id="notes-btn" onclick="openNotesModal()" title="Workout notes">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
-      </button>
-      <span class="elapsed-badge" id="elapsed-display" onclick="onBadgeTap()">00:00</span>
-    </div>
+    <div class="workout-sticky-header">
+      <div class="header">
+        <button class="back" onclick="confirmExit()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <h2 id="workout-title">Workout A</h2>
+        <button class="notes-btn" id="notes-btn" onclick="openNotesModal()" title="Workout notes">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+        </button>
+        <span class="elapsed-badge" id="elapsed-display">00:00</span>
+      </div>
 
-    <div class="rest-controls" id="rest-controls">
-      <span class="rest-ex-name" id="rest-ex-name">REST</span>
-      <button onclick="adjustRest(-30)">-30s</button>
-      <button onclick="adjustRest(30)">+30s</button>
-      <button class="rest-skip" onclick="dismissRest()">Skip</button>
+      <div class="rest-controls" id="rest-controls">
+        <span class="rest-time-display" id="rest-time-display">01:30</span>
+        <span class="rest-ex-name" id="rest-ex-name">REST</span>
+        <button onclick="adjustRest(-30)">-30s</button>
+        <button onclick="adjustRest(30)">+30s</button>
+        <button class="rest-skip" onclick="dismissRest()">Skip</button>
+      </div>
     </div>
 
     <div id="exercises-container"></div>
@@ -2161,7 +2175,7 @@
           clearInterval(elapsedInterval);
           elapsedInterval = setInterval(() => {
             elapsedSeconds++;
-            if (!isResting) document.getElementById('elapsed-display').textContent = formatTime(elapsedSeconds);
+            document.getElementById('elapsed-display').textContent = formatTime(elapsedSeconds);
             if (elapsedSeconds % 15 === 0) saveSessionBackup();
           }, 1000);
           document.getElementById('workout-title').textContent = currentSession.routineName || 'Workout';
@@ -2240,7 +2254,7 @@
       clearInterval(elapsedInterval);
       elapsedInterval = setInterval(() => {
         elapsedSeconds++;
-        if (!isResting) document.getElementById('elapsed-display').textContent = formatTime(elapsedSeconds);
+        document.getElementById('elapsed-display').textContent = formatTime(elapsedSeconds);
         if (elapsedSeconds % 15 === 0) saveSessionBackup();
       }, 1000);
       saveSessionBackup();
@@ -2464,15 +2478,7 @@
           // Auto-collapse this exercise if all its sets are done
           const thisEx = currentSession.exercises[ei];
           if (thisEx.sets.every(s => s.completed) && !collapsedExercises.has(ei)) {
-            setTimeout(() => {
-              toggleCollapse(ei);
-              // Auto-scroll to next incomplete exercise
-              const nextEi = currentSession.exercises.findIndex((ex, i) => i > ei && !ex.sets.every(s => s.completed));
-              if (nextEi !== -1) {
-                const nextCard = document.getElementById('ex-' + nextEi);
-                if (nextCard) nextCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }
-            }, 400);
+            setTimeout(() => { toggleCollapse(ei); }, 400);
           }
         }
       }
@@ -2729,8 +2735,6 @@
       isResting = true;
       document.getElementById('rest-ex-name').textContent = restExName;
       document.getElementById('rest-controls').classList.add('active');
-      const badge = document.getElementById('elapsed-display');
-      badge.classList.add('resting');
       updateRestDisplay();
 
       restInterval = setInterval(() => {
@@ -2745,10 +2749,7 @@
     }
 
     function updateRestDisplay() {
-      const badge = document.getElementById('elapsed-display');
-      if (isResting) {
-        badge.textContent = formatTime(restRemaining);
-      }
+      document.getElementById('rest-time-display').textContent = formatTime(restRemaining);
     }
 
     function adjustRest(delta) {
@@ -2759,14 +2760,7 @@
     function dismissRest() {
       clearInterval(restInterval);
       isResting = false;
-      const badge = document.getElementById('elapsed-display');
-      badge.classList.remove('resting');
-      badge.textContent = formatTime(elapsedSeconds);
       document.getElementById('rest-controls').classList.remove('active');
-    }
-
-    function onBadgeTap() {
-      if (isResting) dismissRest();
     }
 
     function restFinished() {
