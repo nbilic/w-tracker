@@ -257,6 +257,21 @@
     .lw-title { font-size: 13px; font-weight: 600; }
     .lw-sub { font-size: 11px; color: var(--text2); margin-top: 1px; }
     .lw-arrow { color: var(--text3); font-size: 14px; }
+    .lw-undo {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--accent);
+      width: 30px; height: 30px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      padding: 0;
+    }
+    .lw-undo:active { background: var(--surface3); }
+    .lw-undo svg { width: 14px; height: 14px; }
 
     /* Personal Records Section */
     .pr-section {
@@ -379,42 +394,47 @@
       border-radius: 8px;
       border: 1px solid rgba(52,211,153,0.15);
       letter-spacing: 0.5px;
+      cursor: default;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    .elapsed-badge.resting {
+      background: var(--red-dim);
+      color: var(--accent);
+      border-color: rgba(233,69,96,0.25);
+      cursor: pointer;
     }
 
-    /* ========== REST TIMER BANNER ========== */
-    #rest-banner {
+    /* ========== REST CONTROLS BAR ========== */
+    .rest-controls {
       display: none;
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      background: linear-gradient(135deg, var(--accent), #d63384);
-      color: #fff;
-      padding: 12px 16px;
-      z-index: 200;
-      font-weight: 700;
-      box-shadow: 0 8px 32px rgba(233,69,96,0.35);
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 0 4px;
     }
-    #rest-banner.active { display: flex; align-items: center; justify-content: center; gap: 14px; }
-    #rest-banner .rest-label { font-size: 13px; opacity: 0.85; font-weight: 500; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    #rest-banner .rest-time {
-      font-size: 28px;
-      font-variant-numeric: tabular-nums;
-      min-width: 56px;
-      text-align: center;
-      letter-spacing: 1px;
+    .rest-controls.active { display: flex; }
+    .rest-controls .rest-ex-name {
+      font-size: 11px;
+      color: var(--text2);
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
-    #rest-banner .rest-btns { display: flex; gap: 6px; }
-    #rest-banner .rest-btns button, #rest-banner .dismiss {
-      background: rgba(255,255,255,0.18);
-      backdrop-filter: blur(4px);
-      border: none;
-      color: #fff;
-      padding: 5px 12px;
-      border-radius: 8px;
-      font-size: 12px;
+    .rest-controls button {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
       font-weight: 600;
       cursor: pointer;
     }
-    #rest-banner .dismiss { background: rgba(0,0,0,0.2); }
+    .rest-controls button:active { background: var(--surface3); color: var(--text); }
+    .rest-controls .rest-skip {
+      color: var(--accent);
+    }
 
     /* ========== NOTES BUTTON (in header) ========== */
     .notes-btn {
@@ -1193,6 +1213,47 @@
       gap: 10px;
       margin-bottom: 16px;
     }
+    .btn-routine-next {
+      outline: 2px solid rgba(255,255,255,0.25);
+      outline-offset: 2px;
+    }
+    .next-badge {
+      position: absolute;
+      top: -8px;
+      right: -4px;
+      background: var(--green);
+      color: #0f0f1a;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      box-shadow: 0 2px 8px rgba(52,211,153,0.4);
+    }
+    .auto-finish-toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--green);
+      color: #0f0f1a;
+      padding: 12px 24px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 700;
+      z-index: 250;
+      box-shadow: 0 8px 32px rgba(52,211,153,0.3);
+      animation: slideUpToast 0.3s ease-out;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    @keyframes slideUpToast {
+      from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+      to { transform: translateX(-50%) translateY(0); opacity: 1; }
+    }
     .btn-routine {
       padding: 18px 14px;
       border: none;
@@ -1235,17 +1296,6 @@
 
   <!-- Confetti Canvas -->
   <canvas id="confetti-canvas"></canvas>
-
-  <!-- Rest Timer Banner -->
-  <div id="rest-banner">
-    <span class="rest-label">REST</span>
-    <span class="rest-time" id="rest-time">01:30</span>
-    <div class="rest-btns">
-      <button onclick="adjustRest(-30)">-30s</button>
-      <button onclick="adjustRest(30)">+30s</button>
-    </div>
-    <button class="dismiss" onclick="dismissRest()">Skip</button>
-  </div>
 
   <!-- Navigation Dots -->
   <div class="nav-dots" id="nav-dots">
@@ -1311,7 +1361,14 @@
       <button class="notes-btn" id="notes-btn" onclick="openNotesModal()" title="Workout notes">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
       </button>
-      <span class="elapsed-badge" id="elapsed-display">00:00</span>
+      <span class="elapsed-badge" id="elapsed-display" onclick="onBadgeTap()">00:00</span>
+    </div>
+
+    <div class="rest-controls" id="rest-controls">
+      <span class="rest-ex-name" id="rest-ex-name">REST</span>
+      <button onclick="adjustRest(-30)">-30s</button>
+      <button onclick="adjustRest(30)">+30s</button>
+      <button class="rest-skip" onclick="dismissRest()">Skip</button>
     </div>
 
     <div id="exercises-container"></div>
@@ -1423,6 +1480,16 @@
     </div>
     <div style="padding:16px 0;">
       <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+    </div>
+    <div style="padding:0 0 16px;">
+      <h3 style="font-size:14px;font-weight:600;margin-bottom:10px;color:var(--text2);">Data Backup</h3>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" style="flex:1;" onclick="exportData()">Export JSON</button>
+        <button class="btn btn-secondary" style="flex:1;position:relative;overflow:hidden;">
+          Import JSON
+          <input type="file" accept=".json,application/json" onchange="importData(event)" style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;">
+        </button>
+      </div>
     </div>
     <div class="danger-zone">
       <h3>Danger Zone</h3>
@@ -1575,7 +1642,7 @@
           { exerciseId:'lat-pulldown', name:'Lat Pulldown', sets:3, reps:'10-12', equipment:'cable' },
           { exerciseId:'machine-row', name:'Machine Row', sets:3, reps:'10-12', equipment:'machine' },
           { exerciseId:'bicep-curl-db', name:'Bicep Curl (Dumbbell)', sets:3, reps:'10-15', equipment:'dumbbell' },
-          { exerciseId:'leg-press', name:'Leg Press', sets:3, reps:'10-15', equipment:'machine' },
+          { exerciseId:'leg-extension', name:'Leg Extension', sets:3, reps:'12', equipment:'machine' },
         ]
       }
     ];
@@ -1634,6 +1701,42 @@
       saveData(appData);
     }
     migrateData();
+
+    // ==================== NOTIFICATIONS ====================
+    function requestNotificationPermission() {
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }
+
+    function sendRestNotification() {
+      if ('Notification' in window && Notification.permission === 'granted' && document.visibilityState === 'hidden') {
+        new Notification('Rest Over', { body: 'Time for your next set!', icon: 'icon-192.png', tag: 'rest-done' });
+      }
+    }
+
+    // ==================== WAKE LOCK ====================
+    let wakeLock = null;
+
+    async function acquireWakeLock() {
+      if (!('wakeLock' in navigator)) return;
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      } catch (e) {}
+    }
+
+    function releaseWakeLock() {
+      if (wakeLock) {
+        wakeLock.release();
+        wakeLock = null;
+      }
+    }
+
+    // Re-acquire if page becomes visible again mid-workout
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && currentSession) acquireWakeLock();
+    });
 
     // ==================== HAPTIC FEEDBACK ====================
     function triggerHaptic(type) {
@@ -1824,19 +1927,31 @@
       renderRoutineButtons();
     }
 
+    function getNextRoutineId() {
+      const lastSession = appData.sessions.length > 0 ? appData.sessions[appData.sessions.length - 1] : null;
+      if (appData.routines.length < 2) return appData.routines.length === 1 ? appData.routines[0].id : null;
+      if (!lastSession) return appData.routines[0].id;
+      const lastIdx = appData.routines.findIndex(r => r.id === lastSession.routineId);
+      return appData.routines[(lastIdx + 1) % appData.routines.length].id;
+    }
+
     function renderRoutineButtons() {
       const container = document.getElementById('routine-buttons-container');
+      const nextId = getNextRoutineId();
       let html = '';
       appData.routines.forEach((routine, i) => {
         const ci = routine.colorIndex % ROUTINE_COLORS.length;
         const color = ROUTINE_COLORS[ci];
         const exCount = routine.exercises.length;
+        const isNext = routine.id === nextId;
         const deleteBtn = routine.isDefault ? '' :
           `<button class="routine-delete" onclick="event.stopPropagation();deleteRoutine('${routine.id}')">&times;</button>`;
-        html += `<button class="btn-routine" onclick="startWorkout('${routine.id}')"
+        const nextBadge = isNext ? '<span class="next-badge">UP NEXT</span>' : '';
+        html += `<button class="btn-routine${isNext ? ' btn-routine-next' : ''}" onclick="startWorkout('${routine.id}')"
           style="background:${color.bg};box-shadow:0 4px 24px ${color.shadow}">
           ${escapeHtml(routine.name)}
           <span class="routine-subtitle">${exCount} exercises</span>
+          ${nextBadge}
           ${deleteBtn}
         </button>`;
       });
@@ -1851,14 +1966,39 @@
       const totalVolume = monthSessions.reduce((sum, s) => sum + calcSessionVolume(s), 0);
       const unit = appData.settings.unit;
 
+      // This week count (Mon-Sun)
+      const dayOfWeek = (now.getDay() + 6) % 7;
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - dayOfWeek);
+      monday.setHours(0,0,0,0);
+      const mondayStr = monday.toISOString().slice(0, 10);
+      const weekCount = appData.sessions.filter(s => s.date >= mondayStr).length;
+
+      // Avg duration of recent workouts
+      const recentWithDuration = appData.sessions.filter(s => s.totalDuration > 0);
+      let avgDurStr = '--:--';
+      if (recentWithDuration.length >= 1) {
+        const last = recentWithDuration.slice(-5);
+        const avgDur = Math.round(last.reduce((s, sess) => s + sess.totalDuration, 0) / last.length);
+        avgDurStr = formatTime(avgDur);
+      }
+
       document.getElementById('stats-row').innerHTML = `
         <div class="stat-card">
-          <div class="stat-value accent-a">${totalWorkouts}</div>
-          <div class="stat-label">Workouts this month</div>
+          <div class="stat-value accent-a">${weekCount}</div>
+          <div class="stat-label">This week</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value accent-b">${formatVolume(totalVolume)}</div>
-          <div class="stat-label">Volume this month (${unit})</div>
+          <div class="stat-value accent-b">${totalWorkouts}</div>
+          <div class="stat-label">This month</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value accent-a">${formatVolume(totalVolume)}</div>
+          <div class="stat-label">Volume (${unit})</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value accent-b">${avgDurStr}</div>
+          <div class="stat-label">Avg duration</div>
         </div>`;
     }
 
@@ -1949,14 +2089,28 @@
       const durStr = last.totalDuration > 0 ? ' &middot; ' + formatTime(last.totalDuration) : '';
 
       container.innerHTML = `
-        <div class="last-workout-card" onclick="showScreen('history')" style="cursor:pointer">
+        <div class="last-workout-card">
           <div class="lw-dot" style="background:${dotColor}"></div>
-          <div class="lw-info">
+          <div class="lw-info" onclick="showScreen('history')" style="cursor:pointer">
             <div class="lw-title">Last: ${escapeHtml(rName)} &middot; ${formatDate(last.date)}</div>
             <div class="lw-sub">${setCount} sets completed${durStr}</div>
           </div>
-          <span class="lw-arrow">&rsaquo;</span>
+          <button class="lw-undo" onclick="undoLastSession()" title="Remove last session">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          </button>
         </div>`;
+    }
+
+    // ==================== UNDO LAST SESSION ====================
+    function undoLastSession() {
+      if (appData.sessions.length === 0) return;
+      const last = appData.sessions[appData.sessions.length - 1];
+      const rName = last.routineName || ('Workout ' + (last.type || '?'));
+      if (!confirm('Remove "' + rName + '" from ' + formatDate(last.date) + '?')) return;
+      appData.sessions.pop();
+      rebuildAllPRs();
+      saveData(appData);
+      renderHome();
     }
 
     // ==================== PROGRESSIVE OVERLOAD ====================
@@ -1974,6 +2128,56 @@
       const suggested = +(maxWeight + step).toFixed(1);
       const unit = appData.settings.unit;
       return `Last: ${maxWeight}${unit} → Try: ${suggested}${unit}`;
+    }
+
+    // ==================== SESSION RECOVERY ====================
+    function saveSessionBackup() {
+      if (currentSession) {
+        localStorage.setItem('workoutBackup', JSON.stringify({
+          session: currentSession,
+          elapsed: elapsedSeconds,
+          timestamp: Date.now()
+        }));
+      }
+    }
+
+    function clearSessionBackup() {
+      localStorage.removeItem('workoutBackup');
+    }
+
+    function checkSessionRecovery() {
+      const raw = localStorage.getItem('workoutBackup');
+      if (!raw) return;
+      try {
+        const backup = JSON.parse(raw);
+        // Ignore backups older than 4 hours
+        if (Date.now() - backup.timestamp > 4 * 60 * 60 * 1000) {
+          clearSessionBackup();
+          return;
+        }
+        if (confirm('Resume unfinished ' + (backup.session.routineName || 'workout') + '?')) {
+          currentSession = backup.session;
+          elapsedSeconds = backup.elapsed;
+          clearInterval(elapsedInterval);
+          elapsedInterval = setInterval(() => {
+            elapsedSeconds++;
+            if (!isResting) document.getElementById('elapsed-display').textContent = formatTime(elapsedSeconds);
+            if (elapsedSeconds % 15 === 0) saveSessionBackup();
+          }, 1000);
+          document.getElementById('workout-title').textContent = currentSession.routineName || 'Workout';
+          document.getElementById('elapsed-display').textContent = formatTime(elapsedSeconds);
+          document.getElementById('session-notes').value = currentSession.notes || '';
+          document.getElementById('notes-btn').classList.toggle('has-notes', !!(currentSession.notes && currentSession.notes.trim()));
+          collapsedExercises.clear();
+          renderExercises();
+          showScreen('workout');
+          acquireWakeLock();
+        } else {
+          clearSessionBackup();
+        }
+      } catch (e) {
+        clearSessionBackup();
+      }
     }
 
     // ==================== ACTIVE WORKOUT ====================
@@ -2004,15 +2208,31 @@
         originalExerciseNames: routine.exercises.map(e => e.name),
         exercises: routine.exercises.map(t => {
           const lastEx = findLastSessionWithExercise(t.name);
-          const lastWeight = lastEx ? (lastEx.sets.find(s => s.weight !== '' && s.weight !== null) || {}).weight || '' : '';
+          let lastWeight = lastEx ? (lastEx.sets.find(s => s.weight !== '' && s.weight !== null) || {}).weight || '' : '';
           const step = getWeightStep(t.equipment);
+          // Auto-advance: only if ALL sets completed at the SAME top weight
+          let autoAdvanced = false;
+          let prevWeight = lastWeight;
+          if (lastEx && lastWeight !== '') {
+            const completedSets = lastEx.sets.filter(s => s.completed && s.weight !== '' && s.weight !== null);
+            const allCompleted = lastEx.sets.every(s => s.completed);
+            if (allCompleted && completedSets.length > 0) {
+              const weights = completedSets.map(s => Number(s.weight));
+              const maxW = Math.max(...weights);
+              const allSameTopWeight = weights.every(w => w === maxW);
+              if (allSameTopWeight) {
+                lastWeight = +(maxW + step).toFixed(1);
+                autoAdvanced = true;
+              }
+            }
+          }
           const sets = [];
           for (let i = 0; i < t.sets; i++) {
             const lastReps = lastEx && lastEx.sets[i] && lastEx.sets[i].reps !== '' && lastEx.sets[i].reps !== null
               ? lastEx.sets[i].reps : '';
             sets.push({ weight: lastWeight, reps: lastReps, completed: false });
           }
-          return { name: t.name, exerciseId: t.exerciseId, equipment: t.equipment, targetSets: t.sets, targetReps: t.reps, step: step, sets: sets };
+          return { name: t.name, exerciseId: t.exerciseId, equipment: t.equipment, targetSets: t.sets, targetReps: t.reps, step: step, sets: sets, autoAdvanced: autoAdvanced, prevWeight: prevWeight };
         })
       };
 
@@ -2020,8 +2240,10 @@
       clearInterval(elapsedInterval);
       elapsedInterval = setInterval(() => {
         elapsedSeconds++;
-        document.getElementById('elapsed-display').textContent = formatTime(elapsedSeconds);
+        if (!isResting) document.getElementById('elapsed-display').textContent = formatTime(elapsedSeconds);
+        if (elapsedSeconds % 15 === 0) saveSessionBackup();
       }, 1000);
+      saveSessionBackup();
 
       document.getElementById('workout-title').textContent = routine.name;
       document.getElementById('elapsed-display').textContent = '00:00';
@@ -2031,6 +2253,8 @@
       collapsedExercises.clear();
       renderExercises();
       showScreen('workout');
+      acquireWakeLock();
+      requestNotificationPermission();
     }
 
     const collapsedExercises = new Set();
@@ -2066,8 +2290,13 @@
         const badgeClass = doneCount > 0 ? 'ex-badge has-done' : 'ex-badge';
         const collapsed = collapsedExercises.has(ei) ? ' collapsed' : '';
 
-        const hint = getOverloadSuggestion(ex.name, ex.step);
-        const hintHtml = hint ? `<div class="overload-hint">${hint}</div>` : '';
+        let hintHtml = '';
+        if (ex.autoAdvanced) {
+          hintHtml = `<div class="overload-hint">\u2191 +${ex.step} ${unit} auto-advanced from last session</div>`;
+        } else {
+          const hint = getOverloadSuggestion(ex.name, ex.step);
+          if (hint) hintHtml = `<div class="overload-hint">${hint}</div>`;
+        }
 
         html += `<div class="exercise-card${collapsed}" id="ex-${ei}" data-ei="${ei}">
           <div class="ex-header">
@@ -2223,7 +2452,41 @@
         }
       }
 
-      if (set.completed) startRestTimer(ei);
+      if (set.completed) {
+        // Check if all exercises fully completed
+        const allDone = currentSession.exercises.every(ex => ex.sets.every(s => s.completed));
+        if (allDone) {
+          // Skip rest timer on final set - no point resting when done
+          dismissRest();
+          showAutoFinishToast();
+        } else {
+          startRestTimer(ei);
+          // Auto-collapse this exercise if all its sets are done
+          const thisEx = currentSession.exercises[ei];
+          if (thisEx.sets.every(s => s.completed) && !collapsedExercises.has(ei)) {
+            setTimeout(() => {
+              toggleCollapse(ei);
+              // Auto-scroll to next incomplete exercise
+              const nextEi = currentSession.exercises.findIndex((ex, i) => i > ei && !ex.sets.every(s => s.completed));
+              if (nextEi !== -1) {
+                const nextCard = document.getElementById('ex-' + nextEi);
+                if (nextCard) nextCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
+            }, 400);
+          }
+        }
+      }
+    }
+
+    function showAutoFinishToast() {
+      const existing = document.querySelector('.auto-finish-toast');
+      if (existing) existing.remove();
+      const toast = document.createElement('div');
+      toast.className = 'auto-finish-toast';
+      toast.innerHTML = '\u2714 All sets done! Tap to finish';
+      toast.onclick = () => { toast.remove(); finishWorkout(); };
+      document.body.appendChild(toast);
+      setTimeout(() => { if (toast.parentNode) toast.remove(); }, 6000);
     }
 
     function addSet(ei) {
@@ -2448,6 +2711,7 @@
     // ==================== REST TIMER ====================
     let restInterval = null;
     let restRemaining = 0;
+    let isResting = false;
 
     function startRestTimer(ei) {
       clearInterval(restInterval);
@@ -2462,8 +2726,11 @@
         }
       }
       restRemaining = restTime;
-      document.querySelector('#rest-banner .rest-label').textContent = restExName;
-      document.getElementById('rest-banner').classList.add('active');
+      isResting = true;
+      document.getElementById('rest-ex-name').textContent = restExName;
+      document.getElementById('rest-controls').classList.add('active');
+      const badge = document.getElementById('elapsed-display');
+      badge.classList.add('resting');
       updateRestDisplay();
 
       restInterval = setInterval(() => {
@@ -2478,7 +2745,10 @@
     }
 
     function updateRestDisplay() {
-      document.getElementById('rest-time').textContent = formatTime(restRemaining);
+      const badge = document.getElementById('elapsed-display');
+      if (isResting) {
+        badge.textContent = formatTime(restRemaining);
+      }
     }
 
     function adjustRest(delta) {
@@ -2488,11 +2758,21 @@
 
     function dismissRest() {
       clearInterval(restInterval);
-      document.getElementById('rest-banner').classList.remove('active');
+      isResting = false;
+      const badge = document.getElementById('elapsed-display');
+      badge.classList.remove('resting');
+      badge.textContent = formatTime(elapsedSeconds);
+      document.getElementById('rest-controls').classList.remove('active');
+    }
+
+    function onBadgeTap() {
+      if (isResting) dismissRest();
     }
 
     function restFinished() {
+      dismissRest();
       triggerHaptic('restTimerDone');
+      sendRestNotification();
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         for (let i = 0; i < 3; i++) {
@@ -2524,12 +2804,16 @@
       if (!anyDone) {
         if (!confirm('No sets completed. Discard this workout?')) return;
         clearInterval(elapsedInterval);
+        clearSessionBackup();
+        releaseWakeLock();
         showScreen('home');
         currentSession = null;
         return;
       }
 
       clearInterval(elapsedInterval);
+      clearSessionBackup();
+      releaseWakeLock();
       currentSession.totalDuration = elapsedSeconds;
       currentSession.totalVolume = calcSessionVolume(currentSession);
       currentSession.notes = document.getElementById('session-notes').value.trim();
@@ -2567,6 +2851,8 @@
         }
       }
       clearInterval(elapsedInterval);
+      clearSessionBackup();
+      releaseWakeLock();
       dismissRest();
       currentSession = null;
       showScreen('home');
@@ -3127,6 +3413,43 @@
       showScreen('home');
     }
 
+    function exportData() {
+      const json = JSON.stringify(appData, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'workout-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (!imported.sessions || !imported.settings) {
+            alert('Invalid backup file.');
+            return;
+          }
+          if (!confirm('Replace all data with this backup? (' + imported.sessions.length + ' sessions found)')) return;
+          appData = imported;
+          if (!appData.routines) appData.routines = JSON.parse(JSON.stringify(DEFAULT_ROUTINES));
+          if (!appData.personalRecords) appData.personalRecords = {};
+          rebuildAllPRs();
+          saveData(appData);
+          showScreen('home');
+        } catch (err) {
+          alert('Could not read file. Make sure it\'s a valid JSON backup.');
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
     function clearAllData() {
       if (confirm('Delete ALL workout history? This cannot be undone.')) {
         if (confirm('Are you really sure?')) {
@@ -3167,6 +3490,7 @@
     renderHome();
     initSwipeGestures();
     updateNavDots();
+    checkSessionRecovery();
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(() => {});
