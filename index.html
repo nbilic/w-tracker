@@ -530,8 +530,8 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 16px;
-      margin-bottom: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
       transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
       position: relative;
     }
@@ -548,7 +548,7 @@
     .ex-header {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       margin-bottom: 4px;
       cursor: pointer;
       -webkit-user-select: none;
@@ -600,8 +600,8 @@
     .ex-target {
       font-size: 12px;
       color: var(--text2);
-      margin-bottom: 14px;
-      margin-left: 46px;
+      margin-bottom: 12px;
+      margin-left: 14px;
       font-weight: 400;
     }
     .overload-hint {
@@ -2338,12 +2338,10 @@
 
         html += `<div class="exercise-card${collapsed}" id="ex-${ei}" data-ei="${ei}">
           <div class="ex-header">
-            <div class="drag-handle" data-ei="${ei}">${DRAG_HANDLE_SVG}</div>
             <div class="ex-icon ${eqType}" onclick="toggleCollapse(${ei})">${getExIcon(eqType)}</div>
             <h3 onclick="openExerciseHistory(${ei})">${escapeHtml(ex.name)}</h3>
             <span class="${badgeClass}">${doneCount}/${totalCount}</span>
             <button class="swap-btn" onclick="event.stopPropagation();openSwapModal(${ei})" title="Swap exercise">${SWAP_SVG}</button>
-            <button class="swap-btn" onclick="event.stopPropagation();removeExercise(${ei})" title="Remove exercise" style="color:var(--accent)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
             <svg class="ex-chevron" onclick="toggleCollapse(${ei})" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </div>
           <div class="ex-target">${ex.targetSets} &times; ${ex.targetReps} &middot; &plusmn;${stepLabel} ${unit}</div>
