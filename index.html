@@ -597,30 +597,8 @@
       height: 16px;
     }
     .exercise-card.collapsed .ex-chevron { transform: rotate(-90deg); }
-    .ex-target {
-      font-size: 12px;
-      color: var(--text2);
-      margin-bottom: 12px;
-      margin-left: 14px;
-      font-weight: 400;
-    }
-    .overload-hint {
-      font-size: 11px;
-      color: var(--green);
-      margin-left: 46px;
-      margin-bottom: 10px;
-      font-weight: 500;
-      padding: 4px 8px;
-      background: var(--green-dim);
-      border-radius: 6px;
-      display: inline-block;
-    }
     .ex-body { overflow: hidden; transition: max-height 0.3s ease-out, opacity 0.25s ease-out; opacity: 1; }
     .exercise-card.collapsed .ex-body { opacity: 0; pointer-events: none; }
-    .ex-target { transition: margin-bottom 0.25s ease-out, opacity 0.25s ease-out; }
-    .exercise-card.collapsed .ex-target { margin-bottom: 0; opacity: 0.5; }
-    .overload-hint { transition: max-height 0.25s ease-out, opacity 0.25s ease-out, margin 0.25s ease-out; overflow: hidden; }
-    .exercise-card.collapsed .overload-hint { opacity: 0; margin: 0; padding: 0; }
 
     /* Set header row */
     .set-header {
@@ -1322,6 +1300,7 @@
       border-radius: var(--radius-sm);
       font-size: 16px;
       font-weight: 600;
+      margin-top: 16px;
       margin-bottom: 16px;
     }
     .builder-name-input:focus { outline: none; border-color: var(--accent); }
@@ -1720,7 +1699,7 @@
       </button>
       <h2>Manage Routines</h2>
     </div>
-    <div id="manage-routines-list"></div>
+    <div id="manage-routines-list" style="margin-top:16px"></div>
     <button class="builder-add-btn" onclick="openRoutineBuilder()" style="margin-top:12px">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       New Routine
@@ -2545,7 +2524,6 @@
       const card = document.getElementById('ex-' + ei);
       if (!card) return;
       const body = card.querySelector('.ex-body');
-      const hint = card.querySelector('.overload-hint');
 
       if (collapsedExercises.has(ei)) {
         // Expanding
@@ -2555,19 +2533,13 @@
           body.style.maxHeight = body.scrollHeight + 'px';
           setTimeout(() => { body.style.maxHeight = ''; }, 300);
         }
-        if (hint) {
-          hint.style.maxHeight = hint.scrollHeight + 'px';
-          setTimeout(() => { hint.style.maxHeight = ''; }, 300);
-        }
       } else {
         // Collapsing - set explicit height, force reflow, then transition to 0
         collapsedExercises.add(ei);
         if (body) body.style.maxHeight = body.scrollHeight + 'px';
-        if (hint) hint.style.maxHeight = hint.scrollHeight + 'px';
         // Force browser to register the current height before animating
         card.offsetHeight;
         if (body) body.style.maxHeight = '0px';
-        if (hint) hint.style.maxHeight = '0px';
         card.classList.add('collapsed');
       }
 
@@ -2594,14 +2566,6 @@
         const badgeClass = doneCount > 0 ? 'ex-badge has-done' : 'ex-badge';
         const collapsed = collapsedExercises.has(ei) ? ' collapsed' : '';
 
-        let hintHtml = '';
-        if (ex.autoAdvanced) {
-          hintHtml = `<div class="overload-hint">\u2191 +${ex.step} ${unit} auto-advanced from last session</div>`;
-        } else {
-          const hint = getOverloadSuggestion(ex.name, ex.step);
-          if (hint) hintHtml = `<div class="overload-hint">${hint}</div>`;
-        }
-
         html += `<div class="exercise-card${collapsed}" id="ex-${ei}" data-ei="${ei}">
           <div class="ex-header">
             <div class="ex-icon ${eqType}" onclick="toggleCollapse(${ei})">${getExIcon(eqType)}</div>
@@ -2610,8 +2574,6 @@
             <button class="swap-btn" onclick="event.stopPropagation();openSwapModal(${ei})" title="Swap exercise">${SWAP_SVG}</button>
             <svg class="ex-chevron" onclick="toggleCollapse(${ei})" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </div>
-          <div class="ex-target">${ex.targetSets} &times; ${ex.targetReps} &middot; &plusmn;${stepLabel} ${unit}</div>
-          ${hintHtml}
           <div class="ex-body">
           <div class="set-header">
             <span></span><span>${unit.toUpperCase()}</span><span>REPS</span><span></span>
