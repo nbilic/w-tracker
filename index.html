@@ -580,10 +580,15 @@
     .ex-badge {
       font-size: 11px;
       font-weight: 600;
-      padding: 2px 8px;
-      border-radius: 6px;
+      min-width: 28px;
+      height: 28px;
+      padding: 0 8px;
+      border-radius: 7px;
       background: var(--surface2);
       color: var(--text3);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
     .ex-badge.has-done {
       background: var(--green-dim);
@@ -1482,14 +1487,12 @@
       inset: 0;
       background: rgba(0,0,0,0.6);
       z-index: 9000;
-      display: flex;
+      display: none;
       align-items: center;
       justify-content: center;
       padding: 24px;
-      opacity: 0;
-      transition: opacity 0.15s;
     }
-    .dialog-overlay.active { opacity: 1; }
+    .dialog-overlay.active { display: flex; }
     .dialog-box {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -1843,52 +1846,52 @@
       { id:'incline-bench-bb', name:'Incline Bench (Barbell)', category:'Chest', equipment:'barbell', defaultSets:3, defaultReps:'10', defaultRest:180 },
       { id:'incline-bench-db', name:'Incline Bench (Dumbbell)', category:'Chest', equipment:'dumbbell', defaultSets:3, defaultReps:'10', defaultRest:120 },
       { id:'decline-bench', name:'Decline Bench', category:'Chest', equipment:'barbell', defaultSets:3, defaultReps:'10', defaultRest:180 },
-      { id:'chest-fly', name:'Chest Fly', category:'Chest', equipment:'dumbbell', defaultSets:3, defaultReps:'12', defaultRest:90 },
-      { id:'cable-fly', name:'Cable Fly', category:'Chest', equipment:'cable', defaultSets:3, defaultReps:'12', defaultRest:90 },
-      { id:'chest-press-machine', name:'Chest Press Machine', category:'Chest', equipment:'machine', defaultSets:3, defaultReps:'12', defaultRest:90 },
+      { id:'chest-fly', name:'Chest Fly', category:'Chest', equipment:'dumbbell', defaultSets:3, defaultReps:'10', defaultRest:90 },
+      { id:'cable-fly', name:'Cable Fly', category:'Chest', equipment:'cable', defaultSets:3, defaultReps:'10', defaultRest:90 },
+      { id:'chest-press-machine', name:'Chest Press Machine', category:'Chest', equipment:'machine', defaultSets:3, defaultReps:'10', defaultRest:90 },
       { id:'push-ups', name:'Push-ups', category:'Chest', equipment:'bodyweight', defaultSets:3, defaultReps:'15', defaultRest:60 },
       { id:'dips-chest', name:'Dips (Chest)', category:'Chest', equipment:'bodyweight', defaultSets:3, defaultReps:'10', defaultRest:90 },
       // Back
       { id:'deadlift', name:'Deadlift', category:'Back', equipment:'barbell', defaultSets:4, defaultReps:'8', defaultRest:180 },
       { id:'barbell-row', name:'Barbell Row', category:'Back', equipment:'barbell', defaultSets:3, defaultReps:'10', defaultRest:180 },
       { id:'dumbbell-row', name:'Dumbbell Row', category:'Back', equipment:'dumbbell', defaultSets:3, defaultReps:'10', defaultRest:120 },
-      { id:'lat-pulldown', name:'Lat Pulldown', category:'Back', equipment:'cable', defaultSets:3, defaultReps:'10-12', defaultRest:90 },
-      { id:'pull-ups', name:'Pull-ups', category:'Back', equipment:'bodyweight', defaultSets:3, defaultReps:'8-10', defaultRest:90 },
-      { id:'chin-ups', name:'Chin-ups', category:'Back', equipment:'bodyweight', defaultSets:3, defaultReps:'8-10', defaultRest:90 },
-      { id:'seated-cable-row', name:'Seated Cable Row', category:'Back', equipment:'cable', defaultSets:3, defaultReps:'10-12', defaultRest:90 },
-      { id:'machine-row', name:'Machine Row', category:'Back', equipment:'machine', defaultSets:3, defaultReps:'10-12', defaultRest:90 },
+      { id:'lat-pulldown', name:'Lat Pulldown', category:'Back', equipment:'cable', defaultSets:3, defaultReps:'10', defaultRest:90 },
+      { id:'pull-ups', name:'Pull-ups', category:'Back', equipment:'bodyweight', defaultSets:3, defaultReps:'10', defaultRest:90 },
+      { id:'chin-ups', name:'Chin-ups', category:'Back', equipment:'bodyweight', defaultSets:3, defaultReps:'10', defaultRest:90 },
+      { id:'seated-cable-row', name:'Seated Cable Row', category:'Back', equipment:'cable', defaultSets:3, defaultReps:'10', defaultRest:90 },
+      { id:'machine-row', name:'Machine Row', category:'Back', equipment:'machine', defaultSets:3, defaultReps:'10', defaultRest:90 },
       { id:'t-bar-row', name:'T-Bar Row', category:'Back', equipment:'barbell', defaultSets:3, defaultReps:'10', defaultRest:120 },
       { id:'face-pull', name:'Face Pull', category:'Back', equipment:'cable', defaultSets:3, defaultReps:'15', defaultRest:60 },
       // Shoulders
       { id:'ohp-bb', name:'Overhead Press (Barbell)', category:'Shoulders', equipment:'barbell', defaultSets:4, defaultReps:'8', defaultRest:180 },
       { id:'ohp-db', name:'Overhead Press (Dumbbell)', category:'Shoulders', equipment:'dumbbell', defaultSets:3, defaultReps:'10', defaultRest:120 },
-      { id:'lateral-raise', name:'Lateral Raise', category:'Shoulders', equipment:'dumbbell', defaultSets:3, defaultReps:'12-15', defaultRest:60 },
-      { id:'front-raise', name:'Front Raise', category:'Shoulders', equipment:'dumbbell', defaultSets:3, defaultReps:'12', defaultRest:60 },
-      { id:'reverse-fly', name:'Reverse Fly', category:'Shoulders', equipment:'dumbbell', defaultSets:3, defaultReps:'12-15', defaultRest:60 },
+      { id:'lateral-raise', name:'Lateral Raise', category:'Shoulders', equipment:'dumbbell', defaultSets:3, defaultReps:'10', defaultRest:60 },
+      { id:'front-raise', name:'Front Raise', category:'Shoulders', equipment:'dumbbell', defaultSets:3, defaultReps:'10', defaultRest:60 },
+      { id:'reverse-fly', name:'Reverse Fly', category:'Shoulders', equipment:'dumbbell', defaultSets:3, defaultReps:'10', defaultRest:60 },
       { id:'arnold-press', name:'Arnold Press', category:'Shoulders', equipment:'dumbbell', defaultSets:3, defaultReps:'10', defaultRest:120 },
-      { id:'cable-lateral-raise', name:'Cable Lateral Raise', category:'Shoulders', equipment:'cable', defaultSets:3, defaultReps:'12-15', defaultRest:60 },
-      { id:'shrugs-bb', name:'Shrugs (Barbell)', category:'Shoulders', equipment:'barbell', defaultSets:3, defaultReps:'12', defaultRest:90 },
-      { id:'shrugs-db', name:'Shrugs (Dumbbell)', category:'Shoulders', equipment:'dumbbell', defaultSets:3, defaultReps:'12', defaultRest:90 },
+      { id:'cable-lateral-raise', name:'Cable Lateral Raise', category:'Shoulders', equipment:'cable', defaultSets:3, defaultReps:'10', defaultRest:60 },
+      { id:'shrugs-bb', name:'Shrugs (Barbell)', category:'Shoulders', equipment:'barbell', defaultSets:3, defaultReps:'10', defaultRest:90 },
+      { id:'shrugs-db', name:'Shrugs (Dumbbell)', category:'Shoulders', equipment:'dumbbell', defaultSets:3, defaultReps:'10', defaultRest:90 },
       // Legs
       { id:'squat-bb', name:'Squat (Barbell)', category:'Legs', equipment:'barbell', defaultSets:4, defaultReps:'8', defaultRest:180 },
       { id:'front-squat', name:'Front Squat', category:'Legs', equipment:'barbell', defaultSets:3, defaultReps:'8', defaultRest:180 },
       { id:'goblet-squat', name:'Goblet Squat', category:'Legs', equipment:'dumbbell', defaultSets:3, defaultReps:'10', defaultRest:120 },
-      { id:'leg-press', name:'Leg Press', category:'Legs', equipment:'machine', defaultSets:3, defaultReps:'10-15', defaultRest:120 },
+      { id:'leg-press', name:'Leg Press', category:'Legs', equipment:'machine', defaultSets:3, defaultReps:'10', defaultRest:120 },
       { id:'rdl', name:'Romanian Deadlift', category:'Legs', equipment:'barbell', defaultSets:3, defaultReps:'10', defaultRest:120 },
       { id:'lunges', name:'Lunges', category:'Legs', equipment:'dumbbell', defaultSets:3, defaultReps:'10', defaultRest:90 },
       { id:'bulgarian-split-squat', name:'Bulgarian Split Squat', category:'Legs', equipment:'dumbbell', defaultSets:3, defaultReps:'10', defaultRest:90 },
-      { id:'leg-extension', name:'Leg Extension', category:'Legs', equipment:'machine', defaultSets:3, defaultReps:'12', defaultRest:90 },
-      { id:'leg-curl', name:'Leg Curl', category:'Legs', equipment:'machine', defaultSets:3, defaultReps:'12', defaultRest:90 },
+      { id:'leg-extension', name:'Leg Extension', category:'Legs', equipment:'machine', defaultSets:3, defaultReps:'10', defaultRest:90 },
+      { id:'leg-curl', name:'Leg Curl', category:'Legs', equipment:'machine', defaultSets:3, defaultReps:'10', defaultRest:90 },
       { id:'calf-raise', name:'Calf Raise', category:'Legs', equipment:'machine', defaultSets:4, defaultReps:'15', defaultRest:60 },
       { id:'hip-thrust', name:'Hip Thrust', category:'Legs', equipment:'barbell', defaultSets:3, defaultReps:'10', defaultRest:120 },
       // Arms
-      { id:'bicep-curl-bb', name:'Bicep Curl (Barbell)', category:'Arms', equipment:'barbell', defaultSets:3, defaultReps:'10-15', defaultRest:90 },
-      { id:'bicep-curl-db', name:'Bicep Curl (Dumbbell)', category:'Arms', equipment:'dumbbell', defaultSets:3, defaultReps:'10-15', defaultRest:60 },
-      { id:'hammer-curl', name:'Hammer Curl', category:'Arms', equipment:'dumbbell', defaultSets:3, defaultReps:'10-12', defaultRest:60 },
-      { id:'cable-curl', name:'Cable Curl', category:'Arms', equipment:'cable', defaultSets:3, defaultReps:'12', defaultRest:60 },
+      { id:'bicep-curl-bb', name:'Bicep Curl (Barbell)', category:'Arms', equipment:'barbell', defaultSets:3, defaultReps:'10', defaultRest:90 },
+      { id:'bicep-curl-db', name:'Bicep Curl (Dumbbell)', category:'Arms', equipment:'dumbbell', defaultSets:3, defaultReps:'10', defaultRest:60 },
+      { id:'hammer-curl', name:'Hammer Curl', category:'Arms', equipment:'dumbbell', defaultSets:3, defaultReps:'10', defaultRest:60 },
+      { id:'cable-curl', name:'Cable Curl', category:'Arms', equipment:'cable', defaultSets:3, defaultReps:'10', defaultRest:60 },
       { id:'preacher-curl', name:'Preacher Curl', category:'Arms', equipment:'barbell', defaultSets:3, defaultReps:'10', defaultRest:90 },
-      { id:'tricep-pushdown', name:'Tricep Pushdown', category:'Arms', equipment:'cable', defaultSets:3, defaultReps:'12', defaultRest:60 },
-      { id:'overhead-extension', name:'Overhead Extension', category:'Arms', equipment:'dumbbell', defaultSets:3, defaultReps:'12', defaultRest:60 },
+      { id:'tricep-pushdown', name:'Tricep Pushdown', category:'Arms', equipment:'cable', defaultSets:3, defaultReps:'10', defaultRest:60 },
+      { id:'overhead-extension', name:'Overhead Extension', category:'Arms', equipment:'dumbbell', defaultSets:3, defaultReps:'10', defaultRest:60 },
       { id:'skull-crushers', name:'Skull Crushers', category:'Arms', equipment:'barbell', defaultSets:3, defaultReps:'10', defaultRest:90 },
       { id:'close-grip-bench', name:'Close Grip Bench', category:'Arms', equipment:'barbell', defaultSets:3, defaultReps:'10', defaultRest:120 },
       { id:'dips-tricep', name:'Dips (Tricep)', category:'Arms', equipment:'bodyweight', defaultSets:3, defaultReps:'10', defaultRest:60 },
@@ -1933,9 +1936,9 @@
           { exerciseId:'bench-press-bb', name:'Bench Press (Barbell)', sets:3, reps:'10', equipment:'barbell' },
           { exerciseId:'ohp-bb', name:'Overhead Press (Barbell)', sets:4, reps:'8', equipment:'barbell' },
           { exerciseId:'incline-bench-bb', name:'Incline Bench (Barbell)', sets:3, reps:'10', equipment:'barbell' },
-          { exerciseId:'lat-pulldown', name:'Lat Pulldown', sets:3, reps:'10-12', equipment:'cable' },
-          { exerciseId:'bicep-curl-db', name:'Bicep Curl (Dumbbell)', sets:3, reps:'10-15', equipment:'dumbbell' },
-          { exerciseId:'leg-press', name:'Leg Press', sets:3, reps:'10-15', equipment:'machine' },
+          { exerciseId:'lat-pulldown', name:'Lat Pulldown', sets:3, reps:'10', equipment:'cable' },
+          { exerciseId:'bicep-curl-db', name:'Bicep Curl (Dumbbell)', sets:3, reps:'10', equipment:'dumbbell' },
+          { exerciseId:'leg-press', name:'Leg Press', sets:3, reps:'10', equipment:'machine' },
         ]
       },
       {
@@ -1943,10 +1946,10 @@
         exercises: [
           { exerciseId:'deadlift', name:'Deadlift', sets:4, reps:'8', equipment:'barbell' },
           { exerciseId:'barbell-row', name:'Barbell Row', sets:3, reps:'10', equipment:'barbell' },
-          { exerciseId:'lat-pulldown', name:'Lat Pulldown', sets:3, reps:'10-12', equipment:'cable' },
-          { exerciseId:'machine-row', name:'Machine Row', sets:3, reps:'10-12', equipment:'machine' },
-          { exerciseId:'bicep-curl-db', name:'Bicep Curl (Dumbbell)', sets:3, reps:'10-15', equipment:'dumbbell' },
-          { exerciseId:'leg-extension', name:'Leg Extension', sets:3, reps:'12', equipment:'machine' },
+          { exerciseId:'lat-pulldown', name:'Lat Pulldown', sets:3, reps:'10', equipment:'cable' },
+          { exerciseId:'machine-row', name:'Machine Row', sets:3, reps:'10', equipment:'machine' },
+          { exerciseId:'bicep-curl-db', name:'Bicep Curl (Dumbbell)', sets:3, reps:'10', equipment:'dumbbell' },
+          { exerciseId:'leg-extension', name:'Leg Extension', sets:3, reps:'10', equipment:'machine' },
         ]
       }
     ];
@@ -2556,7 +2559,7 @@
           const sets = [];
           for (let i = 0; i < t.sets; i++) {
             const lastReps = lastEx && lastEx.sets[i] && lastEx.sets[i].reps !== '' && lastEx.sets[i].reps !== null
-              ? lastEx.sets[i].reps : '';
+              ? lastEx.sets[i].reps : t.reps;
             sets.push({ weight: lastWeight, reps: lastReps, completed: false });
           }
           return { name: t.name, exerciseId: t.exerciseId, equipment: t.equipment, targetSets: t.sets, targetReps: t.reps, step: step, sets: sets, autoAdvanced: autoAdvanced, prevWeight: prevWeight };
@@ -2643,7 +2646,7 @@
           </div>`;
 
         ex.sets.forEach((set, si) => {
-          html += buildSetRowHTML(ei, si, set);
+          html += buildSetRowHTML(ei, si, set, ex.autoAdvanced);
         });
 
         html += `<div class="set-actions">
@@ -2660,17 +2663,18 @@
       initDragHandles();
     }
 
-    function buildSetRowHTML(ei, si, set) {
+    function buildSetRowHTML(ei, si, set, autoAdvanced) {
       const doneClass = set.completed ? 'done' : '';
       const prClass = set.completed && set.isPR ? ' is-pr' : '';
       const checkIcon = set.completed ? CHECK_SVG : '';
       const weightVal = set.weight !== '' && set.weight !== null ? set.weight : '';
+      const greenWeight = autoAdvanced && !set.completed ? ' style="color:var(--green)"' : '';
       return `<div class="set-row" id="sr-${ei}-${si}">
         <span class="set-num">${si + 1}</span>
         <div class="weight-cell">
           <button class="w-adj" onclick="adjSetWeight(${ei},${si},-1)">&minus;</button>
           <input type="number" inputmode="decimal" placeholder="-" id="wi-${ei}-${si}"
-            value="${weightVal}" onchange="updateSet(${ei},${si},'weight',this.value)">
+            value="${weightVal}"${greenWeight} onchange="updateSet(${ei},${si},'weight',this.value)">
           <button class="w-adj" onclick="adjSetWeight(${ei},${si},1)">+</button>
         </div>
         <input type="number" inputmode="numeric" placeholder="-" id="ri-${ei}-${si}"
