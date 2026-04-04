@@ -775,12 +775,15 @@
       background: linear-gradient(to top, var(--bg) 60%, transparent);
       padding-top: 48px;
       z-index: 50;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
     }
     .finish-bar button {
       width: 100%;
       max-width: 480px;
       display: block;
-      margin: 0 auto;
       padding: 15px;
       border: none;
       border-radius: var(--radius);
@@ -793,6 +796,43 @@
       box-shadow: 0 4px 20px rgba(52,211,153,0.25);
     }
     .finish-bar button:active { opacity: 0.9; transform: scale(0.99); }
+    .finish-bar .btn-discard {
+      background: transparent;
+      color: var(--text-dim);
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: none;
+      padding: 10px;
+    }
+    .finish-bar .btn-discard:active { color: #ef4444; }
+    .btn-continue-workout {
+      width: 100%;
+      padding: 16px;
+      border: 2px solid var(--green);
+      border-radius: var(--radius);
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      background: rgba(52,211,153,0.1);
+      color: var(--green);
+      letter-spacing: -0.2px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      animation: pulse-border 2s ease-in-out infinite;
+    }
+    .btn-continue-workout:active { transform: scale(0.97); }
+    .btn-continue-workout .continue-timer {
+      font-weight: 400;
+      font-size: 13px;
+      opacity: 0.8;
+    }
+    @keyframes pulse-border {
+      0%, 100% { border-color: var(--green); }
+      50% { border-color: rgba(52,211,153,0.4); }
+    }
 
     /* ========== HISTORY ========== */
     .history-item {
@@ -1368,7 +1408,7 @@
   <div id="workout" class="screen">
     <div class="workout-sticky-header">
       <div class="header">
-        <button class="back" onclick="confirmExit()">
+        <button class="back" onclick="showScreen('home')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
         <h2 id="workout-title">Workout A</h2>
@@ -1440,6 +1480,7 @@
 
     <div class="finish-bar">
       <button onclick="finishWorkout()">Finish Workout</button>
+      <button class="btn-discard" onclick="discardWorkout()">Discard Workout</button>
     </div>
   </div>
 
@@ -1910,6 +1951,8 @@
       if (id === 'history') renderHistory();
       if (id === 'settings') loadSettings();
       if (id === 'progress') renderProgress();
+      if (id === 'workout' && currentSession) acquireWakeLock();
+      if (id !== 'workout') releaseWakeLock();
       updateNavDots();
     }
 
@@ -1953,13 +1996,23 @@
 
     function renderRoutineButtons() {
       const container = document.getElementById('routine-buttons-container');
-      const nextId = getNextRoutineId();
       let html = '';
+
+      // Show continue button if workout is active
+      if (currentSession) {
+        const elapsed = formatTime(elapsedSeconds);
+        html += `<button class="btn-continue-workout" onclick="showScreen('workout')">
+          Continue ${escapeHtml(currentSession.routineName || 'Workout')}
+          <span class="continue-timer">${elapsed}</span>
+        </button>`;
+      }
+
+      const nextId = getNextRoutineId();
       appData.routines.forEach((routine, i) => {
         const ci = routine.colorIndex % ROUTINE_COLORS.length;
         const color = ROUTINE_COLORS[ci];
         const exCount = routine.exercises.length;
-        const isNext = routine.id === nextId;
+        const isNext = !currentSession && routine.id === nextId;
         const deleteBtn = routine.isDefault ? '' :
           `<button class="routine-delete" onclick="event.stopPropagation();deleteRoutine('${routine.id}')">&times;</button>`;
         const nextBadge = isNext ? '<span class="next-badge">UP NEXT</span>' : '';
@@ -2166,31 +2219,34 @@
       if (!raw) return;
       try {
         const backup = JSON.parse(raw);
+        // Validate backup has required data
+        if (!backup || !backup.session || !backup.session.exercises || !backup.timestamp) {
+          clearSessionBackup();
+          return;
+        }
         // Ignore backups older than 4 hours
         if (Date.now() - backup.timestamp > 4 * 60 * 60 * 1000) {
           clearSessionBackup();
           return;
         }
-        if (confirm('Resume unfinished ' + (backup.session.routineName || 'workout') + '?')) {
-          currentSession = backup.session;
-          elapsedSeconds = backup.elapsed;
-          clearInterval(elapsedInterval);
-          elapsedInterval = setInterval(() => {
-            elapsedSeconds++;
-            document.getElementById('elapsed-display').textContent = formatTime(elapsedSeconds);
-            if (elapsedSeconds % 15 === 0) saveSessionBackup();
-          }, 1000);
-          document.getElementById('workout-title').textContent = currentSession.routineName || 'Workout';
+        // Silently restore the workout - user can resume from home screen
+        currentSession = backup.session;
+        elapsedSeconds = backup.elapsed || 0;
+        clearInterval(elapsedInterval);
+        elapsedInterval = setInterval(() => {
+          elapsedSeconds++;
           document.getElementById('elapsed-display').textContent = formatTime(elapsedSeconds);
-          document.getElementById('session-notes').value = currentSession.notes || '';
-          document.getElementById('notes-btn').classList.toggle('has-notes', !!(currentSession.notes && currentSession.notes.trim()));
-          collapsedExercises.clear();
-          renderExercises();
-          showScreen('workout');
-          acquireWakeLock();
-        } else {
-          clearSessionBackup();
-        }
+          if (elapsedSeconds % 60 === 0) saveSessionBackup();
+        }, 1000);
+        document.getElementById('workout-title').textContent = currentSession.routineName || 'Workout';
+        document.getElementById('elapsed-display').textContent = formatTime(elapsedSeconds);
+        document.getElementById('session-notes').value = currentSession.notes || '';
+        document.getElementById('notes-btn').classList.toggle('has-notes', !!(currentSession.notes && currentSession.notes.trim()));
+        collapsedExercises.clear();
+        renderExercises();
+        // Re-render home so the Continue button appears
+        renderHome();
+        // Stay on home screen - user taps "Continue Workout" to go back
       } catch (e) {
         clearSessionBackup();
       }
@@ -2212,6 +2268,14 @@
     function startWorkout(routineId) {
       const routine = appData.routines.find(r => r.id === routineId);
       if (!routine) return;
+      // If there's an active workout, confirm before starting a new one
+      if (currentSession) {
+        if (!confirm('Discard current workout and start ' + routine.name + '?')) return;
+        clearInterval(elapsedInterval);
+        clearSessionBackup();
+        releaseWakeLock();
+        dismissRest();
+      }
       const today = new Date().toISOString().slice(0, 10);
 
       currentSession = {
@@ -2257,7 +2321,7 @@
       elapsedInterval = setInterval(() => {
         elapsedSeconds++;
         document.getElementById('elapsed-display').textContent = formatTime(elapsedSeconds);
-        if (elapsedSeconds % 15 === 0) saveSessionBackup();
+        if (elapsedSeconds % 60 === 0) saveSessionBackup();
       }, 1000);
       saveSessionBackup();
 
@@ -2413,6 +2477,7 @@
           }
         }
       }
+      saveSessionBackup();
     }
 
     function adjSetWeight(ei, si, direction) {
@@ -2434,6 +2499,7 @@
           }
         }
       }
+      saveSessionBackup();
     }
 
     function toggleSet(ei, si) {
@@ -2504,6 +2570,7 @@
           }
         }
       }
+      saveSessionBackup();
     }
 
     function showAutoFinishToast() {
@@ -2522,6 +2589,7 @@
       const lastSet = ex.sets[ex.sets.length - 1];
       ex.sets.push({ weight: lastSet.weight, reps: '', completed: false });
       renderExercises(); // structural change, full re-render needed
+      saveSessionBackup();
     }
 
     function removeSet(ei) {
@@ -2529,6 +2597,7 @@
       if (ex.sets.length > 1) {
         ex.sets.pop();
         renderExercises();
+        saveSessionBackup();
       }
     }
 
@@ -2539,6 +2608,7 @@
       currentSession.exercises.splice(ei, 1);
       collapsedExercises.clear();
       renderExercises();
+      saveSessionBackup();
     }
 
     // ==================== REORDER EXERCISES (DRAG) ====================
@@ -2665,6 +2735,7 @@
         });
 
         renderExercises();
+        saveSessionBackup();
       }
       dragState = null;
     }
@@ -2681,6 +2752,10 @@
       // Update button indicator
       const hasText = document.getElementById('session-notes').value.trim().length > 0;
       document.getElementById('notes-btn').classList.toggle('has-notes', hasText);
+      if (currentSession) {
+        currentSession.notes = document.getElementById('session-notes').value.trim();
+        saveSessionBackup();
+      }
     }
 
     // ==================== EXERCISE HISTORY QUICK-VIEW ====================
@@ -2818,12 +2893,7 @@
 
       const anyDone = currentSession.exercises.some(ex => ex.sets.some(s => s.completed));
       if (!anyDone) {
-        if (!confirm('No sets completed. Discard this workout?')) return;
-        clearInterval(elapsedInterval);
-        clearSessionBackup();
-        releaseWakeLock();
-        showScreen('home');
-        currentSession = null;
+        discardWorkout();
         return;
       }
 
@@ -2859,13 +2929,9 @@
       }
     }
 
-    function confirmExit() {
-      if (currentSession) {
-        const anyDone = currentSession.exercises.some(ex => ex.sets.some(s => s.completed));
-        if (anyDone) {
-          if (!confirm('Leave workout? Unsaved progress will be lost.')) return;
-        }
-      }
+    function discardWorkout() {
+      if (!currentSession) return;
+      if (!confirm('Discard this workout? All progress will be lost.')) return;
       clearInterval(elapsedInterval);
       clearSessionBackup();
       releaseWakeLock();
@@ -3008,6 +3074,7 @@
       closeSwapModal();
       renderExercises();
       triggerHaptic('setComplete');
+      saveSessionBackup();
     }
 
     // ==================== SAVE / DELETE ROUTINE ====================
@@ -3311,8 +3378,8 @@
     function updateNavDots() {
       const dots = document.getElementById('nav-dots');
       const idx = SWIPE_SCREENS.indexOf(activeScreen);
-      // Hide dots during workout and progress
-      if (currentSession || activeScreen === 'workout' || activeScreen === 'progress') {
+      // Hide dots during workout and progress screens
+      if (activeScreen === 'workout' || activeScreen === 'progress') {
         dots.classList.add('hidden');
         return;
       }
@@ -3329,8 +3396,8 @@
     }
 
     function onSwipeTouchStart(e) {
-      // Disable during workout, progress, or when dragging exercises
-      if (currentSession || activeScreen === 'workout' || activeScreen === 'progress') return;
+      // Disable during workout screen, progress, or when dragging exercises
+      if (activeScreen === 'workout' || activeScreen === 'progress') return;
       if (SWIPE_SCREENS.indexOf(activeScreen) === -1) return;
       // Don't start swipe on interactive elements
       const tag = e.target.tagName;
@@ -3470,6 +3537,9 @@
       if (confirm('Delete ALL workout history? This cannot be undone.')) {
         if (confirm('Are you really sure?')) {
           localStorage.removeItem('workoutData');
+          clearSessionBackup();
+          currentSession = null;
+          clearInterval(elapsedInterval);
           appData = { sessions: [], settings: { defaultRestTime: 90, unit: 'kg', hapticsEnabled: true }, personalRecords: {}, routines: JSON.parse(JSON.stringify(DEFAULT_ROUTINES)) };
           showScreen('home');
         }
