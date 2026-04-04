@@ -73,6 +73,17 @@
       font-weight: 400;
       margin-bottom: 20px;
     }
+    .streak-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      color: var(--orange);
+      font-size: 12px;
+      font-weight: 700;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .streak-badge svg { width: 13px; height: 13px; vertical-align: middle; }
 
     /* Stats row */
     .stats-row {
@@ -318,6 +329,37 @@
       font-size: 10px;
       color: var(--text3);
     }
+    .pr-item-1rm {
+      font-size: 10px;
+      color: var(--text2);
+      margin-top: 1px;
+    }
+    .history-stats-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 14px;
+      flex-shrink: 0;
+    }
+    .history-stat-card {
+      flex: 1;
+      background: var(--surface2);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      text-align: center;
+    }
+    .history-stat-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--text3);
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
+    .history-stat-value {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+      color: var(--gold);
+    }
 
     /* PR badge animation in workout */
     .pr-badge {
@@ -385,6 +427,7 @@
     }
     .header .back svg { width: 18px; height: 18px; }
     .header h2 { font-size: 18px; flex: 1; font-weight: 700; letter-spacing: -0.3px; }
+    #history .header, #settings .header, #progress .header, #manage-routines .header { margin-bottom: 16px; }
     .header .date-badge {
       color: var(--text2);
       font-size: 12px;
@@ -604,6 +647,26 @@
     .exercise-card.collapsed .ex-chevron { transform: rotate(-90deg); }
     .ex-body { overflow: hidden; transition: max-height 0.3s ease-out, opacity 0.25s ease-out; opacity: 1; }
     .exercise-card.collapsed .ex-body { opacity: 0; pointer-events: none; }
+
+    /* Plate breakdown */
+    .plate-breakdown {
+      font-size: 11px;
+      color: var(--text3);
+      padding: 2px 2px 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .plate-breakdown .plate-label { color: var(--text3); }
+    .plate-breakdown .plate-tag {
+      background: var(--surface2);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      color: var(--text2);
+      font-size: 11px;
+    }
 
     /* Set header row */
     .set-header {
@@ -1561,8 +1624,9 @@
     <div class="home-greeting" id="home-greeting">Workout Tracker</div>
     <div class="home-date-line" id="home-date-line"></div>
 
-    <!-- Stats -->
-    <div class="stats-row" id="stats-row"></div>
+    <!-- Continue + Start buttons (dynamic) -->
+    <div id="continue-workout-container"></div>
+    <div class="routine-buttons" id="routine-buttons-container"></div>
 
     <!-- Calendar -->
     <div class="calendar-card">
@@ -1580,12 +1644,6 @@
 
     <!-- Last workout -->
     <div id="last-workout-container"></div>
-
-    <!-- Personal Records -->
-    <div id="pr-container"></div>
-
-    <!-- Start buttons (dynamic) -->
-    <div class="routine-buttons" id="routine-buttons-container"></div>
 
     <div class="home-actions">
       <button class="btn-ghost" onclick="showScreen('history')">
@@ -1706,6 +1764,8 @@
       </button>
       <h2>Progress</h2>
     </div>
+    <div class="stats-row" id="stats-row"></div>
+    <div id="pr-container"></div>
     <div id="progress-charts"></div>
   </div>
 
@@ -1737,6 +1797,13 @@
         <input type="checkbox" id="set-haptics" checked>
         <span class="toggle-slider"></span>
       </label>
+    </div>
+    <div class="setting-row">
+      <label>Bar Weight</label>
+      <div>
+        <input type="number" id="set-bar-weight" style="width:64px;text-align:center;" min="0" max="100">
+        <span style="color:var(--text2);font-size:12px;" id="bar-weight-unit"> kg</span>
+      </div>
     </div>
     <div style="padding:16px 0;">
       <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
@@ -1837,6 +1904,8 @@
     const CHECK_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
     const DRAG_HANDLE_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>`;
     const TROPHY_SVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`;
+    const FLAME_SVG = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c1 4-2 6-2 10 0 2.5 2 4 4 4s2-1.5 2-3c0 3-2 7-6 7s-6-3.5-6-7c0-4 3-6 4-9 0 0 2 2 2 4s-1 3-1 3 3-1 3-9z"/></svg>`;
+
 
     // ==================== EXERCISE LIBRARY ====================
     const EXERCISE_LIBRARY = [
@@ -1906,6 +1975,45 @@
 
     const LIBRARY_MAP = {};
     EXERCISE_LIBRARY.forEach(ex => LIBRARY_MAP[ex.id] = ex);
+
+    const PLATES_KG = [20, 10, 5, 2.5, 1.25];
+    const PLATES_LBS = [45, 25, 10, 5, 2.5];
+
+    function calculatePlates(totalWeight, barWeight, unit) {
+      const plates = unit === 'lbs' ? PLATES_LBS : PLATES_KG;
+      let perSide = (totalWeight - barWeight) / 2;
+      if (perSide <= 0) return [];
+      const result = [];
+      for (const plate of plates) {
+        while (perSide >= plate - 0.001) {
+          result.push(plate);
+          perSide -= plate;
+        }
+      }
+      return result;
+    }
+
+    function getPlateBreakdownHTML(weight, unit) {
+      if (!weight || weight === '') return '';
+      const w = Number(weight);
+      const barWeight = appData.settings.barWeight || (unit === 'lbs' ? 45 : 20);
+      if (w <= 0) return '';
+      if (w < barWeight) return `<div class="plate-breakdown"><span class="plate-label">Under bar weight</span></div>`;
+      if (w === barWeight) return `<div class="plate-breakdown"><span class="plate-label">Bar only</span></div>`;
+      const remainder = (w - barWeight) % 2;
+      if (Math.abs(remainder) > 0.01) return `<div class="plate-breakdown"><span class="plate-label">Can't split evenly</span></div>`;
+      const plates = calculatePlates(w, barWeight, unit);
+      if (plates.length === 0) return `<div class="plate-breakdown"><span class="plate-label">Bar only</span></div>`;
+      // Group duplicate plates: [10,10,5] -> [{v:10,c:2},{v:5,c:1}]
+      const grouped = [];
+      plates.forEach(p => {
+        const last = grouped[grouped.length - 1];
+        if (last && last.v === p) last.c++;
+        else grouped.push({ v: p, c: 1 });
+      });
+      const tags = grouped.map(g => `<span class="plate-tag">${g.c > 1 ? g.c + '&times;' : ''}${g.v}</span>`).join('');
+      return `<div class="plate-breakdown"><span class="plate-label">Per side:</span> ${tags}</div>`;
+    }
 
     const LEGACY_NAME_MAP = {
       'Squat': 'squat-bb',
@@ -2001,8 +2109,18 @@
             }
           }
           if (!ex.equipment) ex.equipment = 'barbell';
+          // Backfill targetReps from library
+          if (!ex.targetReps && ex.exerciseId) {
+            const lib = LIBRARY_MAP[ex.exerciseId];
+            if (lib) ex.targetReps = lib.defaultReps;
+          }
         });
       });
+
+      // Default bar weight setting
+      if (appData.settings.barWeight === undefined) {
+        appData.settings.barWeight = appData.settings.unit === 'lbs' ? 45 : 20;
+      }
 
       rebuildAllPRs();
       saveData(appData);
@@ -2090,6 +2208,27 @@
       });
     }
 
+    function computeEstimated1RM(exerciseName) {
+      let best1RM = 0;
+      appData.sessions.forEach(s => {
+        s.exercises.forEach(ex => {
+          if (ex.name === exerciseName) {
+            ex.sets.forEach(set => {
+              if (set.completed && set.weight && set.reps) {
+                const w = Number(set.weight);
+                const r = Number(set.reps);
+                if (w > 0 && r > 0) {
+                  const e1rm = w * (1 + r / 30);
+                  if (e1rm > best1RM) best1RM = e1rm;
+                }
+              }
+            });
+          }
+        });
+      });
+      return best1RM > 0 ? Math.round(best1RM) : null;
+    }
+
     function checkForNewPR(exerciseName, weight) {
       if (weight === '' || weight === null || weight === 0) return false;
       const numWeight = Number(weight);
@@ -2117,10 +2256,13 @@
       let items = '';
       names.forEach(name => {
         const pr = prs[name];
+        const est1rm = computeEstimated1RM(name);
+        const show1rm = est1rm && est1rm > pr.maxWeight;
         items += `<div class="pr-item">
           <div class="pr-item-name">${escapeHtml(name)}</div>
           <div class="pr-item-value">${pr.maxWeight} ${unit}</div>
           <div class="pr-item-date">${formatDate(pr.date)}</div>
+          ${show1rm ? `<div class="pr-item-1rm">Est 1RM: ${est1rm} ${unit}</div>` : ''}
         </div>`;
       });
       container.innerHTML = `<div class="pr-section">
@@ -2217,11 +2359,50 @@
     }
     initCalendar();
 
+    function calculateWeeklyStreak() {
+      if (appData.sessions.length === 0) return 0;
+      // Get Monday of the current week
+      const now = new Date();
+      const dayOfWeek = (now.getDay() + 6) % 7; // Mon=0
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - dayOfWeek);
+      monday.setHours(0, 0, 0, 0);
+
+      // Build set of session dates
+      const sessionDates = new Set(appData.sessions.map(s => s.date));
+
+      let streak = 0;
+      let weekStart = new Date(monday);
+
+      // Check current week first, then walk backwards
+      while (true) {
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        // Check if any session date falls in this week
+        let found = false;
+        for (let d = new Date(weekStart); d <= weekEnd; d.setDate(d.getDate() + 1)) {
+          const ds = d.toISOString().slice(0, 10);
+          if (sessionDates.has(ds)) { found = true; break; }
+        }
+        if (found) {
+          streak++;
+          weekStart.setDate(weekStart.getDate() - 7);
+        } else {
+          break;
+        }
+      }
+      return streak;
+    }
+
     function renderHome() {
-      // Date line
+      // Date line with optional streak badge
       const now = new Date();
       const opts = { weekday: 'long', month: 'long', day: 'numeric' };
-      document.getElementById('home-date-line').textContent = now.toLocaleDateString('en-US', opts);
+      const dateText = now.toLocaleDateString('en-US', opts);
+      const streak = calculateWeeklyStreak();
+      const streakHTML = streak >= 2
+        ? ` <span class="streak-badge">${FLAME_SVG} ${streak}wk streak</span>` : '';
+      document.getElementById('home-date-line').innerHTML = escapeHtml(dateText) + streakHTML;
 
       // Greeting based on time
       const h = now.getHours();
@@ -2230,11 +2411,9 @@
       else if (h < 17) greet = 'Good afternoon';
       document.getElementById('home-greeting').textContent = greet;
 
-      renderStats();
+      renderRoutineButtons();
       renderCalendar();
       renderLastWorkout();
-      renderPRSection();
-      renderRoutineButtons();
     }
 
     function getNextRoutineId() {
@@ -2246,18 +2425,21 @@
     }
 
     function renderRoutineButtons() {
+      const continueContainer = document.getElementById('continue-workout-container');
       const container = document.getElementById('routine-buttons-container');
-      let html = '';
 
       // Show continue button if workout is active
       if (currentSession) {
         const elapsed = formatTime(getElapsedSeconds());
-        html += `<button class="btn-continue-workout" onclick="showScreen('workout')">
+        continueContainer.innerHTML = `<button class="btn-continue-workout" onclick="showScreen('workout')">
           Continue ${escapeHtml(currentSession.routineName || 'Workout')}
           <span class="continue-timer">${elapsed}</span>
         </button>`;
+      } else {
+        continueContainer.innerHTML = '';
       }
 
+      let html = '';
       const nextId = getNextRoutineId();
       appData.routines.forEach((routine, i) => {
         const ci = routine.colorIndex % ROUTINE_COLORS.length;
@@ -2540,7 +2722,7 @@
           const lastEx = findLastSessionWithExercise(t.name);
           let lastWeight = lastEx ? (lastEx.sets.find(s => s.weight !== '' && s.weight !== null) || {}).weight || '' : '';
           const step = getWeightStep(t.equipment);
-          // Auto-advance: only if ALL sets completed at the SAME top weight
+          // Auto-advance: only if ALL sets completed at SAME top weight AND all met target reps
           let autoAdvanced = false;
           let prevWeight = lastWeight;
           if (lastEx && lastWeight !== '') {
@@ -2550,7 +2732,10 @@
               const weights = completedSets.map(s => Number(s.weight));
               const maxW = Math.max(...weights);
               const allSameTopWeight = weights.every(w => w === maxW);
-              if (allSameTopWeight) {
+              // Check that all completed sets met target reps
+              const targetReps = parseInt(t.reps) || 0;
+              const allMetReps = targetReps === 0 || completedSets.every(s => Number(s.reps) >= targetReps);
+              if (allSameTopWeight && allMetReps) {
                 lastWeight = +(maxW + step).toFixed(1);
                 autoAdvanced = true;
               }
@@ -2645,6 +2830,12 @@
             <span></span><span>${unit.toUpperCase()}</span><span>REPS</span><span></span>
           </div>`;
 
+        // Plate breakdown for barbell exercises
+        if (eqType === 'barbell') {
+          const maxWeight = Math.max(0, ...ex.sets.filter(s => s.weight !== '' && s.weight !== null).map(s => Number(s.weight)));
+          html += getPlateBreakdownHTML(maxWeight, unit);
+        }
+
         ex.sets.forEach((set, si) => {
           html += buildSetRowHTML(ei, si, set, ex.autoAdvanced);
         });
@@ -2687,6 +2878,27 @@
 
     // ---- Targeted DOM updates (no flicker) ----
 
+    function refreshPlateBreakdown(ei) {
+      const ex = currentSession.exercises[ei];
+      if (ex.equipment !== 'barbell') return;
+      const card = document.getElementById('ex-' + ei);
+      if (!card) return;
+      const unit = appData.settings.unit;
+      const maxWeight = Math.max(0, ...ex.sets.filter(s => s.weight !== '' && s.weight !== null).map(s => Number(s.weight)));
+      const existing = card.querySelector('.plate-breakdown');
+      const newHTML = getPlateBreakdownHTML(maxWeight, unit);
+      if (existing) {
+        if (newHTML) {
+          existing.outerHTML = newHTML;
+        } else {
+          existing.remove();
+        }
+      } else if (newHTML) {
+        const setHeader = card.querySelector('.set-header');
+        if (setHeader) setHeader.insertAdjacentHTML('afterend', newHTML);
+      }
+    }
+
     function updateWeightInput(ei, si) {
       const input = document.getElementById('wi-' + ei + '-' + si);
       if (input) {
@@ -2708,6 +2920,7 @@
           }
         }
       }
+      if (field === 'weight') refreshPlateBreakdown(ei);
       saveSessionBackup();
     }
 
@@ -2730,6 +2943,7 @@
           }
         }
       }
+      refreshPlateBreakdown(ei);
       saveSessionBackup();
     }
 
@@ -3012,6 +3226,15 @@
           '<div class="history-empty">No previous sessions found for this exercise.</div>';
       } else {
         let html = '';
+        // Show PR + estimated 1RM header stats
+        const pr = appData.personalRecords[ex.name];
+        const est1rm = computeEstimated1RM(ex.name);
+        if (pr || est1rm) {
+          html += '<div class="history-stats-row">';
+          if (pr) html += `<div class="history-stat-card"><div class="history-stat-label">PR</div><div class="history-stat-value">${pr.maxWeight} ${unit}</div></div>`;
+          if (est1rm) html += `<div class="history-stat-card"><div class="history-stat-label">Est 1RM</div><div class="history-stat-value">${est1rm} ${unit}</div></div>`;
+          html += '</div>';
+        }
         history.forEach(h => {
           html += '<div class="history-session-item">';
           html += `<div class="history-session-date">${formatDate(h.date)}</div>`;
@@ -3831,6 +4054,8 @@
     }
 
     function renderProgress() {
+      renderStats();
+      renderPRSection();
       const container = document.getElementById('progress-charts');
       const allExercises = new Set();
       appData.sessions.forEach(s => {
@@ -3981,15 +4206,19 @@
       document.getElementById('set-rest').value = appData.settings.defaultRestTime;
       document.getElementById('set-unit').value = appData.settings.unit;
       document.getElementById('set-haptics').checked = appData.settings.hapticsEnabled !== false;
+      document.getElementById('set-bar-weight').value = appData.settings.barWeight || (appData.settings.unit === 'lbs' ? 45 : 20);
+      document.getElementById('bar-weight-unit').textContent = ' ' + appData.settings.unit;
     }
 
     function saveSettings() {
       const rest = parseInt(document.getElementById('set-rest').value) || 90;
       const unit = document.getElementById('set-unit').value;
       const haptics = document.getElementById('set-haptics').checked;
+      const barWeight = parseFloat(document.getElementById('set-bar-weight').value) || (unit === 'lbs' ? 45 : 20);
       appData.settings.defaultRestTime = Math.max(10, Math.min(600, rest));
       appData.settings.unit = unit;
       appData.settings.hapticsEnabled = haptics;
+      appData.settings.barWeight = barWeight;
       saveData(appData);
       showScreen('home');
     }
