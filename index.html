@@ -1259,6 +1259,142 @@
     }
     .add-exercise-btn:active { color: var(--text2); border-color: rgba(255,255,255,0.15); }
 
+    /* New Routine ghost button */
+    .btn-new-routine {
+      padding: 18px 14px;
+      border: 2px dashed rgba(255,255,255,0.1);
+      border-radius: var(--radius);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text3);
+      cursor: pointer;
+      background: none;
+      text-align: center;
+      transition: border-color 0.15s, color 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-new-routine:active { border-color: rgba(255,255,255,0.2); color: var(--text2); }
+
+    /* Routine Builder Screen */
+    #routine-builder { padding-top: 0; }
+    .builder-name-input {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 14px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    .builder-name-input:focus { outline: none; border-color: var(--accent); }
+    .builder-name-input::placeholder { color: var(--text3); }
+    .builder-exercises { margin-bottom: 16px; }
+    .builder-empty {
+      text-align: center;
+      color: var(--text3);
+      padding: 40px 20px;
+      font-size: 14px;
+    }
+    .builder-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .builder-card-info { flex: 1; min-width: 0; }
+    .builder-card-name {
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .builder-card-meta { font-size: 11px; color: var(--text2); margin-top: 2px; }
+    .builder-card-fields {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .builder-card-fields input {
+      width: 42px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 4px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+    }
+    .builder-card-fields input:focus { outline: none; border-color: var(--accent); }
+    .builder-card-fields span { color: var(--text3); font-size: 12px; }
+    .builder-remove {
+      background: none;
+      border: none;
+      color: var(--text3);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 4px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .builder-remove:active { color: var(--accent); }
+    .builder-add-btn {
+      background: none;
+      border: 2px dashed rgba(255,255,255,0.08);
+      color: var(--text3);
+      padding: 14px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      width: 100%;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .builder-add-btn:active { color: var(--text2); border-color: rgba(255,255,255,0.15); }
+    .builder-save-bar {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      padding: 16px;
+      background: linear-gradient(to top, var(--bg) 60%, transparent);
+      padding-top: 48px;
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .builder-save-btn {
+      width: 100%;
+      max-width: 480px;
+      padding: 15px;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      background: var(--green);
+      color: #0f0f1a;
+      letter-spacing: -0.2px;
+      box-shadow: 0 4px 20px rgba(52,211,153,0.25);
+    }
+    .builder-save-btn:active { opacity: 0.9; transform: scale(0.99); }
+    .builder-save-btn:disabled { opacity: 0.4; transform: none; }
+
     /* Routine buttons container */
     .routine-buttons {
       display: grid;
@@ -1551,6 +1687,38 @@
     <div class="danger-zone">
       <h3>Danger Zone</h3>
       <button class="btn btn-small" style="background:var(--accent);color:#fff;" onclick="clearAllData()">Clear All Data</button>
+    </div>
+  </div>
+
+  <!-- Routine Builder Screen -->
+  <div id="routine-builder" class="screen">
+    <div class="header">
+      <button class="back" onclick="showScreen('home')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <h2>New Routine</h2>
+    </div>
+    <input class="builder-name-input" id="builder-name" type="text" placeholder="Routine name..." maxlength="40">
+    <div class="builder-exercises" id="builder-exercises"></div>
+    <button class="builder-add-btn" onclick="addBuilderExercise()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add Exercise
+    </button>
+    <div class="builder-save-bar">
+      <button class="builder-save-btn" onclick="saveNewRoutineFromBuilder()">Save Routine</button>
+    </div>
+
+    <!-- Builder Swap Modal -->
+    <div class="swap-overlay" id="builder-swap-overlay" onclick="closeBuilderSwapModal(event)">
+      <div class="swap-modal">
+        <div class="swap-modal-header">
+          <h3>Add Exercise</h3>
+          <button class="notes-modal-close" onclick="closeBuilderSwapModal()">&times;</button>
+        </div>
+        <input class="swap-search" id="builder-swap-search" type="text" placeholder="Search exercises..." oninput="renderBuilderSwapList()">
+        <div class="swap-filters" id="builder-swap-filters"></div>
+        <div class="swap-list" id="builder-swap-list"></div>
+      </div>
     </div>
   </div>
 
@@ -2024,6 +2192,10 @@
           ${deleteBtn}
         </button>`;
       });
+      html += `<button class="btn-new-routine" onclick="openRoutineBuilder()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        New Routine
+      </button>`;
       container.innerHTML = html;
     }
 
@@ -3194,6 +3366,156 @@
       appData.routines = appData.routines.filter(r => r.id !== routineId);
       saveData(appData);
       renderRoutineButtons();
+    }
+
+    // ==================== ROUTINE BUILDER ====================
+    let routineBuilderExercises = [];
+    let builderCategoryFilter = 'All';
+
+    function openRoutineBuilder() {
+      routineBuilderExercises = [];
+      document.getElementById('builder-name').value = '';
+      renderBuilderExercises();
+      showScreen('routine-builder');
+    }
+
+    function renderBuilderExercises() {
+      const container = document.getElementById('builder-exercises');
+      if (routineBuilderExercises.length === 0) {
+        container.innerHTML = '<div class="builder-empty">Tap + to add exercises</div>';
+        return;
+      }
+      container.innerHTML = routineBuilderExercises.map((ex, i) => {
+        return `<div class="builder-card">
+          <div class="ex-icon ${ex.equipment}" style="width:32px;height:32px;border-radius:8px;flex-shrink:0">${getExIcon(ex.equipment)}</div>
+          <div class="builder-card-info">
+            <div class="builder-card-name">${escapeHtml(ex.name)}</div>
+            <div class="builder-card-meta">${ex.equipment}</div>
+          </div>
+          <div class="builder-card-fields">
+            <input type="number" min="1" max="10" value="${ex.sets}" onchange="updateBuilderExercise(${i},'sets',this.value)" inputmode="numeric">
+            <span>&times;</span>
+            <input type="text" value="${escapeHtml(ex.reps)}" onchange="updateBuilderExercise(${i},'reps',this.value)" placeholder="reps" style="width:48px;">
+          </div>
+          <button class="builder-remove" onclick="removeBuilderExercise(${i})">&times;</button>
+        </div>`;
+      }).join('');
+    }
+
+    function updateBuilderExercise(index, field, value) {
+      if (!routineBuilderExercises[index]) return;
+      if (field === 'sets') {
+        const n = parseInt(value);
+        if (n >= 1 && n <= 10) routineBuilderExercises[index].sets = n;
+      } else if (field === 'reps') {
+        routineBuilderExercises[index].reps = value.trim() || '8';
+      }
+    }
+
+    function removeBuilderExercise(index) {
+      routineBuilderExercises.splice(index, 1);
+      renderBuilderExercises();
+      triggerHaptic('light');
+    }
+
+    function addBuilderExercise() {
+      builderCategoryFilter = 'All';
+      document.getElementById('builder-swap-search').value = '';
+      renderBuilderSwapFilters();
+      renderBuilderSwapList();
+      document.getElementById('builder-swap-overlay').classList.add('active');
+      document.getElementById('builder-swap-search').focus();
+    }
+
+    function closeBuilderSwapModal(e) {
+      if (e && e.target !== e.currentTarget && !e.target.closest('.notes-modal-close')) return;
+      document.getElementById('builder-swap-overlay').classList.remove('active');
+    }
+
+    function renderBuilderSwapFilters() {
+      const categories = ['All', 'Chest', 'Back', 'Shoulders', 'Legs', 'Arms', 'Core'];
+      const container = document.getElementById('builder-swap-filters');
+      container.innerHTML = categories.map(cat =>
+        `<button class="swap-chip${builderCategoryFilter === cat ? ' active' : ''}" onclick="setBuilderSwapFilter('${cat}')">${cat}</button>`
+      ).join('');
+    }
+
+    function setBuilderSwapFilter(cat) {
+      builderCategoryFilter = cat;
+      renderBuilderSwapFilters();
+      renderBuilderSwapList();
+    }
+
+    function renderBuilderSwapList() {
+      const query = document.getElementById('builder-swap-search').value.toLowerCase().trim();
+      const container = document.getElementById('builder-swap-list');
+      const currentIds = new Set(routineBuilderExercises.map(e => e.exerciseId));
+
+      let filtered = EXERCISE_LIBRARY.filter(ex => {
+        if (currentIds.has(ex.id)) return false;
+        if (builderCategoryFilter !== 'All' && ex.category !== builderCategoryFilter) return false;
+        if (query && !ex.name.toLowerCase().includes(query) && !ex.category.toLowerCase().includes(query) && !ex.equipment.toLowerCase().includes(query)) return false;
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div style="text-align:center;color:var(--text3);padding:24px;font-size:13px;">No exercises found</div>';
+        return;
+      }
+
+      container.innerHTML = filtered.map(ex => {
+        return `<div class="swap-item" onclick="selectBuilderExercise('${ex.id}')">
+          <div class="ex-icon ${ex.equipment}" style="width:32px;height:32px;border-radius:8px;flex-shrink:0">${getExIcon(ex.equipment)}</div>
+          <div class="swap-item-info">
+            <div class="swap-item-name">${escapeHtml(ex.name)}</div>
+            <div class="swap-item-meta">${ex.category} &middot; ${ex.equipment}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function selectBuilderExercise(libraryId) {
+      const libEx = LIBRARY_MAP[libraryId];
+      if (!libEx) return;
+      routineBuilderExercises.push({
+        exerciseId: libEx.id,
+        name: libEx.name,
+        equipment: libEx.equipment,
+        sets: libEx.defaultSets,
+        reps: String(libEx.defaultReps)
+      });
+      closeBuilderSwapModal();
+      renderBuilderExercises();
+      triggerHaptic('setComplete');
+    }
+
+    function saveNewRoutineFromBuilder() {
+      const name = document.getElementById('builder-name').value.trim();
+      if (!name) {
+        document.getElementById('builder-name').focus();
+        document.getElementById('builder-name').style.borderColor = 'var(--accent)';
+        setTimeout(() => { document.getElementById('builder-name').style.borderColor = ''; }, 1500);
+        return;
+      }
+      if (routineBuilderExercises.length === 0) return;
+
+      const newRoutine = {
+        id: 'custom-' + Date.now(),
+        name: name,
+        colorIndex: appData.routines.length % ROUTINE_COLORS.length,
+        isDefault: false,
+        exercises: routineBuilderExercises.map(ex => ({
+          exerciseId: ex.exerciseId,
+          name: ex.name,
+          sets: ex.sets,
+          reps: ex.reps,
+          equipment: ex.equipment
+        }))
+      };
+      appData.routines.push(newRoutine);
+      saveData(appData);
+      triggerHaptic('success');
+      showScreen('home');
     }
 
     // ==================== HISTORY ====================
