@@ -1476,11 +1476,74 @@
       opacity: 0.75;
       margin-top: 3px;
     }
+    /* Custom dialog */
+    .dialog-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 9000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .dialog-overlay.active { opacity: 1; }
+    .dialog-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      max-width: 320px;
+      width: 100%;
+      transform: scale(0.95);
+      transition: transform 0.15s;
+    }
+    .dialog-overlay.active .dialog-box { transform: scale(1); }
+    .dialog-msg {
+      font-size: 15px;
+      font-weight: 500;
+      line-height: 1.5;
+      margin-bottom: 20px;
+      color: var(--text);
+    }
+    .dialog-buttons {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    .dialog-btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .dialog-btn:active { opacity: 0.8; }
+    .dialog-btn-cancel {
+      background: var(--surface2);
+      color: var(--text2);
+    }
+    .dialog-btn-confirm {
+      background: var(--accent);
+      color: #fff;
+    }
   </style>
 </head>
 <body>
 
   <!-- Confetti Canvas -->
+  <!-- Custom Dialog -->
+  <div class="dialog-overlay" id="dialog-overlay">
+    <div class="dialog-box">
+      <div class="dialog-msg" id="dialog-msg"></div>
+      <div class="dialog-buttons" id="dialog-buttons"></div>
+    </div>
+  </div>
+
   <canvas id="confetti-canvas"></canvas>
 
   <!-- Navigation Dots -->
@@ -2353,11 +2416,11 @@
     }
 
     // ==================== UNDO LAST SESSION ====================
-    function undoLastSession() {
+    async function undoLastSession() {
       if (appData.sessions.length === 0) return;
       const last = appData.sessions[appData.sessions.length - 1];
       const rName = last.routineName || ('Workout ' + (last.type || '?'));
-      if (!confirm('Remove "' + rName + '" from ' + formatDate(last.date) + '?')) return;
+      if (!await customConfirm('Remove "' + rName + '" from ' + formatDate(last.date) + '?')) return;
       appData.sessions.pop();
       rebuildAllPRs();
       saveData(appData);
@@ -2448,12 +2511,12 @@
       return null;
     }
 
-    function startWorkout(routineId) {
+    async function startWorkout(routineId) {
       const routine = appData.routines.find(r => r.id === routineId);
       if (!routine) return;
       // If there's an active workout, confirm before starting a new one
       if (currentSession) {
-        if (!confirm('Discard current workout and start ' + routine.name + '?')) return;
+        if (!await customConfirm('Discard current workout and start ' + routine.name + '?')) return;
         clearInterval(elapsedInterval);
         clearSessionBackup();
         releaseWakeLock();
@@ -2765,10 +2828,10 @@
       }
     }
 
-    function removeExercise(ei) {
+    async function removeExercise(ei) {
       if (!currentSession || currentSession.exercises.length <= 1) return;
       const name = currentSession.exercises[ei].name;
-      if (!confirm('Remove "' + name + '" from this workout?')) return;
+      if (!await customConfirm('Remove "' + name + '" from this workout?')) return;
       currentSession.exercises.splice(ei, 1);
       collapsedExercises.clear();
       renderExercises();
@@ -3151,9 +3214,9 @@
       }
     }
 
-    function discardWorkout() {
+    async function discardWorkout() {
       if (!currentSession) return;
-      if (!confirm('Discard this workout? All progress will be lost.')) return;
+      if (!await customConfirm('Discard this workout? All progress will be lost.')) return;
       clearInterval(elapsedInterval);
       clearSessionBackup();
       releaseWakeLock();
@@ -3352,10 +3415,10 @@
       closeSaveRoutineModal();
     }
 
-    function deleteRoutine(routineId) {
+    async function deleteRoutine(routineId) {
       const routine = appData.routines.find(r => r.id === routineId);
       if (!routine) return;
-      if (!confirm('Delete routine "' + routine.name + '"?')) return;
+      if (!await customConfirm('Delete routine "' + routine.name + '"?')) return;
       appData.routines = appData.routines.filter(r => r.id !== routineId);
       saveData(appData);
       renderRoutineButtons();
@@ -3942,14 +4005,14 @@
       const file = event.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = function(e) {
+      reader.onload = async function(e) {
         try {
           const imported = JSON.parse(e.target.result);
           if (!imported.sessions || !imported.settings) {
-            alert('Invalid backup file.');
+            await customAlert('Invalid backup file.');
             return;
           }
-          if (!confirm('Replace all data with this backup? (' + imported.sessions.length + ' sessions found)')) return;
+          if (!await customConfirm('Replace all data with this backup? (' + imported.sessions.length + ' sessions found)')) return;
           appData = imported;
           if (!appData.routines) appData.routines = JSON.parse(JSON.stringify(DEFAULT_ROUTINES));
           if (!appData.personalRecords) appData.personalRecords = {};
@@ -3957,25 +4020,48 @@
           saveData(appData);
           showScreen('home');
         } catch (err) {
-          alert('Could not read file. Make sure it\'s a valid JSON backup.');
+          await customAlert('Could not read file. Make sure it\'s a valid JSON backup.');
         }
       };
       reader.readAsText(file);
       event.target.value = '';
     }
 
-    function clearAllData() {
-      if (confirm('Delete ALL workout history? This cannot be undone.')) {
-        if (confirm('Are you really sure?')) {
-          localStorage.removeItem('workoutData');
-          clearSessionBackup();
-          currentSession = null;
-          clearInterval(elapsedInterval);
-          appData = { sessions: [], settings: { defaultRestTime: 90, unit: 'kg', hapticsEnabled: true }, personalRecords: {}, routines: JSON.parse(JSON.stringify(DEFAULT_ROUTINES)) };
-          showScreen('home');
-        }
-      }
+    async function clearAllData() {
+      if (!await customConfirm('Delete ALL workout history? This cannot be undone.')) return;
+      if (!await customConfirm('Are you really sure?')) return;
+      localStorage.removeItem('workoutData');
+      clearSessionBackup();
+      currentSession = null;
+      clearInterval(elapsedInterval);
+      appData = { sessions: [], settings: { defaultRestTime: 90, unit: 'kg', hapticsEnabled: true }, personalRecords: {}, routines: JSON.parse(JSON.stringify(DEFAULT_ROUTINES)) };
+      showScreen('home');
     }
+
+    // ==================== CUSTOM DIALOG ====================
+    function customDialog(msg, showCancel) {
+      return new Promise(resolve => {
+        const overlay = document.getElementById('dialog-overlay');
+        document.getElementById('dialog-msg').textContent = msg;
+        const btns = document.getElementById('dialog-buttons');
+        let html = '';
+        if (showCancel) {
+          html += '<button class="dialog-btn dialog-btn-cancel" id="dialog-cancel">Cancel</button>';
+        }
+        html += '<button class="dialog-btn dialog-btn-confirm" id="dialog-ok">OK</button>';
+        btns.innerHTML = html;
+        requestAnimationFrame(() => overlay.classList.add('active'));
+        function close(val) {
+          overlay.classList.remove('active');
+          resolve(val);
+        }
+        document.getElementById('dialog-ok').onclick = () => close(true);
+        if (showCancel) document.getElementById('dialog-cancel').onclick = () => close(false);
+        overlay.onclick = (e) => { if (e.target === overlay) close(false); };
+      });
+    }
+    function customConfirm(msg) { return customDialog(msg, true); }
+    function customAlert(msg) { return customDialog(msg, false); }
 
     // ==================== UTILITIES ====================
     function formatDate(dateStr) {
