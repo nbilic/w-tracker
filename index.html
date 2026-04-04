@@ -2240,6 +2240,7 @@
         document.getElementById('notes-btn').classList.toggle('has-notes', !!(currentSession.notes && currentSession.notes.trim()));
         collapsedExercises.clear();
         renderExercises();
+        resumeRestTimer();
         // Re-render home so the Continue button appears
         renderHome();
         // Stay on home screen - user taps "Continue Workout" to go back
@@ -2811,13 +2812,20 @@
 
     // ==================== REST TIMER ====================
     let restInterval = null;
-    let restRemaining = 0;
     let isResting = false;
+    let restStartedAt = 0;
+    let restDuration = 0;
+    let restExName = 'REST';
+
+    function getRestRemaining() {
+      if (!restStartedAt || !restDuration) return 0;
+      return Math.max(0, restDuration - Math.floor((Date.now() - restStartedAt) / 1000));
+    }
 
     function startRestTimer(ei) {
       clearInterval(restInterval);
       let restTime = appData.settings.defaultRestTime;
-      let restExName = 'REST';
+      restExName = 'REST';
       if (ei !== undefined && currentSession && currentSession.exercises[ei]) {
         const ex = currentSession.exercises[ei];
         restExName = ex.name;
@@ -2826,16 +2834,51 @@
           restTime = libEx.defaultRest;
         }
       }
-      restRemaining = restTime;
+      restStartedAt = Date.now();
+      restDuration = restTime;
       isResting = true;
+
+      // Persist rest state on the session
+      if (currentSession) {
+        currentSession.restStartedAt = restStartedAt;
+        currentSession.restDuration = restDuration;
+        currentSession.restExName = restExName;
+        saveSessionBackup();
+      }
+
       document.getElementById('rest-ex-name').textContent = restExName;
       document.getElementById('rest-controls').classList.add('active');
       updateRestDisplay();
 
       restInterval = setInterval(() => {
-        restRemaining--;
-        if (restRemaining <= 0) {
-          restRemaining = 0;
+        const remaining = getRestRemaining();
+        if (remaining <= 0) {
+          clearInterval(restInterval);
+          restFinished();
+        }
+        updateRestDisplay();
+      }, 1000);
+    }
+
+    function resumeRestTimer() {
+      if (!currentSession || !currentSession.restStartedAt || !currentSession.restDuration) return;
+      restStartedAt = currentSession.restStartedAt;
+      restDuration = currentSession.restDuration;
+      restExName = currentSession.restExName || 'REST';
+      const remaining = getRestRemaining();
+      if (remaining <= 0) {
+        clearRestState();
+        return;
+      }
+      isResting = true;
+      document.getElementById('rest-ex-name').textContent = restExName;
+      document.getElementById('rest-controls').classList.add('active');
+      updateRestDisplay();
+
+      clearInterval(restInterval);
+      restInterval = setInterval(() => {
+        const rem = getRestRemaining();
+        if (rem <= 0) {
           clearInterval(restInterval);
           restFinished();
         }
@@ -2844,17 +2887,33 @@
     }
 
     function updateRestDisplay() {
-      document.getElementById('rest-time-display').textContent = formatTime(restRemaining);
+      document.getElementById('rest-time-display').textContent = formatTime(getRestRemaining());
     }
 
     function adjustRest(delta) {
-      restRemaining = Math.max(0, restRemaining + delta);
+      // Shift the start time to effectively add/remove time
+      restStartedAt += delta * -1000;
+      if (currentSession) {
+        currentSession.restStartedAt = restStartedAt;
+        saveSessionBackup();
+      }
       updateRestDisplay();
+    }
+
+    function clearRestState() {
+      restStartedAt = 0;
+      restDuration = 0;
+      isResting = false;
+      if (currentSession) {
+        delete currentSession.restStartedAt;
+        delete currentSession.restDuration;
+        delete currentSession.restExName;
+      }
     }
 
     function dismissRest() {
       clearInterval(restInterval);
-      isResting = false;
+      clearRestState();
       document.getElementById('rest-controls').classList.remove('active');
     }
 
