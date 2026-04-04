@@ -1982,7 +1982,7 @@
     function calculatePlates(totalWeight, barWeight, unit) {
       const plates = unit === 'lbs' ? PLATES_LBS : PLATES_KG;
       let perSide = (totalWeight - barWeight) / 2;
-      if (perSide <= 0) return [];
+      if (perSide <= 0) return { plates: [], leftover: 0 };
       const result = [];
       for (const plate of plates) {
         while (perSide >= plate - 0.001) {
@@ -1990,7 +1990,7 @@
           perSide -= plate;
         }
       }
-      return result;
+      return { plates: result, leftover: Math.abs(perSide) < 0.01 ? 0 : perSide };
     }
 
     function getPlateBreakdownHTML(weight, unit) {
@@ -2000,9 +2000,8 @@
       if (w <= 0) return '';
       if (w < barWeight) return `<div class="plate-breakdown"><span class="plate-label">Under bar weight</span></div>`;
       if (w === barWeight) return `<div class="plate-breakdown"><span class="plate-label">Bar only</span></div>`;
-      const remainder = (w - barWeight) % 2;
-      if (Math.abs(remainder) > 0.01) return `<div class="plate-breakdown"><span class="plate-label">Can't split evenly</span></div>`;
-      const plates = calculatePlates(w, barWeight, unit);
+      const { plates, leftover } = calculatePlates(w, barWeight, unit);
+      if (leftover > 0) return `<div class="plate-breakdown"><span class="plate-label">Can't plate exactly</span></div>`;
       if (plates.length === 0) return `<div class="plate-breakdown"><span class="plate-label">Bar only</span></div>`;
       // Group duplicate plates: [10,10,5] -> [{v:10,c:2},{v:5,c:1}]
       const grouped = [];
