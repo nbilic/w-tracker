@@ -216,7 +216,7 @@
       box-shadow: 0 4px 24px rgba(124,58,237,0.2);
     }
 
-    .home-actions { display: flex; gap: 10px; margin-bottom: 20px; }
+    .home-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
 
     .btn-ghost {
       background: var(--surface);
@@ -1259,24 +1259,57 @@
     }
     .add-exercise-btn:active { color: var(--text2); border-color: rgba(255,255,255,0.15); }
 
-    /* New Routine ghost button */
-    .btn-new-routine {
-      padding: 18px 14px;
-      border: 2px dashed rgba(255,255,255,0.1);
-      border-radius: var(--radius);
+
+    /* Manage Routines Screen */
+    .manage-routine-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .manage-routine-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .manage-routine-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .manage-routine-name {
       font-size: 15px;
-      font-weight: 600;
-      color: var(--text3);
+      font-weight: 700;
+      letter-spacing: -0.2px;
+    }
+    .manage-routine-meta {
+      font-size: 12px;
+      color: var(--text2);
+      margin-top: 2px;
+    }
+    .manage-routine-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .manage-routine-actions button {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
       cursor: pointer;
-      background: none;
-      text-align: center;
-      transition: border-color 0.15s, color 0.15s;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
     }
-    .btn-new-routine:active { border-color: rgba(255,255,255,0.2); color: var(--text2); }
+    .manage-routine-actions button:active { background: var(--surface3); }
+    .manage-routine-actions button.delete-btn:active { background: rgba(233,69,96,0.15); color: var(--accent); }
 
     /* Routine Builder Screen */
     #routine-builder { padding-top: 0; }
@@ -1464,21 +1497,6 @@
       opacity: 0.75;
       margin-top: 3px;
     }
-    .btn-routine .routine-delete {
-      position: absolute;
-      top: 6px; right: 8px;
-      background: rgba(0,0,0,0.3);
-      border: none;
-      color: rgba(255,255,255,0.7);
-      width: 20px; height: 20px;
-      border-radius: 50%;
-      font-size: 13px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      line-height: 1;
-    }
   </style>
 </head>
 <body>
@@ -1532,6 +1550,10 @@
       <button class="btn-ghost" onclick="showScreen('progress')">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         Progress
+      </button>
+      <button class="btn-ghost" onclick="showScreen('manage-routines')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Routines
       </button>
       <button class="btn-ghost" onclick="showScreen('settings')">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -1690,10 +1712,25 @@
     </div>
   </div>
 
+  <!-- Manage Routines Screen -->
+  <div id="manage-routines" class="screen">
+    <div class="header">
+      <button class="back" onclick="showScreen('home')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <h2>Manage Routines</h2>
+    </div>
+    <div id="manage-routines-list"></div>
+    <button class="builder-add-btn" onclick="openRoutineBuilder()" style="margin-top:12px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New Routine
+    </button>
+  </div>
+
   <!-- Routine Builder Screen -->
   <div id="routine-builder" class="screen">
     <div class="header">
-      <button class="back" onclick="showScreen('home')">
+      <button class="back" onclick="showScreen('manage-routines')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
       <h2>New Routine</h2>
@@ -1705,7 +1742,7 @@
       Add Exercise
     </button>
     <div class="builder-save-bar">
-      <button class="builder-save-btn" onclick="saveNewRoutineFromBuilder()">Save Routine</button>
+      <button class="builder-save-btn" onclick="saveRoutineFromBuilder()">Save Routine</button>
     </div>
 
     <!-- Builder Swap Modal -->
@@ -2119,6 +2156,7 @@
       if (id === 'history') renderHistory();
       if (id === 'settings') loadSettings();
       if (id === 'progress') renderProgress();
+      if (id === 'manage-routines') renderManageRoutines();
       if (id === 'workout' && currentSession) acquireWakeLock();
       if (id !== 'workout') releaseWakeLock();
       updateNavDots();
@@ -2181,21 +2219,14 @@
         const color = ROUTINE_COLORS[ci];
         const exCount = routine.exercises.length;
         const isNext = !currentSession && routine.id === nextId;
-        const deleteBtn = routine.isDefault ? '' :
-          `<button class="routine-delete" onclick="event.stopPropagation();deleteRoutine('${routine.id}')">&times;</button>`;
         const nextBadge = isNext ? '<span class="next-badge">UP NEXT</span>' : '';
         html += `<button class="btn-routine${isNext ? ' btn-routine-next' : ''}" onclick="startWorkout('${routine.id}')"
           style="background:${color.bg};box-shadow:0 4px 24px ${color.shadow}">
           ${escapeHtml(routine.name)}
           <span class="routine-subtitle">${exCount} exercises</span>
           ${nextBadge}
-          ${deleteBtn}
         </button>`;
       });
-      html += `<button class="btn-new-routine" onclick="openRoutineBuilder()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        New Routine
-      </button>`;
       container.innerHTML = html;
     }
 
@@ -3361,20 +3392,69 @@
 
     function deleteRoutine(routineId) {
       const routine = appData.routines.find(r => r.id === routineId);
-      if (!routine || routine.isDefault) return;
+      if (!routine) return;
       if (!confirm('Delete routine "' + routine.name + '"?')) return;
       appData.routines = appData.routines.filter(r => r.id !== routineId);
       saveData(appData);
       renderRoutineButtons();
+      if (activeScreen === 'manage-routines') renderManageRoutines();
+    }
+
+    // ==================== MANAGE ROUTINES ====================
+    function renderManageRoutines() {
+      const container = document.getElementById('manage-routines-list');
+      if (appData.routines.length === 0) {
+        container.innerHTML = '<div style="text-align:center;color:var(--text3);padding:32px;font-size:14px;">No routines yet. Tap + to create one.</div>';
+        return;
+      }
+      container.innerHTML = appData.routines.map(routine => {
+        const ci = routine.colorIndex % ROUTINE_COLORS.length;
+        const color = ROUTINE_COLORS[ci];
+        return `<div class="manage-routine-card">
+          <div class="manage-routine-dot" style="background:${color.bg}"></div>
+          <div class="manage-routine-info">
+            <div class="manage-routine-name">${escapeHtml(routine.name)}</div>
+            <div class="manage-routine-meta">${routine.exercises.length} exercises</div>
+          </div>
+          <div class="manage-routine-actions">
+            <button onclick="editRoutine('${routine.id}')" title="Edit">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="delete-btn" onclick="deleteRoutine('${routine.id}')" title="Delete">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            </button>
+          </div>
+        </div>`;
+      }).join('');
     }
 
     // ==================== ROUTINE BUILDER ====================
     let routineBuilderExercises = [];
     let builderCategoryFilter = 'All';
+    let editingRoutineId = null;
 
     function openRoutineBuilder() {
+      editingRoutineId = null;
       routineBuilderExercises = [];
       document.getElementById('builder-name').value = '';
+      document.querySelector('#routine-builder .header h2').textContent = 'New Routine';
+      renderBuilderExercises();
+      showScreen('routine-builder');
+    }
+
+    function editRoutine(routineId) {
+      const routine = appData.routines.find(r => r.id === routineId);
+      if (!routine) return;
+      editingRoutineId = routineId;
+      document.getElementById('builder-name').value = routine.name;
+      routineBuilderExercises = routine.exercises.map(ex => ({
+        exerciseId: ex.exerciseId,
+        name: ex.name,
+        equipment: ex.equipment,
+        sets: ex.sets,
+        reps: String(ex.reps)
+      }));
+      document.querySelector('#routine-builder .header h2').textContent = 'Edit Routine';
       renderBuilderExercises();
       showScreen('routine-builder');
     }
@@ -3489,7 +3569,7 @@
       triggerHaptic('setComplete');
     }
 
-    function saveNewRoutineFromBuilder() {
+    function saveRoutineFromBuilder() {
       const name = document.getElementById('builder-name').value.trim();
       if (!name) {
         document.getElementById('builder-name').focus();
@@ -3499,23 +3579,33 @@
       }
       if (routineBuilderExercises.length === 0) return;
 
-      const newRoutine = {
-        id: 'custom-' + Date.now(),
-        name: name,
-        colorIndex: appData.routines.length % ROUTINE_COLORS.length,
-        isDefault: false,
-        exercises: routineBuilderExercises.map(ex => ({
-          exerciseId: ex.exerciseId,
-          name: ex.name,
-          sets: ex.sets,
-          reps: ex.reps,
-          equipment: ex.equipment
-        }))
-      };
-      appData.routines.push(newRoutine);
+      const exercises = routineBuilderExercises.map(ex => ({
+        exerciseId: ex.exerciseId,
+        name: ex.name,
+        sets: ex.sets,
+        reps: ex.reps,
+        equipment: ex.equipment
+      }));
+
+      if (editingRoutineId) {
+        const routine = appData.routines.find(r => r.id === editingRoutineId);
+        if (routine) {
+          routine.name = name;
+          routine.exercises = exercises;
+        }
+      } else {
+        appData.routines.push({
+          id: 'custom-' + Date.now(),
+          name: name,
+          colorIndex: appData.routines.length % ROUTINE_COLORS.length,
+          isDefault: false,
+          exercises: exercises
+        });
+      }
       saveData(appData);
       triggerHaptic('success');
-      showScreen('home');
+      editingRoutineId = null;
+      showScreen('manage-routines');
     }
 
     // ==================== HISTORY ====================
