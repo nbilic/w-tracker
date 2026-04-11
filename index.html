@@ -1085,6 +1085,21 @@
     .ex-note-btn.has-note { color: var(--accent); border-color: var(--accent); }
     .ex-note-btn:active { color: var(--text); }
 
+    /* BB/DB toggle */
+    .bb-db-toggle {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      height: 28px;
+      padding: 0 8px;
+      border-radius: 7px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .bb-db-toggle:active { background: var(--surface3); }
+
     /* Swap Modal (bottom sheet) */
     .swap-overlay {
       display: none;
@@ -1988,6 +2003,30 @@
     const LIBRARY_MAP = {};
     EXERCISE_LIBRARY.forEach(ex => LIBRARY_MAP[ex.id] = ex);
 
+    // Build barbell <-> dumbbell pair lookup
+    const BB_DB_PAIRS = {};
+    (function buildPairs() {
+      const byBase = {};
+      EXERCISE_LIBRARY.forEach(ex => {
+        if (ex.equipment !== 'barbell' && ex.equipment !== 'dumbbell') return;
+        // Match -bb/-db suffix pattern
+        const m = ex.id.match(/^(.+)-(bb|db)$/);
+        if (m) {
+          const base = m[1];
+          if (!byBase[base]) byBase[base] = {};
+          byBase[base][ex.equipment] = ex.id;
+        }
+      });
+      // Also add manual pairs for non-standard naming
+      byBase['row'] = { barbell: 'barbell-row', dumbbell: 'dumbbell-row' };
+      Object.values(byBase).forEach(pair => {
+        if (pair.barbell && pair.dumbbell) {
+          BB_DB_PAIRS[pair.barbell] = pair.dumbbell;
+          BB_DB_PAIRS[pair.dumbbell] = pair.barbell;
+        }
+      });
+    })();
+
     const PLATES_KG = [20, 10, 5, 2.5, 1.25];
     const PLATES_LBS = [45, 25, 10, 5, 2.5];
 
@@ -2889,12 +2928,17 @@
 
         const exNoteKey = ex.exerciseId || ex.name;
         const hasExNote = appData.exerciseNotes[exNoteKey] ? ' has-note' : '';
+        const pairId = ex.exerciseId ? BB_DB_PAIRS[ex.exerciseId] : null;
+        const pairEx = pairId ? LIBRARY_MAP[pairId] : null;
+        const toggleLabel = pairEx ? (pairEx.equipment === 'barbell' ? 'BB' : 'DB') : '';
+        const showToggle = pairEx && doneCount === 0;
 
         html += `<div class="exercise-card${collapsed}" id="ex-${ei}" data-ei="${ei}">
           <div class="ex-header">
             <div class="ex-icon ${eqType}" onclick="toggleCollapse(${ei})">${getExIcon(eqType)}</div>
             <h3 onclick="openExerciseHistory(${ei})">${escapeHtml(ex.name)}</h3>
             <span class="${badgeClass}">${doneCount}/${totalCount}</span>
+            ${showToggle ? `<button class="bb-db-toggle" onclick="event.stopPropagation();toggleBBDB(${ei})" title="Switch to ${pairEx.name}">${toggleLabel}</button>` : ''}
             <button class="ex-note-btn${hasExNote}" onclick="event.stopPropagation();openExNotesModal(${ei})" title="Exercise notes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>
             <button class="swap-btn" onclick="event.stopPropagation();openSwapModal(${ei})" title="Swap exercise">${SWAP_SVG}</button>
             <svg class="ex-chevron" onclick="toggleCollapse(${ei})" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -3565,6 +3609,42 @@
     }
 
     // ==================== SWAP EXERCISE ====================
+    // ==================== BB/DB QUICK TOGGLE ====================
+    function toggleBBDB(ei) {
+      const ex = currentSession.exercises[ei];
+      if (!ex.exerciseId) return;
+      const pairId = BB_DB_PAIRS[ex.exerciseId];
+      if (!pairId) return;
+      const pairEx = LIBRARY_MAP[pairId];
+      if (!pairEx) return;
+      // Only allow when 0 sets completed
+      if (ex.sets.some(s => s.completed)) return;
+
+      // Find last session data for the target variant
+      const lastData = findLastSessionWithExercise(pairEx.name);
+      const newStep = getWeightStep(pairEx.equipment);
+
+      // Swap exercise in place
+      ex.name = pairEx.name;
+      ex.exerciseId = pairEx.id;
+      ex.equipment = pairEx.equipment;
+      ex.step = newStep;
+
+      // Pull weights from target variant history, keep current reps if entered
+      ex.sets.forEach((set, si) => {
+        if (lastData && lastData.sets[si]) {
+          set.weight = lastData.sets[si].weight;
+          if (!set.reps) set.reps = lastData.sets[si].reps;
+        } else {
+          set.weight = '';
+        }
+      });
+
+      triggerHaptic('light');
+      renderExercises();
+      saveSessionBackup();
+    }
+
     let swapExerciseIndex = null;
     let swapCategoryFilter = 'All';
     let swapMode = 'swap'; // 'swap' or 'add'
