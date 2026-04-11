@@ -2072,11 +2072,10 @@
         appData.routines = JSON.parse(JSON.stringify(DEFAULT_ROUTINES));
       }
 
-      // Re-sync default routines with latest definitions
+      // Add any missing default routines (first-time or after data wipe)
       DEFAULT_ROUTINES.forEach(def => {
-        const existing = appData.routines.find(r => r.id === def.id);
-        if (existing) {
-          existing.exercises = JSON.parse(JSON.stringify(def.exercises));
+        if (!appData.routines.find(r => r.id === def.id)) {
+          appData.routines.push(JSON.parse(JSON.stringify(def)));
         }
       });
 
