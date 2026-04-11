@@ -85,6 +85,41 @@
     }
     .streak-badge svg { width: 13px; height: 13px; vertical-align: middle; }
 
+    /* Creatine checkbox */
+    .creatine-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 12px;
+      margin-top: 10px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text2);
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .creatine-pill.checked {
+      border-color: var(--green);
+      color: var(--green);
+    }
+    .creatine-pill .pill-check {
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      border: 2px solid var(--text3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+    .creatine-pill.checked .pill-check {
+      background: var(--green);
+      border-color: var(--green);
+    }
+    .creatine-pill .pill-check svg { width: 12px; height: 12px; display: none; }
+    .creatine-pill.checked .pill-check svg { display: block; color: #fff; }
+
     /* Stats row */
     .stats-row {
       display: grid;
@@ -1639,6 +1674,7 @@
   <div id="home" class="screen active">
     <div class="home-greeting" id="home-greeting">Workout Tracker</div>
     <div class="home-date-line" id="home-date-line"></div>
+    <div id="creatine-container"></div>
 
     <!-- Continue + Start buttons (dynamic) -->
     <div id="continue-workout-container"></div>
@@ -2174,6 +2210,9 @@
       // Per-exercise notes
       if (!appData.exerciseNotes) appData.exerciseNotes = {};
 
+      // Creatine log
+      if (!appData.creatineLog) appData.creatineLog = {};
+
       rebuildAllPRs();
       saveData(appData);
     }
@@ -2519,9 +2558,35 @@
       else if (h < 17) greet = 'Good afternoon';
       document.getElementById('home-greeting').textContent = greet;
 
+      // Creatine checkbox
+      renderCreatine();
+
       renderRoutineButtons();
       renderCalendar();
       renderLastWorkout();
+    }
+
+    function renderCreatine() {
+      const today = new Date().toISOString().split('T')[0];
+      const taken = appData.creatineLog[today];
+      const checkedClass = taken ? ' checked' : '';
+      document.getElementById('creatine-container').innerHTML = `
+        <div class="creatine-pill${checkedClass}" onclick="toggleCreatine()">
+          <span class="pill-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+          Creatine
+        </div>`;
+    }
+
+    function toggleCreatine() {
+      const today = new Date().toISOString().split('T')[0];
+      if (appData.creatineLog[today]) {
+        delete appData.creatineLog[today];
+      } else {
+        appData.creatineLog[today] = true;
+      }
+      saveData(appData);
+      triggerHaptic('light');
+      renderCreatine();
     }
 
     function getNextRoutineId() {
