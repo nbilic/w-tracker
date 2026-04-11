@@ -1691,6 +1691,10 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
         Routines
       </button>
+      <button class="btn-ghost" onclick="showScreen('exercises')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        Exercises
+      </button>
       <button class="btn-ghost" onclick="showScreen('settings')">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         Settings
@@ -1867,6 +1871,34 @@
     </div>
   </div>
 
+  <!-- Exercise Bestiary Screen -->
+  <div id="exercises" class="screen">
+    <div class="header">
+      <button class="back" onclick="showScreen('home')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <h2>Exercises</h2>
+    </div>
+    <input class="swap-search" id="bestiary-search" type="text" placeholder="Search exercises..." oninput="renderBestiary()" style="margin-bottom:10px">
+    <div class="swap-filters" id="bestiary-filters"></div>
+    <div id="bestiary-list"></div>
+    <button class="builder-add-btn" onclick="openCreateExercise()" style="margin-top:12px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Create Exercise
+    </button>
+  </div>
+
+  <!-- Exercise Edit Modal -->
+  <div class="notes-overlay" id="exercise-edit-overlay" onclick="closeExerciseEdit(event)">
+    <div class="notes-modal" style="max-width:380px">
+      <div class="notes-modal-header">
+        <h3 id="exercise-edit-title">Edit Exercise</h3>
+        <button class="notes-modal-close" onclick="closeExerciseEdit()">&times;</button>
+      </div>
+      <div id="exercise-edit-body"></div>
+    </div>
+  </div>
+
   <!-- Manage Routines Screen -->
   <div id="manage-routines" class="screen">
     <div class="header">
@@ -1941,7 +1973,12 @@
     };
 
     function getExIcon(equipment) { return ICONS[equipment] || ICONS.barbell; }
-    function getWeightStep(equipment) { return equipment === 'barbell' ? 2.5 : 1; }
+    function getWeightStep(equipment, exerciseId) {
+      if (exerciseId && appData && appData.exerciseOverrides && appData.exerciseOverrides[exerciseId] && appData.exerciseOverrides[exerciseId].step !== undefined) {
+        return appData.exerciseOverrides[exerciseId].step;
+      }
+      return equipment === 'barbell' ? 2.5 : 1;
+    }
 
     const SWAP_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><line x1="3" y1="5" x2="21" y2="5"/><polyline points="7 23 3 19 7 15"/><line x1="21" y1="19" x2="3" y2="19"/></svg>`;
     const CHECK_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
@@ -2193,6 +2230,18 @@
       // Chart order
       if (!appData.settings.chartOrder) appData.settings.chartOrder = [];
 
+      // Custom exercises and overrides
+      if (!appData.customExercises) appData.customExercises = [];
+      if (!appData.exerciseOverrides) appData.exerciseOverrides = {};
+
+      // Merge custom exercises into library
+      appData.customExercises.forEach(ex => {
+        if (!LIBRARY_MAP[ex.id]) {
+          EXERCISE_LIBRARY.push(ex);
+          LIBRARY_MAP[ex.id] = ex;
+        }
+      });
+
       // Creatine log
       if (!appData.creatineLog) appData.creatineLog = {};
 
@@ -2425,6 +2474,7 @@
       if (id === 'settings') loadSettings();
       if (id === 'progress') renderProgress();
       if (id === 'manage-routines') renderManageRoutines();
+      if (id === 'exercises') { bestiaryCategory = 'All'; document.getElementById('bestiary-search').value = ''; renderBestiaryFilters(); renderBestiary(); }
       if (id === 'workout' && currentSession) acquireWakeLock();
       if (id !== 'workout') releaseWakeLock();
       updateNavDots();
@@ -2442,7 +2492,7 @@
 
     // Close any open modal/overlay — returns true if one was closed
     function closeAnyOpenModal() {
-      const overlayIds = ['notes-overlay', 'ex-notes-overlay', 'swap-overlay', 'exercise-history-overlay', 'save-routine-overlay', 'builder-swap-overlay'];
+      const overlayIds = ['notes-overlay', 'ex-notes-overlay', 'swap-overlay', 'exercise-history-overlay', 'save-routine-overlay', 'builder-swap-overlay', 'exercise-edit-overlay'];
       for (const id of overlayIds) {
         const el = document.getElementById(id);
         if (el && el.classList.contains('active')) {
@@ -2839,7 +2889,7 @@
         exercises: routine.exercises.map(t => {
           const lastEx = findLastSessionWithExercise(t.name);
           let lastWeight = lastEx ? (lastEx.sets.find(s => s.weight !== '' && s.weight !== null) || {}).weight || '' : '';
-          const step = getWeightStep(t.equipment);
+          const step = getWeightStep(t.equipment, t.exerciseId);
           // Auto-advance: only if ALL sets completed at SAME top weight AND all met target reps
           let autoAdvanced = false;
           let prevWeight = lastWeight;
@@ -2929,7 +2979,7 @@
 
       currentSession.exercises.forEach((ex, ei) => {
         const eqType = ex.equipment || 'barbell';
-        const stepLabel = ex.step || getWeightStep(eqType);
+        const stepLabel = ex.step || getWeightStep(eqType, ex.exerciseId);
         const doneCount = ex.sets.filter(s => s.completed).length;
         const totalCount = ex.sets.length;
         const badgeClass = doneCount > 0 ? 'ex-badge has-done' : 'ex-badge';
@@ -3055,7 +3105,7 @@
 
     function adjSetWeight(ei, si, direction) {
       const ex = currentSession.exercises[ei];
-      const step = ex.step || getWeightStep(ex.equipment);
+      const step = ex.step || getWeightStep(ex.equipment, ex.exerciseId);
       const current = (ex.sets[si].weight !== '' && ex.sets[si].weight !== null)
         ? Number(ex.sets[si].weight) : 0;
       const newWeight = Math.max(0, +(current + direction * step).toFixed(1));
@@ -3632,7 +3682,7 @@
 
       // Find last session data for the target variant
       const lastData = findLastSessionWithExercise(pairEx.name);
-      const newStep = getWeightStep(pairEx.equipment);
+      const newStep = getWeightStep(pairEx.equipment, pairEx.id);
 
       // Swap exercise in place
       ex.name = pairEx.name;
@@ -3754,7 +3804,7 @@
       const libEx = LIBRARY_MAP[libraryId];
       if (!libEx) return;
 
-      const step = getWeightStep(libEx.equipment);
+      const step = getWeightStep(libEx.equipment, libEx.id);
       const lastEx = findLastSessionWithExercise(libEx.name);
       const lastWeight = lastEx ? (lastEx.sets.find(s => s.weight !== '' && s.weight !== null) || {}).weight || '' : '';
 
@@ -4409,6 +4459,170 @@
           drawProgressChart(canvas, data, name);
         });
       });
+    }
+
+    // ==================== EXERCISE BESTIARY ====================
+    let bestiaryCategory = 'All';
+    let editingExerciseId = null;
+
+    function renderBestiaryFilters() {
+      const cats = ['All', ...new Set(EXERCISE_LIBRARY.map(e => e.category))];
+      document.getElementById('bestiary-filters').innerHTML = cats.map(c =>
+        `<button class="swap-filter${c === bestiaryCategory ? ' active' : ''}" onclick="bestiaryCategory='${c}';renderBestiary()">${c}</button>`
+      ).join('');
+    }
+
+    function renderBestiary() {
+      const search = document.getElementById('bestiary-search').value.toLowerCase().trim();
+      const list = document.getElementById('bestiary-list');
+      let filtered = EXERCISE_LIBRARY.filter(ex => {
+        if (bestiaryCategory !== 'All' && ex.category !== bestiaryCategory) return false;
+        if (search && !ex.name.toLowerCase().includes(search)) return false;
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        list.innerHTML = '<div style="text-align:center;color:var(--text3);padding:20px">No exercises found</div>';
+        return;
+      }
+
+      list.innerHTML = filtered.map(ex => {
+        const override = appData.exerciseOverrides[ex.id] || {};
+        const step = override.step !== undefined ? override.step : getWeightStep(ex.equipment, ex.id);
+        const isCustom = appData.customExercises.some(c => c.id === ex.id);
+        const customBadge = isCustom ? ' <span style="font-size:10px;color:var(--accent);font-weight:700">CUSTOM</span>' : '';
+        return `<div class="builder-card" onclick="openExerciseEditModal('${ex.id}')" style="cursor:pointer">
+          <div class="ex-icon ${ex.equipment}" style="width:32px;height:32px;border-radius:8px;flex-shrink:0">${getExIcon(ex.equipment)}</div>
+          <div class="builder-card-info">
+            <div class="builder-card-name">${escapeHtml(ex.name)}${customBadge}</div>
+            <div class="builder-card-meta">${ex.category} &middot; ${ex.equipment} &middot; step: ${step}</div>
+          </div>
+          <svg style="width:16px;height:16px;color:var(--text3);flex-shrink:0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>`;
+      }).join('');
+    }
+
+    function openExerciseEditModal(exerciseId) {
+      const ex = LIBRARY_MAP[exerciseId];
+      if (!ex) return;
+      editingExerciseId = exerciseId;
+      const override = appData.exerciseOverrides[exerciseId] || {};
+      const isCustom = appData.customExercises.some(c => c.id === exerciseId);
+      const currentStep = override.step !== undefined ? override.step : getWeightStep(ex.equipment, exerciseId);
+      const currentSets = override.defaultSets !== undefined ? override.defaultSets : ex.defaultSets;
+      const currentReps = override.defaultReps !== undefined ? override.defaultReps : ex.defaultReps;
+
+      document.getElementById('exercise-edit-title').textContent = ex.name;
+      document.getElementById('exercise-edit-body').innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:12px;margin-top:12px">
+          <label style="font-size:13px;color:var(--text2)">Weight Step
+            <input type="number" id="edit-step" value="${currentStep}" step="0.5" min="0.5" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;margin-top:4px" inputmode="decimal">
+          </label>
+          <label style="font-size:13px;color:var(--text2)">Default Sets
+            <input type="number" id="edit-sets" value="${currentSets}" min="1" max="10" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;margin-top:4px" inputmode="numeric">
+          </label>
+          <label style="font-size:13px;color:var(--text2)">Default Reps
+            <input type="text" id="edit-reps" value="${currentReps}" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;margin-top:4px">
+          </label>
+          <div style="font-size:11px;color:var(--text3)">Category: ${ex.category} &middot; Equipment: ${ex.equipment}</div>
+          <button onclick="saveExerciseOverride()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer">Save</button>
+          ${isCustom ? `<button onclick="deleteCustomExercise('${exerciseId}')" style="width:100%;padding:10px;background:transparent;color:#ef4444;border:none;font-size:13px;cursor:pointer">Delete Exercise</button>` : ''}
+        </div>`;
+      document.getElementById('exercise-edit-overlay').classList.add('active');
+    }
+
+    function closeExerciseEdit(e) {
+      if (e && e.target !== e.currentTarget && !e.target.closest('.notes-modal-close')) return;
+      document.getElementById('exercise-edit-overlay').classList.remove('active');
+      editingExerciseId = null;
+    }
+
+    function saveExerciseOverride() {
+      if (!editingExerciseId) return;
+      const step = parseFloat(document.getElementById('edit-step').value);
+      const sets = parseInt(document.getElementById('edit-sets').value);
+      const reps = document.getElementById('edit-reps').value.trim();
+      if (isNaN(step) || step <= 0 || isNaN(sets) || sets < 1) return;
+
+      appData.exerciseOverrides[editingExerciseId] = { step, defaultSets: sets, defaultReps: reps || '10' };
+      saveData(appData);
+      closeExerciseEdit();
+      renderBestiary();
+      triggerHaptic('light');
+    }
+
+    function openCreateExercise() {
+      editingExerciseId = null;
+      document.getElementById('exercise-edit-title').textContent = 'Create Exercise';
+      document.getElementById('exercise-edit-body').innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:12px;margin-top:12px">
+          <label style="font-size:13px;color:var(--text2)">Name
+            <input type="text" id="create-name" placeholder="Exercise name" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;margin-top:4px">
+          </label>
+          <label style="font-size:13px;color:var(--text2)">Category
+            <select id="create-category" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;margin-top:4px">
+              <option>Chest</option><option>Back</option><option>Shoulders</option><option>Legs</option><option>Arms</option><option>Core</option>
+            </select>
+          </label>
+          <label style="font-size:13px;color:var(--text2)">Equipment
+            <select id="create-equipment" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;margin-top:4px">
+              <option value="barbell">Barbell</option><option value="dumbbell">Dumbbell</option><option value="cable">Cable</option><option value="machine">Machine</option><option value="bodyweight">Bodyweight</option>
+            </select>
+          </label>
+          <label style="font-size:13px;color:var(--text2)">Default Sets
+            <input type="number" id="create-sets" value="3" min="1" max="10" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;margin-top:4px" inputmode="numeric">
+          </label>
+          <label style="font-size:13px;color:var(--text2)">Default Reps
+            <input type="text" id="create-reps" value="10" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;margin-top:4px">
+          </label>
+          <label style="font-size:13px;color:var(--text2)">Weight Step
+            <input type="number" id="create-step" value="2.5" step="0.5" min="0.5" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;margin-top:4px" inputmode="decimal">
+          </label>
+          <button onclick="saveNewExercise()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer">Create</button>
+        </div>`;
+      document.getElementById('exercise-edit-overlay').classList.add('active');
+    }
+
+    function saveNewExercise() {
+      const name = document.getElementById('create-name').value.trim();
+      if (!name) return;
+      const category = document.getElementById('create-category').value;
+      const equipment = document.getElementById('create-equipment').value;
+      const sets = parseInt(document.getElementById('create-sets').value) || 3;
+      const reps = document.getElementById('create-reps').value.trim() || '10';
+      const step = parseFloat(document.getElementById('create-step').value) || 2.5;
+
+      const id = 'custom-' + Date.now();
+      const newEx = {
+        id, name, category, equipment,
+        defaultSets: sets, defaultReps: reps, defaultRest: 90
+      };
+
+      appData.customExercises.push(newEx);
+      EXERCISE_LIBRARY.push(newEx);
+      LIBRARY_MAP[id] = newEx;
+
+      // Store step as override
+      appData.exerciseOverrides[id] = { step, defaultSets: sets, defaultReps: reps };
+
+      saveData(appData);
+      closeExerciseEdit();
+      renderBestiary();
+      triggerHaptic('success');
+    }
+
+    async function deleteCustomExercise(exerciseId) {
+      if (!await customConfirm('Delete this custom exercise?')) return;
+      appData.customExercises = appData.customExercises.filter(e => e.id !== exerciseId);
+      delete appData.exerciseOverrides[exerciseId];
+      // Remove from runtime library
+      const idx = EXERCISE_LIBRARY.findIndex(e => e.id === exerciseId);
+      if (idx !== -1) EXERCISE_LIBRARY.splice(idx, 1);
+      delete LIBRARY_MAP[exerciseId];
+      saveData(appData);
+      closeExerciseEdit();
+      renderBestiary();
+      triggerHaptic('light');
     }
 
     // ==================== SWIPE GESTURES ====================
