@@ -2314,6 +2314,7 @@
 
     // ==================== SCREENS ====================
     let activeScreen = 'home';
+    let navigatingViaPopstate = false;
 
     function showScreen(id) {
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -2327,7 +2328,62 @@
       if (id === 'workout' && currentSession) acquireWakeLock();
       if (id !== 'workout') releaseWakeLock();
       updateNavDots();
+      // Push browser history state (unless we're handling popstate)
+      if (!navigatingViaPopstate) {
+        const currentState = history.state;
+        if (!currentState || currentState.screen !== id) {
+          history.pushState({ screen: id }, '', '');
+        }
+      }
     }
+
+    // Replace initial state
+    history.replaceState({ screen: 'home' }, '', '');
+
+    // Close any open modal/overlay — returns true if one was closed
+    function closeAnyOpenModal() {
+      const overlayIds = ['notes-overlay', 'swap-overlay', 'exercise-history-overlay', 'save-routine-overlay', 'builder-swap-overlay'];
+      for (const id of overlayIds) {
+        const el = document.getElementById(id);
+        if (el && el.classList.contains('active')) {
+          el.classList.remove('active');
+          return true;
+        }
+      }
+      // Check custom confirm/alert dialog
+      const dialogOverlay = document.querySelector('.dialog-overlay.active');
+      if (dialogOverlay) {
+        dialogOverlay.classList.remove('active');
+        return true;
+      }
+      return false;
+    }
+
+    window.addEventListener('popstate', async function(e) {
+      // First try to close any open modal
+      if (closeAnyOpenModal()) {
+        // Re-push state so back button stays available
+        history.pushState({ screen: activeScreen }, '', '');
+        return;
+      }
+      const target = (e.state && e.state.screen) || 'home';
+      // If leaving workout screen, confirm first
+      if (activeScreen === 'workout' && currentSession) {
+        // Push state back so we don't lose position
+        history.pushState({ screen: 'workout' }, '', '');
+        const anyDone = currentSession.exercises.some(ex => ex.sets.some(s => s.completed));
+        if (anyDone) {
+          if (!await customConfirm('Leave workout? Your progress is auto-saved.')) return;
+        }
+        navigatingViaPopstate = true;
+        showScreen(target);
+        navigatingViaPopstate = false;
+        return;
+      }
+      navigatingViaPopstate = true;
+      showScreen(target);
+      navigatingViaPopstate = false;
+    });
 
     // ==================== HOME ====================
     let calYear, calMonth;
