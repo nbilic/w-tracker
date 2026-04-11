@@ -1431,6 +1431,17 @@
       padding: 40px 20px;
       font-size: 14px;
     }
+    .builder-drag-handle {
+      color: var(--text3);
+      cursor: grab;
+      padding: 4px 2px;
+      display: flex;
+      align-items: center;
+      touch-action: none;
+      flex-shrink: 0;
+    }
+    .builder-drag-handle:active { cursor: grabbing; }
+    .builder-card.dragging { opacity: 0.5; z-index: 10; }
     .builder-card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -3975,7 +3986,8 @@
         return;
       }
       container.innerHTML = routineBuilderExercises.map((ex, i) => {
-        return `<div class="builder-card">
+        return `<div class="builder-card" data-bi="${i}">
+          <div class="builder-drag-handle" data-bi="${i}">${DRAG_HANDLE_SVG}</div>
           <div class="ex-icon ${ex.equipment}" style="width:32px;height:32px;border-radius:8px;flex-shrink:0">${getExIcon(ex.equipment)}</div>
           <div class="builder-card-info">
             <div class="builder-card-name">${escapeHtml(ex.name)}</div>
@@ -3989,6 +4001,7 @@
           <button class="builder-remove" onclick="removeBuilderExercise(${i})">&times;</button>
         </div>`;
       }).join('');
+      initBuilderDragHandles();
     }
 
     function updateBuilderExercise(index, field, value) {
@@ -4005,6 +4018,89 @@
       routineBuilderExercises.splice(index, 1);
       renderBuilderExercises();
       triggerHaptic('light');
+    }
+
+    // ---- Builder drag reorder ----
+    let builderDragState = null;
+
+    function initBuilderDragHandles() {
+      document.querySelectorAll('.builder-drag-handle').forEach(handle => {
+        handle.addEventListener('touchstart', onBuilderDragTouch, { passive: false });
+        handle.addEventListener('mousedown', onBuilderDragMouse);
+      });
+    }
+
+    function onBuilderDragTouch(e) {
+      const bi = parseInt(e.currentTarget.getAttribute('data-bi'));
+      e.preventDefault();
+      startBuilderDrag(bi, e.touches[0].clientY);
+      const moveH = (ev) => { ev.preventDefault(); moveBuilderDrag(ev.touches[0].clientY); };
+      const endH = () => { endBuilderDrag(); document.removeEventListener('touchmove', moveH); document.removeEventListener('touchend', endH); };
+      document.addEventListener('touchmove', moveH, { passive: false });
+      document.addEventListener('touchend', endH);
+    }
+
+    function onBuilderDragMouse(e) {
+      const bi = parseInt(e.currentTarget.getAttribute('data-bi'));
+      e.preventDefault();
+      startBuilderDrag(bi, e.clientY);
+      const moveH = (ev) => moveBuilderDrag(ev.clientY);
+      const endH = () => { endBuilderDrag(); document.removeEventListener('mousemove', moveH); document.removeEventListener('mouseup', endH); };
+      document.addEventListener('mousemove', moveH);
+      document.addEventListener('mouseup', endH);
+    }
+
+    function startBuilderDrag(bi, startY) {
+      const cards = document.querySelectorAll('.builder-card');
+      const card = cards[bi];
+      if (!card) return;
+      triggerHaptic('dragStart');
+      const rects = [];
+      cards.forEach(c => rects.push(c.getBoundingClientRect()));
+      builderDragState = { bi, startY, card, rects };
+      card.classList.add('dragging');
+    }
+
+    function moveBuilderDrag(clientY) {
+      if (!builderDragState) return;
+      const { bi, startY, card, rects } = builderDragState;
+      const delta = clientY - startY;
+      card.style.transform = `translateY(${delta}px)`;
+      const dragCenter = rects[bi].top + rects[bi].height / 2 + delta;
+      let newIndex = bi;
+      for (let i = 0; i < rects.length; i++) {
+        if (i === bi) continue;
+        const center = rects[i].top + rects[i].height / 2;
+        if (bi < i && dragCenter > center) newIndex = i;
+        if (bi > i && dragCenter < center) newIndex = i;
+      }
+      const cards = document.querySelectorAll('.builder-card');
+      cards.forEach((c, i) => {
+        if (i === bi) return;
+        if (bi < newIndex && i > bi && i <= newIndex) {
+          c.style.transform = `translateY(-${rects[bi].height + 8}px)`;
+        } else if (bi > newIndex && i < bi && i >= newIndex) {
+          c.style.transform = `translateY(${rects[bi].height + 8}px)`;
+        } else {
+          c.style.transform = '';
+        }
+      });
+      builderDragState.targetIndex = newIndex;
+    }
+
+    function endBuilderDrag() {
+      if (!builderDragState) return;
+      const { bi, targetIndex } = builderDragState;
+      document.querySelectorAll('.builder-card').forEach(c => {
+        c.style.transform = '';
+        c.classList.remove('dragging');
+      });
+      if (targetIndex !== undefined && targetIndex !== bi) {
+        const [moved] = routineBuilderExercises.splice(bi, 1);
+        routineBuilderExercises.splice(targetIndex, 0, moved);
+        renderBuilderExercises();
+      }
+      builderDragState = null;
     }
 
     function addBuilderExercise() {
