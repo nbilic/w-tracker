@@ -996,13 +996,23 @@
       border-radius: var(--radius);
       padding: 16px;
       margin-bottom: 14px;
+      transition: opacity 0.15s;
     }
+    .progress-chart-card.dragging { opacity: 0.5; z-index: 10; }
     .progress-chart-title {
       font-size: 14px;
       font-weight: 700;
       margin-bottom: 10px;
       letter-spacing: -0.2px;
     }
+    .chart-drag-handle {
+      cursor: grab;
+      color: var(--text3);
+      padding: 4px;
+      touch-action: none;
+      flex-shrink: 0;
+    }
+    .chart-drag-handle:active { cursor: grabbing; }
     .progress-chart-card canvas {
       width: 100%;
       height: 160px;
@@ -2061,7 +2071,7 @@
           <button class="notes-modal-close" onclick="closeBuilderSwapModal()">&times;</button>
         </div>
         <input class="swap-search" id="builder-swap-search" type="text" placeholder="Search exercises..." oninput="renderBuilderSwapList()">
-        <div class="swap-filters" id="builder-swap-filters"></div>
+        <div class="bestiary-filter-row" id="builder-swap-filters"></div>
         <div class="swap-list" id="builder-swap-list"></div>
       </div>
     </div>
@@ -3357,9 +3367,10 @@
       saveSessionBackup();
     }
 
-    function removeSet(ei) {
+    async function removeSet(ei) {
       const ex = currentSession.exercises[ei];
       if (ex.sets.length > 1) {
+        if (!await customConfirm('Remove last set?')) return;
         ex.sets.pop();
         renderExercises();
         saveSessionBackup();
@@ -3458,7 +3469,7 @@
         const r = dragState.rects[i];
         const center = r.top + r.height / 2;
         if (dragState.ei < i && dragCenter > center) newIndex = i;
-        if (dragState.ei > i && dragCenter < center) newIndex = i;
+        if (dragState.ei > i && dragCenter < center && i < newIndex) newIndex = i;
       }
 
       // Visual feedback on other cards
@@ -3508,7 +3519,6 @@
     // ==================== NOTES MODAL ====================
     function openNotesModal() {
       document.getElementById('notes-overlay').classList.add('active');
-      document.getElementById('session-notes').focus();
     }
 
     function closeNotesModal(e) {
@@ -4065,6 +4075,7 @@
     // ==================== ROUTINE BUILDER ====================
     let routineBuilderExercises = [];
     let builderCategoryFilter = 'All';
+    let builderEquipmentFilter = 'All';
     let editingRoutineId = null;
 
     function openRoutineBuilder() {
@@ -4186,7 +4197,7 @@
         if (i === bi) continue;
         const center = rects[i].top + rects[i].height / 2;
         if (bi < i && dragCenter > center) newIndex = i;
-        if (bi > i && dragCenter < center) newIndex = i;
+        if (bi > i && dragCenter < center && i < newIndex) newIndex = i;
       }
       const cards = document.querySelectorAll('.builder-card');
       cards.forEach((c, i) => {
@@ -4219,11 +4230,11 @@
 
     function addBuilderExercise() {
       builderCategoryFilter = 'All';
+      builderEquipmentFilter = 'All';
       document.getElementById('builder-swap-search').value = '';
       renderBuilderSwapFilters();
       renderBuilderSwapList();
       document.getElementById('builder-swap-overlay').classList.add('active');
-      document.getElementById('builder-swap-search').focus();
     }
 
     function closeBuilderSwapModal(e) {
@@ -4232,17 +4243,16 @@
     }
 
     function renderBuilderSwapFilters() {
-      const categories = ['All', 'Chest', 'Back', 'Shoulders', 'Legs', 'Arms', 'Core'];
+      const categories = ['All', ...new Set(EXERCISE_LIBRARY.map(e => e.category))];
+      const equips = ['All', 'Barbell', 'Dumbbell', 'Cable', 'Machine', 'Bodyweight'];
       const container = document.getElementById('builder-swap-filters');
-      container.innerHTML = categories.map(cat =>
-        `<button class="swap-chip${builderCategoryFilter === cat ? ' active' : ''}" onclick="setBuilderSwapFilter('${cat}')">${cat}</button>`
-      ).join('');
-    }
-
-    function setBuilderSwapFilter(cat) {
-      builderCategoryFilter = cat;
-      renderBuilderSwapFilters();
-      renderBuilderSwapList();
+      container.innerHTML = `
+        <select class="bestiary-select" onchange="builderCategoryFilter=this.value;renderBuilderSwapList()">
+          ${categories.map(c => `<option value="${c}"${c === builderCategoryFilter ? ' selected' : ''}>${c === 'All' ? 'All Categories' : c}</option>`).join('')}
+        </select>
+        <select class="bestiary-select" onchange="builderEquipmentFilter=this.value;renderBuilderSwapList()">
+          ${equips.map(e => `<option value="${e}"${e === builderEquipmentFilter ? ' selected' : ''}>${e === 'All' ? 'All Equipment' : e}</option>`).join('')}
+        </select>`;
     }
 
     function renderBuilderSwapList() {
@@ -4253,6 +4263,7 @@
       let filtered = EXERCISE_LIBRARY.filter(ex => {
         if (currentIds.has(ex.id)) return false;
         if (builderCategoryFilter !== 'All' && ex.category !== builderCategoryFilter) return false;
+        if (builderEquipmentFilter !== 'All' && ex.equipment !== builderEquipmentFilter.toLowerCase()) return false;
         if (query && !ex.name.toLowerCase().includes(query) && !ex.category.toLowerCase().includes(query) && !ex.equipment.toLowerCase().includes(query)) return false;
         return true;
       });
@@ -4291,7 +4302,6 @@
     function saveRoutineFromBuilder() {
       const name = document.getElementById('builder-name').value.trim();
       if (!name) {
-        document.getElementById('builder-name').focus();
         document.getElementById('builder-name').style.borderColor = 'var(--accent)';
         setTimeout(() => { document.getElementById('builder-name').style.borderColor = ''; }, 1500);
         return;
@@ -4545,6 +4555,97 @@
       renderProgress();
     }
 
+    // ---- Chart drag reorder ----
+    let chartDragState = null;
+
+    function initChartDragHandles() {
+      document.querySelectorAll('.chart-drag-handle').forEach(handle => {
+        handle.addEventListener('touchstart', onChartDragTouch, { passive: false });
+        handle.addEventListener('mousedown', onChartDragMouse);
+      });
+    }
+
+    function onChartDragTouch(e) {
+      e.preventDefault();
+      const cards = getChartCards();
+      const idx = getChartDragIndex(e.currentTarget, cards);
+      startChartDrag(idx, e.touches[0].clientY, cards);
+      const moveH = (ev) => { ev.preventDefault(); moveChartDrag(ev.touches[0].clientY); };
+      const endH = () => { endChartDrag(); document.removeEventListener('touchmove', moveH); document.removeEventListener('touchend', endH); };
+      document.addEventListener('touchmove', moveH, { passive: false });
+      document.addEventListener('touchend', endH);
+    }
+
+    function onChartDragMouse(e) {
+      e.preventDefault();
+      const cards = getChartCards();
+      const idx = getChartDragIndex(e.currentTarget, cards);
+      startChartDrag(idx, e.clientY, cards);
+      const moveH = (ev) => moveChartDrag(ev.clientY);
+      const endH = () => { endChartDrag(); document.removeEventListener('mousemove', moveH); document.removeEventListener('mouseup', endH); };
+      document.addEventListener('mousemove', moveH);
+      document.addEventListener('mouseup', endH);
+    }
+
+    function getChartCards() {
+      return Array.from(document.querySelectorAll('.progress-chart-card'));
+    }
+
+    function getChartDragIndex(handle, cards) {
+      const card = handle.closest('.progress-chart-card');
+      return cards.indexOf(card);
+    }
+
+    function startChartDrag(idx, startY, cards) {
+      if (idx < 0) return;
+      triggerHaptic('dragStart');
+      const rects = cards.map(c => c.getBoundingClientRect());
+      chartDragState = { idx, startY, card: cards[idx], rects, cards };
+      cards[idx].classList.add('dragging');
+    }
+
+    function moveChartDrag(clientY) {
+      if (!chartDragState) return;
+      const { idx, startY, card, rects, cards } = chartDragState;
+      const delta = clientY - startY;
+      card.style.transform = `translateY(${delta}px)`;
+      const dragCenter = rects[idx].top + rects[idx].height / 2 + delta;
+      let newIndex = idx;
+      for (let i = 0; i < rects.length; i++) {
+        if (i === idx) continue;
+        const center = rects[i].top + rects[i].height / 2;
+        if (idx < i && dragCenter > center) newIndex = i;
+        if (idx > i && dragCenter < center && i < newIndex) newIndex = i;
+      }
+      cards.forEach((c, i) => {
+        if (i === idx) return;
+        if (idx < newIndex && i > idx && i <= newIndex) {
+          c.style.transform = `translateY(-${rects[idx].height + 14}px)`;
+        } else if (idx > newIndex && i < idx && i >= newIndex) {
+          c.style.transform = `translateY(${rects[idx].height + 14}px)`;
+        } else {
+          c.style.transform = '';
+        }
+      });
+      chartDragState.targetIndex = newIndex;
+    }
+
+    function endChartDrag() {
+      if (!chartDragState) return;
+      const { idx, targetIndex, cards } = chartDragState;
+      cards.forEach(c => { c.style.transform = ''; c.classList.remove('dragging'); });
+      if (targetIndex !== undefined && targetIndex !== idx) {
+        // Read current order from DOM
+        const names = cards.map(c => c.getAttribute('data-chart-name'));
+        const [moved] = names.splice(idx, 1);
+        names.splice(targetIndex, 0, moved);
+        appData.settings.chartOrder = names;
+        saveData(appData);
+        renderProgress();
+      }
+      chartDragState = null;
+    }
+
     function togglePRCollapse() {
       prSectionCollapsed = !prSectionCollapsed;
       renderProgress();
@@ -4575,10 +4676,11 @@
         if (data.length === 0) return;
         const isCollapsed = chartsStartCollapsed || collapsedCharts.has(name);
         const chevron = isCollapsed ? '&#9654;' : '&#9660;';
-        html += `<div class="progress-chart-card">
-          <div class="progress-chart-title" onclick="toggleChartCollapse('${escapeHtml(name)}')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between">
-            <span>${escapeHtml(name)}</span>
-            <span style="font-size:10px;color:var(--text3)">${chevron}</span>
+        html += `<div class="progress-chart-card" data-chart-name="${escapeHtml(name)}">
+          <div class="progress-chart-title" style="cursor:pointer;display:flex;align-items:center;gap:8px">
+            <div class="chart-drag-handle" data-chart-idx="${escapeHtml(name)}">${DRAG_HANDLE_SVG}</div>
+            <span onclick="toggleChartCollapse('${escapeHtml(name)}')" style="flex:1">${escapeHtml(name)}</span>
+            <span onclick="toggleChartCollapse('${escapeHtml(name)}')" style="font-size:10px;color:var(--text3)">${chevron}</span>
           </div>
           ${isCollapsed ? '' : `<canvas class="progress-canvas" data-exercise="${escapeHtml(name)}"></canvas>`}
         </div>`;
@@ -4599,6 +4701,7 @@
           drawProgressChart(canvas, data, name);
         });
       });
+      initChartDragHandles();
     }
 
     // ==================== EXERCISE BESTIARY ====================
