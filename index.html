@@ -842,15 +842,7 @@
       box-shadow: 0 4px 20px rgba(52,211,153,0.25);
     }
     .finish-bar button:active { opacity: 0.9; transform: scale(0.99); }
-    .finish-bar .btn-discard {
-      background: transparent;
-      color: var(--text-dim);
-      font-size: 14px;
-      font-weight: 500;
-      box-shadow: none;
-      padding: 10px;
-    }
-    .finish-bar .btn-discard:active { color: #ef4444; }
+    .btn-discard:active { color: #ef4444; }
     .btn-continue-workout {
       width: 100%;
       padding: 16px;
@@ -1741,7 +1733,6 @@
 
     <div class="finish-bar">
       <button onclick="finishWorkout()">Finish Workout</button>
-      <button class="btn-discard" onclick="discardWorkout()">Discard Workout</button>
     </div>
   </div>
 
@@ -2815,6 +2806,7 @@
         const totalCount = ex.sets.length;
         const badgeClass = doneCount > 0 ? 'ex-badge has-done' : 'ex-badge';
         const collapsed = collapsedExercises.has(ei) ? ' collapsed' : '';
+        const collapsedStyle = collapsedExercises.has(ei) ? ' style="max-height:0;overflow:hidden"' : '';
 
         html += `<div class="exercise-card${collapsed}" id="ex-${ei}" data-ei="${ei}">
           <div class="ex-header">
@@ -2824,7 +2816,7 @@
             <button class="swap-btn" onclick="event.stopPropagation();openSwapModal(${ei})" title="Swap exercise">${SWAP_SVG}</button>
             <svg class="ex-chevron" onclick="toggleCollapse(${ei})" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </div>
-          <div class="ex-body">
+          <div class="ex-body"${collapsedStyle}>
           <div class="set-header">
             <span></span><span>${unit.toUpperCase()}</span><span>REPS</span><span></span>
           </div>`;
@@ -2848,6 +2840,7 @@
       });
 
       html += `<button class="add-exercise-btn" onclick="openAddExerciseModal()">+ Add Exercise</button>`;
+      html += `<button class="btn-discard" onclick="discardWorkout()" style="display:block;margin:24px auto 100px;background:transparent;color:var(--text-dim);font-size:14px;border:none;padding:10px;cursor:pointer;">Discard Workout</button>`;
 
       container.innerHTML = html;
       initDragHandles();
@@ -3346,7 +3339,7 @@
 
     function adjustRest(delta) {
       // Shift the start time to effectively add/remove time
-      restStartedAt += delta * -1000;
+      restStartedAt += delta * 1000;
       if (currentSession) {
         currentSession.restStartedAt = restStartedAt;
         saveSessionBackup();
