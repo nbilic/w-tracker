@@ -1067,6 +1067,24 @@
     .swap-btn:active { color: var(--text); border-color: var(--text3); }
     .swap-btn svg { width: 14px; height: 14px; }
 
+    /* Exercise note button */
+    .ex-note-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text3);
+      width: 28px; height: 28px;
+      border-radius: 7px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      padding: 0;
+    }
+    .ex-note-btn svg { width: 14px; height: 14px; }
+    .ex-note-btn.has-note { color: var(--accent); border-color: var(--accent); }
+    .ex-note-btn:active { color: var(--text); }
+
     /* Swap Modal (bottom sheet) */
     .swap-overlay {
       display: none;
@@ -1684,6 +1702,18 @@
       </div>
     </div>
 
+    <!-- Exercise Notes Modal -->
+    <div class="notes-overlay" id="ex-notes-overlay" onclick="closeExNotesModal(event)">
+      <div class="notes-modal">
+        <div class="notes-modal-header">
+          <h3 id="ex-notes-title">Exercise Notes</h3>
+          <button class="notes-modal-close" onclick="closeExNotesModal()">&times;</button>
+        </div>
+        <textarea id="ex-notes-text" placeholder="Form cues, tips, reminders..." rows="4"></textarea>
+        <button onclick="saveExNote()" style="width:100%;padding:12px;margin-top:8px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">Save</button>
+      </div>
+    </div>
+
     <!-- Swap Modal -->
     <div class="swap-overlay" id="swap-overlay" onclick="closeSwapModal(event)">
       <div class="swap-modal">
@@ -2102,6 +2132,9 @@
         appData.settings.barWeight = appData.settings.unit === 'lbs' ? 45 : 20;
       }
 
+      // Per-exercise notes
+      if (!appData.exerciseNotes) appData.exerciseNotes = {};
+
       rebuildAllPRs();
       saveData(appData);
     }
@@ -2342,7 +2375,7 @@
 
     // Close any open modal/overlay — returns true if one was closed
     function closeAnyOpenModal() {
-      const overlayIds = ['notes-overlay', 'swap-overlay', 'exercise-history-overlay', 'save-routine-overlay', 'builder-swap-overlay'];
+      const overlayIds = ['notes-overlay', 'ex-notes-overlay', 'swap-overlay', 'exercise-history-overlay', 'save-routine-overlay', 'builder-swap-overlay'];
       for (const id of overlayIds) {
         const el = document.getElementById(id);
         if (el && el.classList.contains('active')) {
@@ -2854,11 +2887,15 @@
         const collapsed = collapsedExercises.has(ei) ? ' collapsed' : '';
         const collapsedStyle = collapsedExercises.has(ei) ? ' style="max-height:0;overflow:hidden"' : '';
 
+        const exNoteKey = ex.exerciseId || ex.name;
+        const hasExNote = appData.exerciseNotes[exNoteKey] ? ' has-note' : '';
+
         html += `<div class="exercise-card${collapsed}" id="ex-${ei}" data-ei="${ei}">
           <div class="ex-header">
             <div class="ex-icon ${eqType}" onclick="toggleCollapse(${ei})">${getExIcon(eqType)}</div>
             <h3 onclick="openExerciseHistory(${ei})">${escapeHtml(ex.name)}</h3>
             <span class="${badgeClass}">${doneCount}/${totalCount}</span>
+            <button class="ex-note-btn${hasExNote}" onclick="event.stopPropagation();openExNotesModal(${ei})" title="Exercise notes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>
             <button class="swap-btn" onclick="event.stopPropagation();openSwapModal(${ei})" title="Swap exercise">${SWAP_SVG}</button>
             <svg class="ex-chevron" onclick="toggleCollapse(${ei})" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </div>
@@ -3239,6 +3276,43 @@
         currentSession.notes = document.getElementById('session-notes').value.trim();
         saveSessionBackup();
       }
+    }
+
+    // ==================== PER-EXERCISE NOTES ====================
+    let exNoteEditIndex = -1;
+
+    function openExNotesModal(ei) {
+      const ex = currentSession.exercises[ei];
+      const key = ex.exerciseId || ex.name;
+      exNoteEditIndex = ei;
+      document.getElementById('ex-notes-title').textContent = ex.name + ' Notes';
+      document.getElementById('ex-notes-text').value = appData.exerciseNotes[key] || '';
+      document.getElementById('ex-notes-overlay').classList.add('active');
+      document.getElementById('ex-notes-text').focus();
+    }
+
+    function closeExNotesModal(e) {
+      if (e && e.target !== e.currentTarget && !e.target.closest('.notes-modal-close')) return;
+      document.getElementById('ex-notes-overlay').classList.remove('active');
+      exNoteEditIndex = -1;
+    }
+
+    function saveExNote() {
+      if (exNoteEditIndex < 0 || !currentSession) return;
+      const ex = currentSession.exercises[exNoteEditIndex];
+      const key = ex.exerciseId || ex.name;
+      const text = document.getElementById('ex-notes-text').value.trim();
+      if (text) {
+        appData.exerciseNotes[key] = text;
+      } else {
+        delete appData.exerciseNotes[key];
+      }
+      saveData(appData);
+      document.getElementById('ex-notes-overlay').classList.remove('active');
+      // Update the note button indicator
+      const btn = document.querySelector('#ex-' + exNoteEditIndex + ' .ex-note-btn');
+      if (btn) btn.classList.toggle('has-note', !!text);
+      exNoteEditIndex = -1;
     }
 
     // ==================== EXERCISE HISTORY QUICK-VIEW ====================
