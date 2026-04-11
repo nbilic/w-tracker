@@ -120,36 +120,6 @@
     .creatine-pill .pill-check svg { width: 12px; height: 12px; display: none; }
     .creatine-pill.checked .pill-check svg { display: block; color: #fff; }
 
-    /* Stats row */
-    .stats-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-bottom: 20px;
-    }
-    .stat-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 12px 10px;
-      text-align: center;
-    }
-    .stat-value {
-      font-size: 22px;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-    }
-    .stat-value.accent-a { color: var(--accent); }
-    .stat-value.accent-b { color: var(--accent2); }
-    .stat-label {
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-      color: var(--text3);
-      margin-top: 2px;
-      font-weight: 600;
-    }
-
     /* Calendar */
     .calendar-card {
       background: var(--surface);
@@ -1838,7 +1808,6 @@
       </button>
       <h2>Progress</h2>
     </div>
-    <div class="stats-row" id="stats-row"></div>
     <div id="pr-container"></div>
     <div id="progress-charts"></div>
   </div>
@@ -2221,6 +2190,9 @@
       // Per-exercise notes
       if (!appData.exerciseNotes) appData.exerciseNotes = {};
 
+      // Chart order
+      if (!appData.settings.chartOrder) appData.settings.chartOrder = [];
+
       // Creatine log
       if (!appData.creatineLog) appData.creatineLog = {};
 
@@ -2355,21 +2327,27 @@
         return;
       }
       const unit = appData.settings.unit;
+      const chevron = prSectionCollapsed ? '&#9654;' : '&#9660;';
       let items = '';
-      names.forEach(name => {
-        const pr = prs[name];
-        const est1rm = computeEstimated1RM(name);
-        const show1rm = est1rm && est1rm > pr.maxWeight;
-        items += `<div class="pr-item">
-          <div class="pr-item-name">${escapeHtml(name)}</div>
-          <div class="pr-item-value">${pr.maxWeight} ${unit}</div>
-          <div class="pr-item-date">${formatDate(pr.date)}</div>
-          ${show1rm ? `<div class="pr-item-1rm">Est 1RM: ${est1rm} ${unit}</div>` : ''}
-        </div>`;
-      });
+      if (!prSectionCollapsed) {
+        names.forEach(name => {
+          const pr = prs[name];
+          const est1rm = computeEstimated1RM(name);
+          const show1rm = est1rm && est1rm > pr.maxWeight;
+          items += `<div class="pr-item">
+            <div class="pr-item-name">${escapeHtml(name)}</div>
+            <div class="pr-item-value">${pr.maxWeight} ${unit}</div>
+            <div class="pr-item-date">${formatDate(pr.date)}</div>
+            ${show1rm ? `<div class="pr-item-1rm">Est 1RM: ${est1rm} ${unit}</div>` : ''}
+          </div>`;
+        });
+      }
       container.innerHTML = `<div class="pr-section">
-        <div class="pr-section-title">${TROPHY_SVG} Personal Records</div>
-        <div class="pr-grid">${items}</div>
+        <div class="pr-section-title" onclick="togglePRCollapse()" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between">
+          <span>${TROPHY_SVG} Personal Records</span>
+          <span style="font-size:10px;color:var(--text3)">${chevron}</span>
+        </div>
+        ${prSectionCollapsed ? '' : `<div class="pr-grid">${items}</div>`}
       </div>`;
     }
 
@@ -2639,50 +2617,6 @@
         </button>`;
       });
       container.innerHTML = html;
-    }
-
-    function renderStats() {
-      const now = new Date();
-      const thisMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-      const monthSessions = appData.sessions.filter(s => s.date.startsWith(thisMonth));
-      const totalWorkouts = monthSessions.length;
-      const totalVolume = monthSessions.reduce((sum, s) => sum + calcSessionVolume(s), 0);
-      const unit = appData.settings.unit;
-
-      // This week count (Mon-Sun)
-      const dayOfWeek = (now.getDay() + 6) % 7;
-      const monday = new Date(now);
-      monday.setDate(now.getDate() - dayOfWeek);
-      monday.setHours(0,0,0,0);
-      const mondayStr = monday.toISOString().slice(0, 10);
-      const weekCount = appData.sessions.filter(s => s.date >= mondayStr).length;
-
-      // Avg duration of recent workouts
-      const recentWithDuration = appData.sessions.filter(s => s.totalDuration > 0);
-      let avgDurStr = '--:--';
-      if (recentWithDuration.length >= 1) {
-        const last = recentWithDuration.slice(-5);
-        const avgDur = Math.round(last.reduce((s, sess) => s + sess.totalDuration, 0) / last.length);
-        avgDurStr = formatTime(avgDur);
-      }
-
-      document.getElementById('stats-row').innerHTML = `
-        <div class="stat-card">
-          <div class="stat-value accent-a">${weekCount}</div>
-          <div class="stat-label">This week</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value accent-b">${totalWorkouts}</div>
-          <div class="stat-label">This month</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value accent-a">${formatVolume(totalVolume)}</div>
-          <div class="stat-label">Volume (${unit})</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value accent-b">${avgDurStr}</div>
-          <div class="stat-label">Avg duration</div>
-        </div>`;
     }
 
     function calNav(delta) {
@@ -4409,8 +4343,24 @@
       });
     }
 
+    const collapsedCharts = new Set();
+    let prSectionCollapsed = false;
+
+    function toggleChartCollapse(name) {
+      if (collapsedCharts.has(name)) {
+        collapsedCharts.delete(name);
+      } else {
+        collapsedCharts.add(name);
+      }
+      renderProgress();
+    }
+
+    function togglePRCollapse() {
+      prSectionCollapsed = !prSectionCollapsed;
+      renderProgress();
+    }
+
     function renderProgress() {
-      renderStats();
       renderPRSection();
       const container = document.getElementById('progress-charts');
       const allExercises = new Set();
@@ -4423,13 +4373,24 @@
         return;
       }
 
+      // Use saved chart order, appending any new exercises at the end
+      const savedOrder = appData.settings.chartOrder || [];
+      const exerciseNames = [];
+      savedOrder.forEach(name => { if (allExercises.has(name)) exerciseNames.push(name); });
+      allExercises.forEach(name => { if (!exerciseNames.includes(name)) exerciseNames.push(name); });
+
       let html = '';
-      allExercises.forEach(name => {
+      exerciseNames.forEach(name => {
         const data = getExerciseProgressData(name);
         if (data.length === 0) return;
+        const isCollapsed = collapsedCharts.has(name);
+        const chevron = isCollapsed ? '&#9654;' : '&#9660;';
         html += `<div class="progress-chart-card">
-          <div class="progress-chart-title">${escapeHtml(name)}</div>
-          <canvas class="progress-canvas" data-exercise="${escapeHtml(name)}"></canvas>
+          <div class="progress-chart-title" onclick="toggleChartCollapse('${escapeHtml(name)}')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between">
+            <span>${escapeHtml(name)}</span>
+            <span style="font-size:10px;color:var(--text3)">${chevron}</span>
+          </div>
+          ${isCollapsed ? '' : `<canvas class="progress-canvas" data-exercise="${escapeHtml(name)}"></canvas>`}
         </div>`;
       });
 
@@ -4440,7 +4401,7 @@
 
       container.innerHTML = html;
 
-      // Draw charts after DOM update
+      // Draw visible charts after DOM update
       requestAnimationFrame(() => {
         container.querySelectorAll('.progress-canvas').forEach(canvas => {
           const name = canvas.getAttribute('data-exercise');
