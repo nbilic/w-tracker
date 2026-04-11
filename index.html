@@ -85,40 +85,25 @@
     }
     .streak-badge svg { width: 13px; height: 13px; vertical-align: middle; }
 
-    /* Creatine checkbox */
-    .creatine-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: var(--surface);
+    /* Creatine button */
+    .creatine-btn {
+      width: 100%;
+      margin-top: -8px;
+      margin-bottom: 20px;
+      padding: 14px 16px;
+      border-radius: var(--radius);
       border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 5px 12px;
-      margin-top: 10px;
-      cursor: pointer;
-      font-size: 13px;
+      background: var(--surface);
       color: var(--text2);
-      transition: border-color 0.15s, color 0.15s;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
     }
-    .creatine-pill.checked {
+    .creatine-btn.taken {
+      background: rgba(52,211,153,0.1);
       border-color: var(--green);
       color: var(--green);
     }
-    .creatine-pill .pill-check {
-      width: 18px; height: 18px;
-      border-radius: 50%;
-      border: 2px solid var(--text3);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.15s;
-    }
-    .creatine-pill.checked .pill-check {
-      background: var(--green);
-      border-color: var(--green);
-    }
-    .creatine-pill .pill-check svg { width: 12px; height: 12px; display: none; }
-    .creatine-pill.checked .pill-check svg { display: block; color: #fff; }
 
     /* Calendar */
     .calendar-card {
@@ -189,6 +174,13 @@
       background: var(--surface2);
     }
     .cal-day.future { color: var(--text3); opacity: 0.5; }
+    .cal-day.creatine {
+      color: #22c55e;
+      font-weight: 600;
+    }
+    .cal-day.today.creatine {
+      color: #22c55e;
+    }
     .cal-dots {
       display: flex;
       gap: 3px;
@@ -285,44 +277,62 @@
     .pr-section-title {
       font-size: 14px;
       font-weight: 700;
-      margin-bottom: 10px;
       display: flex;
       align-items: center;
       gap: 8px;
       color: var(--gold);
     }
-    .pr-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 6px;
+    .pr-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 12px;
     }
-    .pr-item {
-      background: var(--gold-dim);
+    .pr-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface2);
       border-radius: var(--radius-sm);
-      padding: 8px 10px;
+      padding: 10px 12px;
     }
-    .pr-item-name {
-      font-size: 11px;
-      color: var(--text2);
-      font-weight: 500;
+    .pr-row-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .pr-row-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .pr-item-value {
-      font-size: 16px;
-      font-weight: 800;
+    .pr-row-meta {
+      font-size: 11px;
+      color: var(--text3);
+      margin-top: 2px;
+    }
+    .pr-row-weight {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 2px;
       color: var(--gold);
+      font-size: 13px;
+      font-weight: 700;
       letter-spacing: -0.3px;
     }
-    .pr-item-date {
-      font-size: 10px;
-      color: var(--text3);
+    .pr-row-unit {
+      font-size: 11px;
+      font-weight: 600;
+      opacity: 0.7;
     }
-    .pr-item-1rm {
-      font-size: 10px;
-      color: var(--text2);
-      margin-top: 1px;
+    .pr-row-reps {
+      font-size: 11px;
+      color: var(--text3);
+      font-weight: 500;
+      text-align: right;
+      margin-top: 3px;
     }
     .history-stats-row {
       display: flex;
@@ -395,6 +405,10 @@
       margin: 0 -16px;
       padding-left: 16px;
       padding-right: 16px;
+      pointer-events: none;
+    }
+    .workout-sticky-header > * {
+      pointer-events: auto;
     }
     .header {
       display: flex;
@@ -417,7 +431,47 @@
     }
     .header .back svg { width: 18px; height: 18px; }
     .header h2 { font-size: 18px; flex: 1; font-weight: 700; letter-spacing: -0.3px; }
-    #history .header, #settings .header, #progress .header, #manage-routines .header { margin-bottom: 16px; }
+    .header-action-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .bestiary-filter-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .bestiary-select {
+      flex: 1;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      -webkit-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23888' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 28px;
+    }
+    .bestiary-select option {
+      background: var(--surface);
+      color: var(--text);
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+    #history .header, #settings .header, #progress .header, #manage-routines .header, #exercises .header { margin-bottom: 16px; }
     .header .date-badge {
       color: var(--text2);
       font-size: 12px;
@@ -497,6 +551,19 @@
     }
     .notes-btn.has-notes { border-color: var(--accent); color: var(--accent); }
     .notes-btn svg { width: 18px; height: 18px; }
+    .finish-btn {
+      background: var(--green);
+      border: none;
+      color: #0f0f1a;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .finish-btn svg { width: 18px; height: 18px; }
 
     /* Notes Modal */
     .notes-overlay {
@@ -886,10 +953,11 @@
     .hi-type .type-dot.b { background: var(--accent2); }
     .hi-date { color: var(--text2); font-size: 12px; font-weight: 500; flex-shrink: 0; }
     .hi-delete {
-      background: none; border: none; color: var(--text3); padding: 4px; margin-left: 8px;
+      background: none; border: none; color: var(--text3); padding: 10px;
       cursor: pointer; flex-shrink: 0; display: flex; align-items: center;
+      margin: -10px -10px -10px 0;
     }
-    .hi-delete svg { width: 16px; height: 16px; }
+    .hi-delete svg { width: 18px; height: 18px; }
     .hi-delete:active { color: #ef4444; }
     .hi-details {
       display: none;
@@ -1070,6 +1138,7 @@
       padding: 0;
     }
     .swap-btn:active { color: var(--text); border-color: var(--text3); }
+    .swap-btn.swap-disabled { opacity: 0.25; pointer-events: none; }
     .swap-btn svg { width: 14px; height: 14px; }
 
     /* Exercise note button */
@@ -1087,8 +1156,54 @@
       padding: 0;
     }
     .ex-note-btn svg { width: 14px; height: 14px; }
-    .ex-note-btn.has-note { color: var(--accent); border-color: var(--accent); }
+    .ex-note-btn.has-note { color: var(--text2); border-color: var(--border); }
     .ex-note-btn:active { color: var(--text); }
+
+    /* Exercise note view modal */
+    .ex-note-view-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 300;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .ex-note-view-overlay.active { display: flex; }
+    .ex-note-view-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      width: 100%;
+      max-width: 380px;
+      animation: notePopIn 0.2s ease-out;
+    }
+    @keyframes notePopIn {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .ex-note-view-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .ex-note-view-header h3 {
+      font-size: 16px;
+      font-weight: 700;
+      flex: 1;
+    }
+    .ex-note-view-body {
+      font-size: 15px;
+      color: var(--text);
+      line-height: 1.6;
+      white-space: pre-wrap;
+      background: var(--surface2);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+    }
 
     /* BB/DB toggle */
     .bb-db-toggle {
@@ -1112,20 +1227,21 @@
       top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0,0,0,0.6);
       z-index: 300;
-      align-items: flex-end;
+      align-items: center;
       justify-content: center;
+      padding: 20px;
     }
     .swap-overlay.active { display: flex; }
     .swap-modal {
       background: var(--surface);
-      border-radius: var(--radius) var(--radius) 0 0;
-      padding: 20px 16px 32px;
+      border-radius: var(--radius);
+      padding: 20px 16px;
       width: 100%;
-      max-width: 480px;
-      max-height: 80vh;
+      max-width: 420px;
+      max-height: 75vh;
       display: flex;
       flex-direction: column;
-      animation: slideUp 0.2s ease-out;
+      animation: notePopIn 0.2s ease-out;
     }
     .swap-modal-header {
       display: flex;
@@ -1655,7 +1771,6 @@
   <div id="home" class="screen active">
     <div class="home-greeting" id="home-greeting">Workout Tracker</div>
     <div class="home-date-line" id="home-date-line"></div>
-    <div id="creatine-container"></div>
 
     <!-- Continue + Start buttons (dynamic) -->
     <div id="continue-workout-container"></div>
@@ -1674,6 +1789,7 @@
       </div>
       <div class="cal-grid" id="cal-grid"></div>
     </div>
+    <button class="creatine-btn" id="creatine-btn" onclick="toggleCreatine()"></button>
 
     <!-- Last workout -->
     <div id="last-workout-container"></div>
@@ -1713,6 +1829,12 @@
         <button class="notes-btn" id="notes-btn" onclick="openNotesModal()" title="Workout notes">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
         </button>
+        <button class="notes-btn" onclick="openAddExerciseModal()" title="Add exercise">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <button class="finish-btn" onclick="finishWorkout()" title="Finish workout">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
         <span class="elapsed-badge" id="elapsed-display">00:00</span>
       </div>
 
@@ -1739,14 +1861,14 @@
     </div>
 
     <!-- Exercise Notes Modal -->
-    <div class="notes-overlay" id="ex-notes-overlay" onclick="closeExNotesModal(event)">
-      <div class="notes-modal">
-        <div class="notes-modal-header">
+    <div class="ex-note-view-overlay" id="ex-notes-overlay" onclick="closeExNotesModal(event)">
+      <div class="ex-note-view-card">
+        <div class="ex-note-view-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;color:var(--accent);flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
           <h3 id="ex-notes-title">Exercise Notes</h3>
           <button class="notes-modal-close" onclick="closeExNotesModal()">&times;</button>
         </div>
-        <textarea id="ex-notes-text" placeholder="Form cues, tips, reminders..." rows="4"></textarea>
-        <button onclick="saveExNote()" style="width:100%;padding:12px;margin-top:8px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">Save</button>
+        <div id="ex-notes-text" class="ex-note-view-body"></div>
       </div>
     </div>
 
@@ -1758,7 +1880,7 @@
           <button class="notes-modal-close" onclick="closeSwapModal()">&times;</button>
         </div>
         <input class="swap-search" id="swap-search" type="text" placeholder="Search exercises..." oninput="renderSwapList()">
-        <div class="swap-filters" id="swap-filters"></div>
+        <div class="bestiary-filter-row" id="swap-filters"></div>
         <div class="swap-list" id="swap-list"></div>
       </div>
     </div>
@@ -1788,9 +1910,6 @@
       </div>
     </div>
 
-    <div class="finish-bar">
-      <button onclick="finishWorkout()">Finish Workout</button>
-    </div>
   </div>
 
   <!-- History Screen -->
@@ -1878,19 +1997,21 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
       <h2>Exercises</h2>
+      <button class="header-action-btn" onclick="openCreateExercise()" title="Create exercise">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
     </div>
-    <input class="swap-search" id="bestiary-search" type="text" placeholder="Search exercises..." oninput="renderBestiary()" style="margin-bottom:10px">
-    <div class="swap-filters" id="bestiary-filters"></div>
+    <input class="swap-search" id="bestiary-search" type="text" placeholder="Search exercises..." oninput="renderBestiary()">
+    <div class="bestiary-filter-row">
+      <select class="bestiary-select" id="bestiary-cat-select" onchange="bestiaryCategory=this.value;renderBestiary()"></select>
+      <select class="bestiary-select" id="bestiary-equip-select" onchange="bestiaryEquipment=this.value;renderBestiary()"></select>
+    </div>
     <div id="bestiary-list"></div>
-    <button class="builder-add-btn" onclick="openCreateExercise()" style="margin-top:12px">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Create Exercise
-    </button>
   </div>
 
   <!-- Exercise Edit Modal -->
-  <div class="notes-overlay" id="exercise-edit-overlay" onclick="closeExerciseEdit(event)">
-    <div class="notes-modal" style="max-width:380px">
+  <div class="notes-overlay" id="exercise-edit-overlay" onclick="closeExerciseEdit(event)" style="align-items:center;padding:20px">
+    <div class="notes-modal" style="max-width:380px;border-radius:var(--radius);animation:notePopIn 0.2s ease-out">
       <div class="notes-modal-header">
         <h3 id="exercise-edit-title">Edit Exercise</h3>
         <button class="notes-modal-close" onclick="closeExerciseEdit()">&times;</button>
@@ -2304,6 +2425,7 @@
     function computePR(exerciseName) {
       let maxWeight = 0;
       let prDate = '';
+      let prReps = 0;
       appData.sessions.forEach(s => {
         s.exercises.forEach(ex => {
           if (ex.name === exerciseName) {
@@ -2311,12 +2433,13 @@
               if (set.completed && set.weight !== '' && set.weight !== null && Number(set.weight) > maxWeight) {
                 maxWeight = Number(set.weight);
                 prDate = s.date;
+                prReps = Number(set.reps) || 0;
               }
             });
           }
         });
       });
-      return maxWeight > 0 ? { maxWeight, date: prDate } : null;
+      return maxWeight > 0 ? { maxWeight, date: prDate, reps: prReps } : null;
     }
 
     function rebuildAllPRs() {
@@ -2358,9 +2481,19 @@
       const current = appData.personalRecords[exerciseName];
       if (!current) return false; // No existing record to beat — not a PR
       if (numWeight > current.maxWeight) {
+        // Find the reps for this weight from the current workout
+        let prReps = 0;
+        if (currentWorkout) {
+          const ex = currentWorkout.exercises.find(e => e.name === exerciseName);
+          if (ex) {
+            const set = ex.sets.find(s => s.completed && Number(s.weight) === numWeight);
+            if (set) prReps = Number(set.reps) || 0;
+          }
+        }
         appData.personalRecords[exerciseName] = {
           maxWeight: numWeight,
-          date: new Date().toISOString().slice(0, 10)
+          date: new Date().toISOString().slice(0, 10),
+          reps: prReps
         };
         return true;
       }
@@ -2383,11 +2516,21 @@
           const pr = prs[name];
           const est1rm = computeEstimated1RM(name);
           const show1rm = est1rm && est1rm > pr.maxWeight;
-          items += `<div class="pr-item">
-            <div class="pr-item-name">${escapeHtml(name)}</div>
-            <div class="pr-item-value">${pr.maxWeight} ${unit}</div>
-            <div class="pr-item-date">${formatDate(pr.date)}</div>
-            ${show1rm ? `<div class="pr-item-1rm">Est 1RM: ${est1rm} ${unit}</div>` : ''}
+          const repsText = pr.reps ? `${pr.reps} reps` : '';
+          const metaparts = [formatDate(pr.date)];
+          if (show1rm) metaparts.push(`Est 1RM: ${est1rm} ${unit}`);
+          const libEx = EXERCISE_LIBRARY.find(e => e.name === name);
+          const eqType = libEx ? libEx.equipment : 'barbell';
+          items += `<div class="pr-row">
+            <div class="ex-icon ${eqType}" style="width:32px;height:32px;border-radius:8px;flex-shrink:0">${getExIcon(eqType)}</div>
+            <div class="pr-row-info">
+              <div class="pr-row-name">${escapeHtml(name)}</div>
+              <div class="pr-row-meta">${metaparts.join(' · ')}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div class="pr-row-weight">${pr.maxWeight}<span class="pr-row-unit">${unit}</span></div>
+              ${repsText ? `<div class="pr-row-reps">${repsText}</div>` : ''}
+            </div>
           </div>`;
         });
       }
@@ -2396,7 +2539,7 @@
           <span>${TROPHY_SVG} Personal Records</span>
           <span style="font-size:10px;color:var(--text3)">${chevron}</span>
         </div>
-        ${prSectionCollapsed ? '' : `<div class="pr-grid">${items}</div>`}
+        ${prSectionCollapsed ? '' : `<div class="pr-list">${items}</div>`}
       </div>`;
     }
 
@@ -2474,9 +2617,11 @@
       if (id === 'settings') loadSettings();
       if (id === 'progress') renderProgress();
       if (id === 'manage-routines') renderManageRoutines();
-      if (id === 'exercises') { bestiaryCategory = 'All'; document.getElementById('bestiary-search').value = ''; renderBestiaryFilters(); renderBestiary(); }
+      if (id === 'exercises') { bestiaryCategory = 'All'; bestiaryEquipment = 'All'; document.getElementById('bestiary-search').value = ''; renderBestiaryFilters(); renderBestiary(); }
       if (id === 'workout' && currentSession) acquireWakeLock();
       if (id !== 'workout') releaseWakeLock();
+      document.body.style.overflow = '';
+      window.scrollTo(0, 0);
       updateNavDots();
       // Push browser history state (unless we're handling popstate)
       if (!navigatingViaPopstate) {
@@ -2497,6 +2642,7 @@
         const el = document.getElementById(id);
         if (el && el.classList.contains('active')) {
           el.classList.remove('active');
+          document.body.style.overflow = '';
           return true;
         }
       }
@@ -2504,6 +2650,7 @@
       const dialogOverlay = document.querySelector('.dialog-overlay.active');
       if (dialogOverlay) {
         dialogOverlay.classList.remove('active');
+        document.body.style.overflow = '';
         return true;
       }
       return false;
@@ -2517,19 +2664,6 @@
         return;
       }
       const target = (e.state && e.state.screen) || 'home';
-      // If leaving workout screen, confirm first
-      if (activeScreen === 'workout' && currentSession) {
-        // Push state back so we don't lose position
-        history.pushState({ screen: 'workout' }, '', '');
-        const anyDone = currentSession.exercises.some(ex => ex.sets.some(s => s.completed));
-        if (anyDone) {
-          if (!await customConfirm('Leave workout? Your progress is auto-saved.')) return;
-        }
-        navigatingViaPopstate = true;
-        showScreen(target);
-        navigatingViaPopstate = false;
-        return;
-      }
       navigatingViaPopstate = true;
       showScreen(target);
       navigatingViaPopstate = false;
@@ -2608,17 +2742,21 @@
     function renderCreatine() {
       const today = new Date().toISOString().split('T')[0];
       const taken = appData.creatineLog[today];
-      const checkedClass = taken ? ' checked' : '';
-      document.getElementById('creatine-container').innerHTML = `
-        <div class="creatine-pill${checkedClass}" onclick="toggleCreatine()">
-          <span class="pill-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
-          Creatine
-        </div>`;
+      const btn = document.getElementById('creatine-btn');
+      if (taken) {
+        btn.textContent = '\u2713 Creatine taken today';
+        btn.classList.add('taken');
+      } else {
+        btn.textContent = 'Log Creatine';
+        btn.classList.remove('taken');
+      }
     }
 
-    function toggleCreatine() {
+    async function toggleCreatine() {
       const today = new Date().toISOString().split('T')[0];
-      if (appData.creatineLog[today]) {
+      const taken = appData.creatineLog[today];
+      if (taken) {
+        if (!await customConfirm('Undo creatine for today?')) return;
         delete appData.creatineLog[today];
       } else {
         appData.creatineLog[today] = true;
@@ -2626,6 +2764,7 @@
       saveData(appData);
       triggerHaptic('light');
       renderCreatine();
+      renderCalendar();
     }
 
     function getNextRoutineId() {
@@ -2719,6 +2858,10 @@
                          (isCurrentMonth && day > todayDate);
         if (isFuture) cls += ' future';
 
+        // Check creatine for this day
+        const dateStr = prefix + '-' + String(day).padStart(2, '0');
+        if (appData.creatineLog && appData.creatineLog[dateStr]) cls += ' creatine';
+
         const routineIds = dayMap[day];
         let dots = '<div class="cal-dots">';
         if (routineIds) {
@@ -2768,7 +2911,7 @@
 
     // ==================== DELETE SESSION ====================
     async function deleteSession(sessionId) {
-      const idx = appData.sessions.findIndex(s => s.id === sessionId);
+      const idx = appData.sessions.findIndex(s => String(s.id) === String(sessionId));
       if (idx === -1) return;
       const session = appData.sessions[idx];
       const rName = session.routineName || ('Workout ' + (session.type || '?'));
@@ -2991,27 +3134,25 @@
         const pairId = ex.exerciseId ? BB_DB_PAIRS[ex.exerciseId] : null;
         const pairEx = pairId ? LIBRARY_MAP[pairId] : null;
         const toggleLabel = pairEx ? (pairEx.equipment === 'barbell' ? 'BB' : 'DB') : '';
-        const showToggle = pairEx && doneCount === 0;
+        const toggleDisabled = pairEx && doneCount > 0;
 
         html += `<div class="exercise-card${collapsed}" id="ex-${ei}" data-ei="${ei}">
           <div class="ex-header">
             <div class="ex-icon ${eqType}" onclick="toggleCollapse(${ei})">${getExIcon(eqType)}</div>
             <h3 onclick="openExerciseHistory(${ei})">${escapeHtml(ex.name)}</h3>
             <span class="${badgeClass}">${doneCount}/${totalCount}</span>
-            ${showToggle ? `<button class="bb-db-toggle" onclick="event.stopPropagation();toggleBBDB(${ei})" title="Switch to ${pairEx.name}">${toggleLabel}</button>` : ''}
-            <button class="ex-note-btn${hasExNote}" onclick="event.stopPropagation();openExNotesModal(${ei})" title="Exercise notes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>
-            <button class="swap-btn" onclick="event.stopPropagation();openSwapModal(${ei})" title="Swap exercise">${SWAP_SVG}</button>
+            ${hasExNote ? `<button class="ex-note-btn has-note" onclick="event.stopPropagation();showExNote(${ei})" title="View note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>` : ''}
+            ${pairEx ? `<button class="swap-btn${toggleDisabled ? ' swap-disabled' : ''}" onclick="event.stopPropagation();toggleBBDB(${ei})" title="Switch to ${pairEx.name}"${toggleDisabled ? ' disabled' : ''}>${SWAP_SVG}</button>` : ''}
             <svg class="ex-chevron" onclick="toggleCollapse(${ei})" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </div>
           <div class="ex-body"${collapsedStyle}>
-          <div class="set-header">
-            <span></span><span>${unit.toUpperCase()}</span><span>REPS</span><span></span>
-          </div>`;
+`;
 
-        // Plate breakdown for barbell exercises
+        // Plate breakdown for barbell exercises (next incomplete set, fallback to first set)
         if (eqType === 'barbell') {
-          const maxWeight = Math.max(0, ...ex.sets.filter(s => s.weight !== '' && s.weight !== null).map(s => Number(s.weight)));
-          html += getPlateBreakdownHTML(maxWeight, unit);
+          const nextSet = ex.sets.find(s => !s.completed) || ex.sets[0];
+          const plateWeight = nextSet && nextSet.weight !== '' && nextSet.weight !== null ? Number(nextSet.weight) : 0;
+          html += getPlateBreakdownHTML(plateWeight, unit);
         }
 
         ex.sets.forEach((set, si) => {
@@ -3026,8 +3167,7 @@
         html += `</div></div></div>`;
       });
 
-      html += `<button class="add-exercise-btn" onclick="openAddExerciseModal()">+ Add Exercise</button>`;
-      html += `<button class="btn-discard" onclick="discardWorkout()" style="display:block;margin:24px auto 100px;background:transparent;color:var(--text-dim);font-size:14px;border:none;padding:10px;cursor:pointer;">Discard Workout</button>`;
+      html += `<button class="btn-discard" onclick="discardWorkout()" style="display:flex;align-items:center;justify-content:center;width:100%;margin-bottom:20px;background:transparent;color:#ef4444;font-size:14px;font-weight:600;border:2px dashed rgba(239,68,68,0.3);border-radius:var(--radius);padding:16px;cursor:pointer;">Discard Workout</button>`;
 
       container.innerHTML = html;
       initDragHandles();
@@ -3063,9 +3203,10 @@
       const card = document.getElementById('ex-' + ei);
       if (!card) return;
       const unit = appData.settings.unit;
-      const maxWeight = Math.max(0, ...ex.sets.filter(s => s.weight !== '' && s.weight !== null).map(s => Number(s.weight)));
+      const nextSet = ex.sets.find(s => !s.completed) || ex.sets[0];
+      const plateWeight = nextSet && nextSet.weight !== '' && nextSet.weight !== null ? Number(nextSet.weight) : 0;
       const existing = card.querySelector('.plate-breakdown');
-      const newHTML = getPlateBreakdownHTML(maxWeight, unit);
+      const newHTML = getPlateBreakdownHTML(plateWeight, unit);
       if (existing) {
         if (newHTML) {
           existing.outerHTML = newHTML;
@@ -3073,8 +3214,8 @@
           existing.remove();
         }
       } else if (newHTML) {
-        const setHeader = card.querySelector('.set-header');
-        if (setHeader) setHeader.insertAdjacentHTML('afterend', newHTML);
+        const exBody = card.querySelector('.ex-body');
+        if (exBody) exBody.insertAdjacentHTML('afterbegin', newHTML);
       }
     }
 
@@ -3383,40 +3524,20 @@
     }
 
     // ==================== PER-EXERCISE NOTES ====================
-    let exNoteEditIndex = -1;
-
-    function openExNotesModal(ei) {
+    function showExNote(ei) {
       const ex = currentSession.exercises[ei];
       const key = ex.exerciseId || ex.name;
-      exNoteEditIndex = ei;
-      document.getElementById('ex-notes-title').textContent = ex.name + ' Notes';
-      document.getElementById('ex-notes-text').value = appData.exerciseNotes[key] || '';
+      const note = appData.exerciseNotes[key] || '';
+      document.getElementById('ex-notes-title').textContent = ex.name;
+      document.getElementById('ex-notes-text').textContent = note;
       document.getElementById('ex-notes-overlay').classList.add('active');
-      document.getElementById('ex-notes-text').focus();
+      document.body.style.overflow = 'hidden';
     }
 
     function closeExNotesModal(e) {
       if (e && e.target !== e.currentTarget && !e.target.closest('.notes-modal-close')) return;
       document.getElementById('ex-notes-overlay').classList.remove('active');
-      exNoteEditIndex = -1;
-    }
-
-    function saveExNote() {
-      if (exNoteEditIndex < 0 || !currentSession) return;
-      const ex = currentSession.exercises[exNoteEditIndex];
-      const key = ex.exerciseId || ex.name;
-      const text = document.getElementById('ex-notes-text').value.trim();
-      if (text) {
-        appData.exerciseNotes[key] = text;
-      } else {
-        delete appData.exerciseNotes[key];
-      }
-      saveData(appData);
-      document.getElementById('ex-notes-overlay').classList.remove('active');
-      // Update the note button indicator
-      const btn = document.querySelector('#ex-' + exNoteEditIndex + ' .ex-note-btn');
-      if (btn) btn.classList.toggle('has-note', !!text);
-      exNoteEditIndex = -1;
+      document.body.style.overflow = '';
     }
 
     // ==================== EXERCISE HISTORY QUICK-VIEW ====================
@@ -3616,13 +3737,18 @@
       return current.some((name, i) => name !== original[i]);
     }
 
-    function finishWorkout() {
+    async function finishWorkout() {
       if (!currentSession) return;
 
       const anyDone = currentSession.exercises.some(ex => ex.sets.some(s => s.completed));
       if (!anyDone) {
         discardWorkout();
         return;
+      }
+
+      const allDone = currentSession.exercises.every(ex => ex.sets.every(s => s.completed));
+      if (!allDone) {
+        if (!await customConfirm('Finish workout with incomplete sets? Your progress will still be saved.')) return;
       }
 
       clearInterval(elapsedInterval);
@@ -3707,51 +3833,54 @@
 
     let swapExerciseIndex = null;
     let swapCategoryFilter = 'All';
+    let swapEquipmentFilter = 'All';
     let swapMode = 'swap'; // 'swap' or 'add'
 
     function openSwapModal(ei) {
       swapExerciseIndex = ei;
       swapMode = 'swap';
       swapCategoryFilter = 'All';
+      swapEquipmentFilter = 'All';
       document.getElementById('swap-search').value = '';
       document.querySelector('.swap-modal-header h3').textContent = 'Swap Exercise';
       renderSwapFilters();
       renderSwapList();
       document.getElementById('swap-overlay').classList.add('active');
-      document.getElementById('swap-search').focus();
+      document.body.style.overflow = 'hidden';
     }
 
     function openAddExerciseModal() {
       swapExerciseIndex = null;
       swapMode = 'add';
       swapCategoryFilter = 'All';
+      swapEquipmentFilter = 'All';
       document.getElementById('swap-search').value = '';
       document.querySelector('.swap-modal-header h3').textContent = 'Add Exercise';
       renderSwapFilters();
       renderSwapList();
       document.getElementById('swap-overlay').classList.add('active');
-      document.getElementById('swap-search').focus();
+      document.body.style.overflow = 'hidden';
     }
 
     function closeSwapModal(e) {
       if (e && e.target !== e.currentTarget && !e.target.closest('.notes-modal-close')) return;
       document.getElementById('swap-overlay').classList.remove('active');
+      document.body.style.overflow = '';
       swapExerciseIndex = null;
       swapMode = 'swap';
     }
 
     function renderSwapFilters() {
-      const categories = ['All', 'Chest', 'Back', 'Shoulders', 'Legs', 'Arms', 'Core'];
+      const categories = ['All', ...new Set(EXERCISE_LIBRARY.map(e => e.category))];
+      const equips = ['All', 'Barbell', 'Dumbbell', 'Cable', 'Machine', 'Bodyweight'];
       const container = document.getElementById('swap-filters');
-      container.innerHTML = categories.map(cat =>
-        `<button class="swap-chip${swapCategoryFilter === cat ? ' active' : ''}" onclick="setSwapFilter('${cat}')">${cat}</button>`
-      ).join('');
-    }
-
-    function setSwapFilter(cat) {
-      swapCategoryFilter = cat;
-      renderSwapFilters();
-      renderSwapList();
+      container.innerHTML = `
+        <select class="bestiary-select" onchange="swapCategoryFilter=this.value;renderSwapList()">
+          ${categories.map(c => `<option value="${c}"${c === swapCategoryFilter ? ' selected' : ''}>${c === 'All' ? 'All Categories' : c}</option>`).join('')}
+        </select>
+        <select class="bestiary-select" onchange="swapEquipmentFilter=this.value;renderSwapList()">
+          ${equips.map(e => `<option value="${e}"${e === swapEquipmentFilter ? ' selected' : ''}>${e === 'All' ? 'All Equipment' : e}</option>`).join('')}
+        </select>`;
     }
 
     function getLastUsedWeight(name) {
@@ -3776,6 +3905,7 @@
       let filtered = EXERCISE_LIBRARY.filter(ex => {
         if (currentNames.has(ex.name)) return false;
         if (swapCategoryFilter !== 'All' && ex.category !== swapCategoryFilter) return false;
+        if (swapEquipmentFilter !== 'All' && ex.equipment !== swapEquipmentFilter.toLowerCase()) return false;
         if (query && !ex.name.toLowerCase().includes(query) && !ex.category.toLowerCase().includes(query) && !ex.equipment.toLowerCase().includes(query)) return false;
         return true;
       });
@@ -4393,11 +4523,21 @@
       });
     }
 
-    const collapsedCharts = new Set();
-    let prSectionCollapsed = false;
+    const collapsedCharts = new Set(['__all__']);
+    let prSectionCollapsed = true;
+    let chartsStartCollapsed = true;
 
     function toggleChartCollapse(name) {
-      if (collapsedCharts.has(name)) {
+      if (chartsStartCollapsed) {
+        // First interaction: mark all as collapsed, then open the clicked one
+        chartsStartCollapsed = false;
+        collapsedCharts.delete('__all__');
+        const container = document.getElementById('progress-charts');
+        container.querySelectorAll('.progress-chart-title span:first-child').forEach(span => {
+          collapsedCharts.add(span.textContent);
+        });
+        collapsedCharts.delete(name);
+      } else if (collapsedCharts.has(name)) {
         collapsedCharts.delete(name);
       } else {
         collapsedCharts.add(name);
@@ -4433,7 +4573,7 @@
       exerciseNames.forEach(name => {
         const data = getExerciseProgressData(name);
         if (data.length === 0) return;
-        const isCollapsed = collapsedCharts.has(name);
+        const isCollapsed = chartsStartCollapsed || collapsedCharts.has(name);
         const chevron = isCollapsed ? '&#9654;' : '&#9660;';
         html += `<div class="progress-chart-card">
           <div class="progress-chart-title" onclick="toggleChartCollapse('${escapeHtml(name)}')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between">
@@ -4463,12 +4603,17 @@
 
     // ==================== EXERCISE BESTIARY ====================
     let bestiaryCategory = 'All';
+    let bestiaryEquipment = 'All';
     let editingExerciseId = null;
 
     function renderBestiaryFilters() {
       const cats = ['All', ...new Set(EXERCISE_LIBRARY.map(e => e.category))];
-      document.getElementById('bestiary-filters').innerHTML = cats.map(c =>
-        `<button class="swap-filter${c === bestiaryCategory ? ' active' : ''}" onclick="bestiaryCategory='${c}';renderBestiary()">${c}</button>`
+      document.getElementById('bestiary-cat-select').innerHTML = cats.map(c =>
+        `<option value="${c}"${c === bestiaryCategory ? ' selected' : ''}>${c === 'All' ? 'All Categories' : c}</option>`
+      ).join('');
+      const equips = ['All', 'Barbell', 'Dumbbell', 'Cable', 'Machine', 'Bodyweight'];
+      document.getElementById('bestiary-equip-select').innerHTML = equips.map(e =>
+        `<option value="${e}"${e === bestiaryEquipment ? ' selected' : ''}>${e === 'All' ? 'All Equipment' : e}</option>`
       ).join('');
     }
 
@@ -4477,6 +4622,7 @@
       const list = document.getElementById('bestiary-list');
       let filtered = EXERCISE_LIBRARY.filter(ex => {
         if (bestiaryCategory !== 'All' && ex.category !== bestiaryCategory) return false;
+        if (bestiaryEquipment !== 'All' && ex.equipment !== bestiaryEquipment.toLowerCase()) return false;
         if (search && !ex.name.toLowerCase().includes(search)) return false;
         return true;
       });
@@ -4511,10 +4657,14 @@
       const currentStep = override.step !== undefined ? override.step : getWeightStep(ex.equipment, exerciseId);
       const currentSets = override.defaultSets !== undefined ? override.defaultSets : ex.defaultSets;
       const currentReps = override.defaultReps !== undefined ? override.defaultReps : ex.defaultReps;
+      const currentNote = appData.exerciseNotes[exerciseId] || '';
 
       document.getElementById('exercise-edit-title').textContent = ex.name;
       document.getElementById('exercise-edit-body').innerHTML = `
         <div style="display:flex;flex-direction:column;gap:12px;margin-top:12px">
+          <label style="font-size:13px;color:var(--text2)">Notes
+            <textarea id="edit-note" placeholder="Form cues, tips, reminders..." rows="3" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;margin-top:4px;resize:vertical">${escapeHtml(currentNote)}</textarea>
+          </label>
           <label style="font-size:13px;color:var(--text2)">Weight Step
             <input type="number" id="edit-step" value="${currentStep}" step="0.5" min="0.5" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;margin-top:4px" inputmode="decimal">
           </label>
@@ -4529,11 +4679,13 @@
           ${isCustom ? `<button onclick="deleteCustomExercise('${exerciseId}')" style="width:100%;padding:10px;background:transparent;color:#ef4444;border:none;font-size:13px;cursor:pointer">Delete Exercise</button>` : ''}
         </div>`;
       document.getElementById('exercise-edit-overlay').classList.add('active');
+      document.body.style.overflow = 'hidden';
     }
 
     function closeExerciseEdit(e) {
       if (e && e.target !== e.currentTarget && !e.target.closest('.notes-modal-close')) return;
       document.getElementById('exercise-edit-overlay').classList.remove('active');
+      document.body.style.overflow = '';
       editingExerciseId = null;
     }
 
@@ -4545,6 +4697,13 @@
       if (isNaN(step) || step <= 0 || isNaN(sets) || sets < 1) return;
 
       appData.exerciseOverrides[editingExerciseId] = { step, defaultSets: sets, defaultReps: reps || '10' };
+      // Save note
+      const note = document.getElementById('edit-note').value.trim();
+      if (note) {
+        appData.exerciseNotes[editingExerciseId] = note;
+      } else {
+        delete appData.exerciseNotes[editingExerciseId];
+      }
       saveData(appData);
       closeExerciseEdit();
       renderBestiary();
@@ -4581,6 +4740,7 @@
           <button onclick="saveNewExercise()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer">Create</button>
         </div>`;
       document.getElementById('exercise-edit-overlay').classList.add('active');
+      document.body.style.overflow = 'hidden';
     }
 
     function saveNewExercise() {
