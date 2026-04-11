@@ -268,21 +268,6 @@
     .lw-title { font-size: 13px; font-weight: 600; }
     .lw-sub { font-size: 11px; color: var(--text2); margin-top: 1px; }
     .lw-arrow { color: var(--text3); font-size: 14px; }
-    .lw-undo {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      color: var(--accent);
-      width: 30px; height: 30px;
-      border-radius: 8px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      padding: 0;
-    }
-    .lw-undo:active { background: var(--surface3); }
-    .lw-undo svg { width: 14px; height: 14px; }
 
     /* Personal Records Section */
     .pr-section {
@@ -894,7 +879,13 @@
     .hi-type .type-dot { width: 8px; height: 8px; border-radius: 50%; }
     .hi-type .type-dot.a { background: var(--accent); }
     .hi-type .type-dot.b { background: var(--accent2); }
-    .hi-date { color: var(--text2); font-size: 12px; font-weight: 500; }
+    .hi-date { color: var(--text2); font-size: 12px; font-weight: 500; flex-shrink: 0; }
+    .hi-delete {
+      background: none; border: none; color: var(--text3); padding: 4px; margin-left: 8px;
+      cursor: pointer; flex-shrink: 0; display: flex; align-items: center;
+    }
+    .hi-delete svg { width: 16px; height: 16px; }
+    .hi-delete:active { color: #ef4444; }
     .hi-details {
       display: none;
       margin-top: 12px;
@@ -2583,21 +2574,21 @@
             <div class="lw-title">Last: ${escapeHtml(rName)} &middot; ${formatDate(last.date)}</div>
             <div class="lw-sub">${setCount} sets completed${durStr}</div>
           </div>
-          <button class="lw-undo" onclick="undoLastSession()" title="Remove last session">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-          </button>
+          <svg onclick="showScreen('history')" style="cursor:pointer;color:var(--text3);width:14px;height:14px;flex-shrink:0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </div>`;
     }
 
-    // ==================== UNDO LAST SESSION ====================
-    async function undoLastSession() {
-      if (appData.sessions.length === 0) return;
-      const last = appData.sessions[appData.sessions.length - 1];
-      const rName = last.routineName || ('Workout ' + (last.type || '?'));
-      if (!await customConfirm('Remove "' + rName + '" from ' + formatDate(last.date) + '?')) return;
-      appData.sessions.pop();
+    // ==================== DELETE SESSION ====================
+    async function deleteSession(sessionId) {
+      const idx = appData.sessions.findIndex(s => s.id === sessionId);
+      if (idx === -1) return;
+      const session = appData.sessions[idx];
+      const rName = session.routineName || ('Workout ' + (session.type || '?'));
+      if (!await customConfirm('Delete "' + rName + '" from ' + formatDate(session.date) + '?')) return;
+      appData.sessions.splice(idx, 1);
       rebuildAllPRs();
       saveData(appData);
+      renderHistory();
       renderHome();
     }
 
@@ -3914,6 +3905,9 @@
           <div class="hi-header">
             <span class="hi-type"><span class="type-dot" style="background:${dotColor}"></span>${escapeHtml(rName)}</span>
             <span class="hi-date">${formatDate(session.date)}</span>
+            <button class="hi-delete" onclick="event.stopPropagation();deleteSession('${session.id}')" title="Delete session">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
           </div>
           ${durationStr}${volumeStr}${sessionNotes}
           <div class="hi-expand-hint">Tap to expand</div>
