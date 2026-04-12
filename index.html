@@ -1920,7 +1920,7 @@
       </div>
     </div>
 
-    <div style="text-align:right;font-size:10px;color:var(--text3);opacity:0.4;padding-top:10px">v2.3</div>
+    <div style="text-align:right;font-size:10px;color:var(--text3);opacity:0.4;padding-top:10px">v2.4</div>
   </div>
 
   <!-- History Screen -->
@@ -2494,8 +2494,8 @@
       if (numWeight > current.maxWeight) {
         // Find the reps for this weight from the current workout
         let prReps = 0;
-        if (currentWorkout) {
-          const ex = currentWorkout.exercises.find(e => e.name === exerciseName);
+        if (currentSession) {
+          const ex = currentSession.exercises.find(e => e.name === exerciseName);
           if (ex) {
             const set = ex.sets.find(s => s.completed && Number(s.weight) === numWeight);
             if (set) prReps = Number(set.reps) || 0;
