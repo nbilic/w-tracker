@@ -1,11 +1,11 @@
 {
   "name": "Workout Tracker",
   "short_name": "Workout",
-  "description": "Personal workout tracker for Workout A/B split",
+  "description": "Personal workout tracker — ember redesign",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0f0f1a",
-  "theme_color": "#0f0f1a",
+  "background_color": "#0e0d0c",
+  "theme_color": "#0e0d0c",
   "orientation": "portrait",
   "icons": [
     {
