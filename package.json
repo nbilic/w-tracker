@@ -1,0 +1,18 @@
+{
+  "name": "workout-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Workout Tracker PWA wrapped for Android via Capacitor",
+  "scripts": {
+    "sync": "cap sync android",
+    "open:android": "cap open android",
+    "build:android": "cd android && gradlew.bat assembleDebug"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/core": "^6.1.2"
+  }
+}
