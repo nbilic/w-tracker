@@ -1024,6 +1024,48 @@
       padding: 32px 16px;
       font-size: 13px;
     }
+    .chart-view-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+    .chart-tab {
+      flex: 1;
+      padding: 6px 0;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text3);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .chart-tab.active-weight { background: rgba(233,69,96,0.15); color: #e94560; border-color: rgba(233,69,96,0.3); }
+    .chart-tab.active-volume { background: rgba(108,99,255,0.15); color: #6c63ff; border-color: rgba(108,99,255,0.3); }
+    .chart-tab.active-1rm { background: rgba(78,168,222,0.15); color: #4ea8de; border-color: rgba(78,168,222,0.3); }
+    .chart-stats {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .chart-stat {
+      flex: 1;
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 8px 6px;
+      text-align: center;
+    }
+    .chart-stat-value {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.3px;
+    }
+    .chart-stat-label {
+      font-size: 10px;
+      color: var(--text3);
+      margin-top: 2px;
+    }
 
     /* ========== SETTINGS ========== */
     .setting-row {
@@ -2107,7 +2149,13 @@
     function getExIcon(equipment) { return ICONS[equipment] || ICONS.barbell; }
     function getWeightStep(equipment, exerciseId) {
       if (exerciseId && appData && appData.exerciseOverrides && appData.exerciseOverrides[exerciseId] && appData.exerciseOverrides[exerciseId].step !== undefined) {
-        return appData.exerciseOverrides[exerciseId].step;
+        return Math.max(0.5, appData.exerciseOverrides[exerciseId].step);
+      }
+      return equipment === 'barbell' ? 2.5 : 1;
+    }
+    function getPOStep(equipment, exerciseId) {
+      if (exerciseId && appData && appData.exerciseOverrides && appData.exerciseOverrides[exerciseId] && appData.exerciseOverrides[exerciseId].po !== undefined) {
+        return appData.exerciseOverrides[exerciseId].po;
       }
       return equipment === 'barbell' ? 2.5 : 1;
     }
@@ -3044,10 +3092,11 @@
           const lastEx = findLastSessionWithExercise(t.name);
           let lastWeight = lastEx ? (lastEx.sets.find(s => s.weight !== '' && s.weight !== null) || {}).weight || '' : '';
           const step = getWeightStep(t.equipment, t.exerciseId);
+          const po = getPOStep(t.equipment, t.exerciseId);
           // Auto-advance: only if ALL sets completed at SAME top weight AND all met target reps
           let autoAdvanced = false;
           let prevWeight = lastWeight;
-          if (lastEx && lastWeight !== '') {
+          if (lastEx && lastWeight !== '' && po > 0) {
             const completedSets = lastEx.sets.filter(s => s.completed && s.weight !== '' && s.weight !== null);
             const allCompleted = lastEx.sets.every(s => s.completed);
             if (allCompleted && completedSets.length > 0) {
@@ -3058,7 +3107,7 @@
               const targetReps = parseInt(t.reps) || 0;
               const allMetReps = targetReps === 0 || completedSets.every(s => Number(s.reps) >= targetReps);
               if (allSameTopWeight && allMetReps) {
-                lastWeight = +(maxW + step).toFixed(1);
+                lastWeight = +(maxW + po).toFixed(1);
                 autoAdvanced = true;
               }
             }
@@ -4420,20 +4469,44 @@
       appData.sessions.forEach(s => {
         const ex = s.exercises.find(e => e.name === exerciseName);
         if (!ex) return;
-        let maxW = 0;
+        let maxW = 0, totalVolume = 0, best1RM = 0, completedCount = 0, totalReps = 0;
         ex.sets.forEach(set => {
           if (set.completed && set.weight !== '' && set.weight !== null) {
-            maxW = Math.max(maxW, Number(set.weight));
+            const w = Number(set.weight);
+            const r = Number(set.reps) || 0;
+            maxW = Math.max(maxW, w);
+            totalVolume += w * r;
+            completedCount++;
+            totalReps += r;
+            if (w > 0 && r > 0) {
+              const e1rm = w * (1 + r / 30);
+              if (e1rm > best1RM) best1RM = e1rm;
+            }
           }
         });
         if (maxW > 0) {
-          data.push({ date: s.date, weight: maxW });
+          data.push({ date: s.date, weight: maxW, volume: totalVolume, est1rm: Math.round(best1RM), sets: completedCount, totalReps });
         }
       });
       return data;
     }
 
+    function fmtChartVal(val, view, unit) {
+      if (view === 'volume') return val >= 1000 ? (val/1000).toFixed(1) + 'k' : Math.round(val);
+      const n = +Number(val).toFixed(1);
+      return (n % 1 === 0 ? n : n.toFixed(1)) + ' ' + unit;
+    }
+
     function drawProgressChart(canvas, data, exerciseName) {
+      const view = chartViews[exerciseName] || 'weight';
+      const configs = {
+        weight: { field: 'weight', color: '#e94560', gt: 'rgba(233,69,96,0.25)', gb: 'rgba(233,69,96,0)' },
+        volume: { field: 'volume', color: '#6c63ff', gt: 'rgba(108,99,255,0.2)', gb: 'rgba(108,99,255,0)' },
+        '1rm': { field: 'est1rm', color: '#4ea8de', gt: 'rgba(78,168,222,0.2)', gb: 'rgba(78,168,222,0)' }
+      };
+      const cfg = configs[view];
+      const unit = appData.settings.unit;
+
       const ctx = canvas.getContext('2d');
       const dpr = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
@@ -4442,39 +4515,57 @@
       ctx.scale(dpr, dpr);
       const w = rect.width;
       const h = rect.height;
-
       ctx.clearRect(0, 0, w, h);
 
-      if (data.length < 2) {
+      const plotData = data.filter(d => d[cfg.field] > 0);
+
+      if (plotData.length === 0) {
         ctx.fillStyle = '#55556a';
         ctx.font = '12px -apple-system, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('Need at least 2 sessions', w / 2, h / 2);
+        ctx.fillText('No data for this view', w / 2, h / 2);
         return;
       }
 
-      const padding = { top: 20, right: 16, bottom: 30, left: 40 };
+      if (plotData.length === 1) {
+        const val = plotData[0][cfg.field];
+        ctx.fillStyle = cfg.color;
+        ctx.beginPath();
+        ctx.arc(w / 2, h / 2 - 8, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#e0e0e8';
+        ctx.font = 'bold 14px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(fmtChartVal(val, view, unit), w / 2, h / 2 + 16);
+        ctx.fillStyle = '#55556a';
+        ctx.font = '11px -apple-system, sans-serif';
+        ctx.fillText(plotData[0].date.slice(5), w / 2, h / 2 + 32);
+        return;
+      }
+
+      const padding = { top: 24, right: 16, bottom: 30, left: 42 };
       const chartW = w - padding.left - padding.right;
       const chartH = h - padding.top - padding.bottom;
 
-      const weights = data.map(d => d.weight);
-      const minW = Math.min(...weights) - 5;
-      const maxW = Math.max(...weights) + 5;
-      const range = maxW - minW || 1;
+      const vals = plotData.map(d => d[cfg.field]);
+      const minV = Math.min(...vals);
+      const maxV = Math.max(...vals);
+      const vMargin = (maxV - minV) * 0.15 || 5;
+      const rangeMin = minV - vMargin;
+      const range = (maxV + vMargin) - rangeMin || 1;
 
-      // Draw axes
+      // Y-axis grid + labels
       ctx.strokeStyle = 'rgba(255,255,255,0.06)';
       ctx.lineWidth = 1;
-
-      // Y-axis labels
       const ySteps = 4;
       ctx.fillStyle = '#55556a';
       ctx.font = '10px -apple-system, sans-serif';
       ctx.textAlign = 'right';
       for (let i = 0; i <= ySteps; i++) {
-        const val = minW + (range * i / ySteps);
+        const val = rangeMin + (range * i / ySteps);
         const y = padding.top + chartH - (chartH * i / ySteps);
-        ctx.fillText(Math.round(val), padding.left - 6, y + 3);
+        const label = view === 'volume' && val >= 1000 ? (val/1000).toFixed(1) + 'k' : Math.round(val);
+        ctx.fillText(label, padding.left - 6, y + 3);
         ctx.beginPath();
         ctx.moveTo(padding.left, y);
         ctx.lineTo(w - padding.right, y);
@@ -4483,25 +4574,24 @@
 
       // X-axis labels
       ctx.textAlign = 'center';
-      const xStep = Math.max(1, Math.floor(data.length / 5));
-      data.forEach((d, i) => {
-        if (i % xStep === 0 || i === data.length - 1) {
-          const x = padding.left + (chartW * i / (data.length - 1));
-          const dateLabel = d.date.slice(5); // MM-DD
-          ctx.fillText(dateLabel, x, h - 6);
+      const xStep = Math.max(1, Math.floor(plotData.length / 5));
+      plotData.forEach((d, i) => {
+        if (i % xStep === 0 || i === plotData.length - 1) {
+          const x = padding.left + (chartW * i / (plotData.length - 1));
+          ctx.fillText(d.date.slice(5), x, h - 6);
         }
       });
 
-      // Draw gradient fill
-      const points = data.map((d, i) => ({
-        x: padding.left + (chartW * i / (data.length - 1)),
-        y: padding.top + chartH - (chartH * (d.weight - minW) / range)
+      // Points
+      const points = plotData.map((d, i) => ({
+        x: padding.left + (chartW * i / (plotData.length - 1)),
+        y: padding.top + chartH - (chartH * (d[cfg.field] - rangeMin) / range)
       }));
 
+      // Gradient fill
       const gradient = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartH);
-      gradient.addColorStop(0, 'rgba(233,69,96,0.25)');
-      gradient.addColorStop(1, 'rgba(233,69,96,0)');
-
+      gradient.addColorStop(0, cfg.gt);
+      gradient.addColorStop(1, cfg.gb);
       ctx.beginPath();
       ctx.moveTo(points[0].x, padding.top + chartH);
       points.forEach(p => ctx.lineTo(p.x, p.y));
@@ -4510,42 +4600,48 @@
       ctx.fillStyle = gradient;
       ctx.fill();
 
-      // Draw line
+      // Line
       ctx.beginPath();
       ctx.moveTo(points[0].x, points[0].y);
-      for (let i = 1; i < points.length; i++) {
-        ctx.lineTo(points[i].x, points[i].y);
-      }
-      ctx.strokeStyle = '#e94560';
+      for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+      ctx.strokeStyle = cfg.color;
       ctx.lineWidth = 2;
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
       ctx.stroke();
 
-      // Draw dots
+      // Dots
       points.forEach((p, i) => {
         ctx.beginPath();
-        ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
-        ctx.fillStyle = '#e94560';
+        ctx.arc(p.x, p.y, i === points.length - 1 ? 4 : 3, 0, Math.PI * 2);
+        ctx.fillStyle = cfg.color;
         ctx.fill();
         ctx.strokeStyle = '#0f0f1a';
         ctx.lineWidth = 1.5;
         ctx.stroke();
       });
+
+      // Value label on last point
+      const lastP = points[points.length - 1];
+      const lastVal = plotData[plotData.length - 1][cfg.field];
+      ctx.font = 'bold 11px -apple-system, sans-serif';
+      ctx.fillStyle = cfg.color;
+      const labelY = lastP.y > padding.top + 20 ? lastP.y - 12 : lastP.y + 20;
+      ctx.textAlign = lastP.x > w * 0.75 ? 'right' : 'center';
+      ctx.fillText(fmtChartVal(lastVal, view, unit), lastP.x > w * 0.75 ? lastP.x - 6 : lastP.x, labelY);
     }
 
     const collapsedCharts = new Set(['__all__']);
     let prSectionCollapsed = true;
     let chartsStartCollapsed = true;
+    const chartViews = {};
 
     function toggleChartCollapse(name) {
       if (chartsStartCollapsed) {
-        // First interaction: mark all as collapsed, then open the clicked one
         chartsStartCollapsed = false;
         collapsedCharts.delete('__all__');
-        const container = document.getElementById('progress-charts');
-        container.querySelectorAll('.progress-chart-title span:first-child').forEach(span => {
-          collapsedCharts.add(span.textContent);
+        document.querySelectorAll('.progress-chart-card').forEach(card => {
+          collapsedCharts.add(card.getAttribute('data-chart-name'));
         });
         collapsedCharts.delete(name);
       } else if (collapsedCharts.has(name)) {
@@ -4553,6 +4649,11 @@
       } else {
         collapsedCharts.add(name);
       }
+      renderProgress();
+    }
+
+    function switchChartView(name, view) {
+      chartViews[name] = view;
       renderProgress();
     }
 
@@ -4665,25 +4766,69 @@
         return;
       }
 
-      // Use saved chart order, appending any new exercises at the end
       const savedOrder = appData.settings.chartOrder || [];
       const exerciseNames = [];
       savedOrder.forEach(name => { if (allExercises.has(name)) exerciseNames.push(name); });
       allExercises.forEach(name => { if (!exerciseNames.includes(name)) exerciseNames.push(name); });
 
+      const unit = appData.settings.unit;
       let html = '';
       exerciseNames.forEach(name => {
         const data = getExerciseProgressData(name);
         if (data.length === 0) return;
         const isCollapsed = chartsStartCollapsed || collapsedCharts.has(name);
         const chevron = isCollapsed ? '&#9654;' : '&#9660;';
-        html += `<div class="progress-chart-card" data-chart-name="${escapeHtml(name)}">
-          <div class="progress-chart-title" style="cursor:pointer;display:flex;align-items:center;gap:8px">
-            <div class="chart-drag-handle" data-chart-idx="${escapeHtml(name)}">${DRAG_HANDLE_SVG}</div>
-            <span onclick="toggleChartCollapse('${escapeHtml(name)}')" style="flex:1">${escapeHtml(name)}</span>
-            <span onclick="toggleChartCollapse('${escapeHtml(name)}')" style="font-size:10px;color:var(--text3)">${chevron}</span>
+        const eName = escapeHtml(name);
+
+        // Collapsed preview: latest weight + trend arrow
+        const latestW = data[data.length - 1].weight;
+        const firstW = data[0].weight;
+        const trend = data.length > 1 ? (latestW > firstW ? '↑' : latestW < firstW ? '↓' : '→') : '';
+        const trendColor = trend === '↑' ? 'var(--green)' : trend === '↓' ? '#e94560' : 'var(--text3)';
+
+        let expandedHtml = '';
+        if (!isCollapsed) {
+          const view = chartViews[name] || 'weight';
+          const field = view === 'weight' ? 'weight' : view === 'volume' ? 'volume' : 'est1rm';
+          const viewData = data.filter(d => d[field] > 0);
+          const latest = viewData.length > 0 ? viewData[viewData.length - 1][field] : 0;
+          const first = viewData.length > 0 ? viewData[0][field] : 0;
+          const best = viewData.length > 0 ? Math.max(...viewData.map(d => d[field])) : 0;
+          const delta = latest - first;
+          const deltaPrefix = delta > 0 ? '+' : '';
+          const deltaColor = delta > 0 ? 'var(--green)' : delta < 0 ? '#e94560' : 'var(--text3)';
+
+          expandedHtml = `
+          <div class="chart-stats">
+            <div class="chart-stat">
+              <div class="chart-stat-value">${fmtChartVal(latest, view, unit)}</div>
+              <div class="chart-stat-label">Latest</div>
+            </div>
+            <div class="chart-stat">
+              <div class="chart-stat-value">${fmtChartVal(best, view, unit)}</div>
+              <div class="chart-stat-label">Best</div>
+            </div>
+            <div class="chart-stat">
+              <div class="chart-stat-value" style="color:${deltaColor}">${deltaPrefix}${fmtChartVal(Math.abs(delta), view, unit)}</div>
+              <div class="chart-stat-label">Change</div>
+            </div>
           </div>
-          ${isCollapsed ? '' : `<canvas class="progress-canvas" data-exercise="${escapeHtml(name)}"></canvas>`}
+          <div class="chart-view-tabs">
+            <button class="chart-tab ${view === 'weight' ? 'active-weight' : ''}" onclick="switchChartView('${eName}','weight')">Weight</button>
+            <button class="chart-tab ${view === 'volume' ? 'active-volume' : ''}" onclick="switchChartView('${eName}','volume')">Volume</button>
+            <button class="chart-tab ${view === '1rm' ? 'active-1rm' : ''}" onclick="switchChartView('${eName}','1rm')">Est 1RM</button>
+          </div>
+          <canvas class="progress-canvas" data-exercise="${eName}"></canvas>`;
+        }
+
+        html += `<div class="progress-chart-card" data-chart-name="${eName}">
+          <div class="progress-chart-title" style="cursor:pointer;display:flex;align-items:center;gap:8px">
+            <div class="chart-drag-handle" data-chart-idx="${eName}">${DRAG_HANDLE_SVG}</div>
+            <span onclick="toggleChartCollapse('${eName}')" style="flex:1">${eName}</span>
+            <span style="font-size:12px;color:${trendColor};font-weight:500;white-space:nowrap">${latestW} ${unit} ${trend}</span>
+            <span onclick="toggleChartCollapse('${eName}')" style="font-size:10px;color:var(--text3)">${chevron}</span>
+          </div>
+          ${expandedHtml}
         </div>`;
       });
 
@@ -4694,7 +4839,6 @@
 
       container.innerHTML = html;
 
-      // Draw visible charts after DOM update
       requestAnimationFrame(() => {
         container.querySelectorAll('.progress-canvas').forEach(canvas => {
           const name = canvas.getAttribute('data-exercise');
@@ -4739,13 +4883,14 @@
       list.innerHTML = filtered.map(ex => {
         const override = appData.exerciseOverrides[ex.id] || {};
         const step = override.step !== undefined ? override.step : getWeightStep(ex.equipment, ex.id);
+        const po = override.po !== undefined ? override.po : getPOStep(ex.equipment, ex.id);
         const isCustom = appData.customExercises.some(c => c.id === ex.id);
         const customBadge = isCustom ? ' <span style="font-size:10px;color:var(--accent);font-weight:700">CUSTOM</span>' : '';
         return `<div class="builder-card" onclick="openExerciseEditModal('${ex.id}')" style="cursor:pointer">
           <div class="ex-icon ${ex.equipment}" style="width:32px;height:32px;border-radius:8px;flex-shrink:0">${getExIcon(ex.equipment)}</div>
           <div class="builder-card-info">
             <div class="builder-card-name">${escapeHtml(ex.name)}${customBadge}</div>
-            <div class="builder-card-meta">${ex.category} &middot; ${ex.equipment} &middot; step: ${step}</div>
+            <div class="builder-card-meta">${ex.category} &middot; ${ex.equipment} &middot; step: ${step} &middot; PO: ${po}</div>
           </div>
           <svg style="width:16px;height:16px;color:var(--text3);flex-shrink:0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
         </div>`;
@@ -4759,6 +4904,7 @@
       const override = appData.exerciseOverrides[exerciseId] || {};
       const isCustom = appData.customExercises.some(c => c.id === exerciseId);
       const currentStep = override.step !== undefined ? override.step : getWeightStep(ex.equipment, exerciseId);
+      const currentPO = override.po !== undefined ? override.po : getPOStep(ex.equipment, exerciseId);
       const currentSets = override.defaultSets !== undefined ? override.defaultSets : ex.defaultSets;
       const currentReps = override.defaultReps !== undefined ? override.defaultReps : ex.defaultReps;
       const currentNote = appData.exerciseNotes[exerciseId] || '';
@@ -4769,8 +4915,11 @@
           <label style="font-size:13px;color:var(--text2)">Notes
             <textarea id="edit-note" placeholder="Form cues, tips, reminders..." rows="3" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;margin-top:4px;resize:vertical">${escapeHtml(currentNote)}</textarea>
           </label>
-          <label style="font-size:13px;color:var(--text2)">Weight Step
-            <input type="number" id="edit-step" value="${currentStep}" step="0.5" min="0" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;margin-top:4px" inputmode="decimal">
+          <label style="font-size:13px;color:var(--text2)">Weight Step (+/-)
+            <input type="number" id="edit-step" value="${currentStep}" step="0.5" min="0.5" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;margin-top:4px" inputmode="decimal">
+          </label>
+          <label style="font-size:13px;color:var(--text2)">Progressive Overload
+            <input type="number" id="edit-po" value="${currentPO}" step="0.5" min="0" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;margin-top:4px" inputmode="decimal">
           </label>
           <label style="font-size:13px;color:var(--text2)">Default Sets
             <input type="number" id="edit-sets" value="${currentSets}" min="1" max="10" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;margin-top:4px" inputmode="numeric">
@@ -4796,11 +4945,12 @@
     function saveExerciseOverride() {
       if (!editingExerciseId) return;
       const step = parseFloat(document.getElementById('edit-step').value);
+      const po = parseFloat(document.getElementById('edit-po').value);
       const sets = parseInt(document.getElementById('edit-sets').value);
       const reps = document.getElementById('edit-reps').value.trim();
-      if (isNaN(step) || step < 0 || isNaN(sets) || sets < 1) return;
+      if (isNaN(step) || step < 0.5 || isNaN(po) || po < 0 || isNaN(sets) || sets < 1) return;
 
-      appData.exerciseOverrides[editingExerciseId] = { step, defaultSets: sets, defaultReps: reps || '10' };
+      appData.exerciseOverrides[editingExerciseId] = { step, po, defaultSets: sets, defaultReps: reps || '10' };
       // Save note
       const note = document.getElementById('edit-note').value.trim();
       if (note) {
