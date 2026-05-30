@@ -112,7 +112,7 @@
       background: color-mix(in srgb, var(--bg) 94%, transparent);
       backdrop-filter: saturate(140%) blur(18px);
       -webkit-backdrop-filter: saturate(140%) blur(18px);
-      display: grid; grid-template-columns: repeat(5, 1fr);
+      display: grid; grid-template-columns: repeat(6, 1fr);
       z-index: 50;
     }
     .app-tab {
@@ -692,6 +692,11 @@
       border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
       outline: none; font-size: 14px;
     }
+    input[type=number]::-webkit-outer-spin-button,
+    input[type=number]::-webkit-inner-spin-button {
+      -webkit-appearance: none; margin: 0;
+    }
+    input[type=number] { -moz-appearance: textfield; appearance: textfield; }
     textarea {
       font-family: inherit; color: var(--ink); background: var(--surface-2);
       border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
@@ -765,6 +770,16 @@
         <div class="screen" id="builder-screen"></div>
       </div>
 
+      <!-- PROGRAMS -->
+      <div id="screen-programs" class="screen-wrap">
+        <div class="screen" id="programs-screen"></div>
+      </div>
+
+      <!-- PROGRAM EDITOR -->
+      <div id="screen-program-edit" class="screen-wrap">
+        <div class="screen" id="program-edit-screen"></div>
+      </div>
+
       <!-- EXERCISE BESTIARY -->
       <div id="screen-exercises" class="screen-wrap">
         <div class="screen" id="exercises-screen"></div>
@@ -800,6 +815,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-9"/><path d="M14 6h7v7"/></svg>
         <span>Progress</span>
       </button>
+      <button class="app-tab" data-tab="programs">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/><path d="M3 18l9 5 9-5"/></svg>
+        <span>Programs</span>
+      </button>
       <button class="app-tab" data-tab="menu">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
         <span>More</span>
@@ -828,6 +847,9 @@
   </div>
   <div class="sheet-overlay" id="saveroutine-overlay">
     <div class="sheet" id="saveroutine-sheet"></div>
+  </div>
+  <div class="sheet-overlay" id="program-overlay">
+    <div class="sheet" id="program-sheet"></div>
   </div>
 
   <script>
@@ -902,6 +924,7 @@
       { id:'chest-fly', name:'Chest Fly', category:'Chest', equipment:'dumbbell', defaultSets:3, defaultReps:'10', defaultRest:90 },
       { id:'cable-fly', name:'Cable Fly', category:'Chest', equipment:'cable', defaultSets:3, defaultReps:'10', defaultRest:90 },
       { id:'chest-press-machine', name:'Chest Press Machine', category:'Chest', equipment:'machine', defaultSets:3, defaultReps:'10', defaultRest:90 },
+      { id:'pec-deck', name:'Pec Deck', category:'Chest', equipment:'machine', defaultSets:3, defaultReps:'12', defaultRest:60 },
       { id:'push-ups', name:'Push-ups', category:'Chest', equipment:'bodyweight', defaultSets:3, defaultReps:'15', defaultRest:60 },
       { id:'dips-chest', name:'Dips (Chest)', category:'Chest', equipment:'bodyweight', defaultSets:3, defaultReps:'10', defaultRest:90 },
       // Back
@@ -913,6 +936,7 @@
       { id:'chin-ups', name:'Chin-ups', category:'Back', equipment:'bodyweight', defaultSets:3, defaultReps:'10', defaultRest:90 },
       { id:'seated-cable-row', name:'Seated Cable Row', category:'Back', equipment:'cable', defaultSets:3, defaultReps:'10', defaultRest:90 },
       { id:'machine-row', name:'Machine Row', category:'Back', equipment:'machine', defaultSets:3, defaultReps:'10', defaultRest:90 },
+      { id:'chest-supported-row', name:'Chest-Supported Row', category:'Back', equipment:'machine', defaultSets:3, defaultReps:'10', defaultRest:90 },
       { id:'t-bar-row', name:'T-Bar Row', category:'Back', equipment:'barbell', defaultSets:3, defaultReps:'10', defaultRest:120 },
       { id:'face-pull', name:'Face Pull', category:'Back', equipment:'cable', defaultSets:3, defaultReps:'15', defaultRest:60 },
       // Shoulders
@@ -1045,6 +1069,28 @@
       }
     ];
 
+    const DEFAULT_PROGRAM_ID = 'default-fullbody';
+
+    /* ========== PROGRAMS ========== */
+    function getActiveProgram() {
+      if (!appData.programs || appData.programs.length === 0) return null;
+      const id = appData.settings.activeProgramId;
+      return appData.programs.find(p => p.id === id) || appData.programs[0];
+    }
+    function getActiveRoutines() {
+      const p = getActiveProgram();
+      if (!p) return [];
+      return p.routineIds.map(rid => appData.routines.find(r => r.id === rid)).filter(Boolean);
+    }
+    function findLastSessionInProgram(program) {
+      if (!program) return null;
+      const set = new Set(program.routineIds);
+      for (let i = appData.sessions.length - 1; i >= 0; i--) {
+        if (set.has(appData.sessions[i].routineId)) return appData.sessions[i];
+      }
+      return null;
+    }
+
     function getWeightStep(equipment, exerciseId) {
       if (exerciseId && appData && appData.exerciseOverrides && appData.exerciseOverrides[exerciseId] && appData.exerciseOverrides[exerciseId].step !== undefined) {
         return Math.max(0.5, appData.exerciseOverrides[exerciseId].step);
@@ -1107,6 +1153,27 @@
         if (!LIBRARY_MAP[ex.id]) { EXERCISE_LIBRARY.push(ex); LIBRARY_MAP[ex.id] = ex; }
       });
       if (!appData.creatineLog) appData.creatineLog = {};
+
+      // Programs migration: seed a default "Full Body" program containing all existing routines
+      if (!appData.programs) appData.programs = [];
+      if (appData.programs.length === 0) {
+        appData.programs.push({
+          id: DEFAULT_PROGRAM_ID,
+          name: 'Full Body',
+          routineIds: appData.routines.map(r => r.id),
+        });
+        appData.settings.activeProgramId = DEFAULT_PROGRAM_ID;
+      }
+      // Keep program routineIds in sync with existing routines (drop refs to deleted routines)
+      const liveIds = new Set(appData.routines.map(r => r.id));
+      appData.programs.forEach(p => {
+        p.routineIds = (p.routineIds || []).filter(id => liveIds.has(id));
+      });
+      // Ensure an active program exists
+      if (!appData.settings.activeProgramId || !appData.programs.find(p => p.id === appData.settings.activeProgramId)) {
+        appData.settings.activeProgramId = appData.programs[0].id;
+      }
+
       rebuildAllPRs();
       saveData(appData);
     }
@@ -1257,7 +1324,7 @@
     /* ========== SCREEN ROUTER ========== */
     let activeScreen = 'home';
     let navigatingViaPopstate = false;
-    const HIDE_TABS_ON = new Set(['workout', 'builder', 'finish', 'onboarding']);
+    const HIDE_TABS_ON = new Set(['workout', 'builder', 'finish', 'onboarding', 'program-edit']);
 
     function showScreen(id) {
       document.querySelectorAll('.screen-wrap').forEach(s => s.classList.remove('active'));
@@ -1271,7 +1338,8 @@
       if (HIDE_TABS_ON.has(id)) tabBar.classList.add('hidden');
       else tabBar.classList.remove('hidden');
       const tabMap = { home: 'home', history: 'history', workout: 'workout', progress: 'progress', menu: 'menu',
-                       routines: 'menu', builder: 'menu', settings: 'menu', exercises: 'menu' };
+                       routines: 'menu', builder: 'menu', settings: 'menu', exercises: 'menu',
+                       programs: 'programs', 'program-edit': 'programs' };
       const tabId = tabMap[id];
       document.querySelectorAll('.app-tab').forEach(b => b.classList.toggle('on', b.dataset.tab === tabId));
 
@@ -1287,6 +1355,8 @@
       else if (id === 'builder') renderBuilder();
       else if (id === 'finish') renderFinish();
       else if (id === 'onboarding') renderOnboarding();
+      else if (id === 'programs') renderPrograms();
+      else if (id === 'program-edit') renderProgramEdit();
 
       if (id === 'workout' && currentSession) acquireWakeLock();
       if (id !== 'workout') releaseWakeLock();
@@ -1393,11 +1463,20 @@
     (function initCal(){ const n = new Date(); calYear = n.getFullYear(); calMonth = n.getMonth(); })();
 
     function getNextRoutineId() {
-      const lastSession = appData.sessions.length > 0 ? appData.sessions[appData.sessions.length - 1] : null;
-      if (appData.routines.length < 2) return appData.routines.length === 1 ? appData.routines[0].id : null;
-      if (!lastSession) return appData.routines[0].id;
-      const lastIdx = appData.routines.findIndex(r => r.id === lastSession.routineId);
-      return appData.routines[(lastIdx + 1) % appData.routines.length].id;
+      const program = getActiveProgram();
+      const ids = program ? program.routineIds : [];
+      if (ids.length === 0) {
+        return appData.routines.length > 0 ? appData.routines[0].id : null;
+      }
+      // Explicit override (e.g. after switching programs)
+      if (appData.settings.pendingNextRoutineId && ids.includes(appData.settings.pendingNextRoutineId)) {
+        return appData.settings.pendingNextRoutineId;
+      }
+      if (ids.length === 1) return ids[0];
+      const lastInProgram = findLastSessionInProgram(program);
+      if (!lastInProgram) return ids[0];
+      const lastIdx = ids.indexOf(lastInProgram.routineId);
+      return ids[(lastIdx + 1) % ids.length];
     }
 
     function calNav(delta) {
@@ -1474,8 +1553,10 @@
       const streakPill = streak >= 1
         ? `<span class="pill pill-accent">${svg('target',11)} ${streak} WEEK STREAK</span>` : '';
 
+      const program = getActiveProgram();
+      const programRoutines = getActiveRoutines();
       const nextId = getNextRoutineId();
-      const nextRoutine = appData.routines.find(r => r.id === nextId) || appData.routines[0];
+      const nextRoutine = appData.routines.find(r => r.id === nextId) || programRoutines[0] || appData.routines[0];
       const exCount = nextRoutine ? nextRoutine.exercises.length : 0;
 
       const continueHtml = currentSession
@@ -1488,13 +1569,15 @@
             ${svg('chevRight', 16)}
            </div>` : '';
 
+      const altRoutines = programRoutines.length > 0 ? programRoutines : appData.routines;
       const nextCardHtml = !currentSession && nextRoutine ? `
         <div class="home-next-card">
+          ${program ? `<div class="mono" style="font-size:10px;color:var(--ink-3);letter-spacing:0.16em;text-transform:uppercase;margin-bottom:8px;cursor:pointer" onclick="showScreen('programs')">Program · ${escapeHtml(program.name)}</div>` : ''}
           <div class="eyebrow eyebrow-accent home-next-eyebrow">Next Up · ${escapeHtml(nextRoutine.name)}</div>
           <div class="home-next-meta" style="margin-bottom:18px">${exCount} exercises · ${Math.round(exCount * 7)} min est.</div>
           <button class="btn btn-primary btn-block" onclick="startWorkoutById('${nextRoutine.id}')">${svg('play', 15)} Begin session</button>
-          ${appData.routines.length > 1 ? `<div style="display:flex;gap:6px;margin-top:8px">
-            ${appData.routines.filter(r=>r.id!==nextRoutine.id).slice(0,2).map(r => `<button class="btn" style="flex:1;font-size:12px;padding:8px 10px" onclick="startWorkoutById('${r.id}')">${escapeHtml(r.name)}</button>`).join('')}
+          ${altRoutines.length > 1 ? `<div style="display:flex;gap:6px;margin-top:8px">
+            ${altRoutines.filter(r=>r.id!==nextRoutine.id).slice(0,2).map(r => `<button class="btn" style="flex:1;font-size:12px;padding:8px 10px" onclick="startWorkoutById('${r.id}')">${escapeHtml(r.name)}</button>`).join('')}
           </div>` : ''}
         </div>` : '';
 
@@ -1596,6 +1679,11 @@
       if (currentSession) {
         if (!await customConfirm('Discard current workout and start ' + routine.name + '?')) return;
         clearInterval(elapsedInterval); clearSessionBackup(); releaseWakeLock(); dismissRest();
+      }
+      // Consume any pending next-routine override now that the user is actually starting
+      if (appData.settings.pendingNextRoutineId) {
+        appData.settings.pendingNextRoutineId = null;
+        saveData(appData);
       }
       currentSession = {
         id: Date.now(), startedAt: Date.now(),
@@ -2591,15 +2679,33 @@
       `;
     }
     function renderSwapSheetList() {
-      // Incremental search — just re-render the whole sheet
-      const q = document.getElementById('swap-search-input')?.value || '';
+      // Only update the results list — never re-render the input itself,
+      // because destroying a focused input on Android closes/reopens the IME.
+      const inp = document.getElementById('swap-search-input');
+      const q = inp ? inp.value : '';
       swapQuery = q;
-      renderSwapSheet();
-      // Refocus search input
-      requestAnimationFrame(() => {
-        const inp = document.getElementById('swap-search-input');
-        if (inp) { inp.focus(); inp.setSelectionRange(q.length, q.length); }
+      const inner = document.getElementById('swap-list-inner');
+      if (!inner) return;
+      const currentNames = new Set((currentSession?.exercises || []).map(e => e.name));
+      const filtered = EXERCISE_LIBRARY.filter(ex => {
+        if (currentNames.has(ex.name)) return false;
+        if (swapCat !== 'All' && ex.category !== swapCat) return false;
+        if (swapEquip !== 'All' && ex.equipment !== swapEquip.toLowerCase()) return false;
+        if (swapQuery && !ex.name.toLowerCase().includes(swapQuery.toLowerCase())) return false;
+        return true;
       });
+      const unit = appData.settings.unit;
+      inner.innerHTML = filtered.length === 0 ? `<div class="empty-state">No matches</div>` :
+        filtered.map(ex => {
+          const lastW = getLastUsedWeight(ex.name);
+          return `<div onclick="executeSwap('${ex.id}')" style="display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line);cursor:pointer">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:14px;font-weight:500">${escapeHtml(ex.name)}</div>
+              <div class="mono" style="font-size:10px;color:var(--ink-3);margin-top:2px;letter-spacing:0.06em">${ex.equipment.toUpperCase()} · ${ex.category.toUpperCase()}</div>
+            </div>
+            ${lastW !== null ? `<div class="mono" style="font-size:11px;color:var(--ink-3)">${lastW} ${unit}</div>` : ''}
+          </div>`;
+        }).join('');
     }
 
     function executeSwap(libraryId) {
@@ -3164,8 +3270,257 @@
       if (!r) return;
       if (!await customConfirm('Delete routine "' + r.name + '"?')) return;
       appData.routines = appData.routines.filter(x => x.id !== id);
+      // Cascade: drop this routine from every program
+      (appData.programs || []).forEach(p => {
+        p.routineIds = p.routineIds.filter(rid => rid !== id);
+      });
+      if (appData.settings.pendingNextRoutineId === id) appData.settings.pendingNextRoutineId = null;
       saveData(appData);
       renderRoutines();
+    }
+
+    /* ========== PROGRAMS UI ========== */
+    let programEditingId = null;
+    let programEditName = '';
+    let programEditRoutineIds = [];
+    let pendingActivateProgramId = null;
+    let pendingActivateRoutineId = null;
+
+    function renderPrograms() {
+      const el = document.getElementById('programs-screen');
+      const programs = appData.programs || [];
+      const activeId = appData.settings.activeProgramId;
+      el.innerHTML = `
+        <div style="padding-top:4px">
+          <div class="row-between">
+            <span class="eyebrow">${programs.length} program${programs.length===1?'':'s'}</span>
+            <button class="icon-btn icon-btn-accent" onclick="openProgramEdit(null)">${svg('plus', 18, 2.5)}</button>
+          </div>
+          <h1 class="screen-title" style="margin-top:14px">Programs.</h1>
+          <div class="mono" style="font-size:11px;color:var(--ink-3);margin-top:6px;letter-spacing:0.04em">Group routines into a training plan. One active at a time.</div>
+        </div>
+        <div class="v-stack" style="gap:10px">
+          ${programs.length === 0 ? `<div class="empty-state">No programs yet</div>` : ''}
+          ${programs.map(p => {
+            const isActive = p.id === activeId;
+            const routines = p.routineIds.map(rid => appData.routines.find(r => r.id === rid)).filter(Boolean);
+            const preview = routines.slice(0, 4);
+            return `<div class="routine-card">
+              <div class="row-between" style="margin-bottom:14px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  ${isActive
+                    ? `<span class="pill pill-accent">${svg('check', 11, 2.5)} ACTIVE</span>`
+                    : `<span class="eyebrow">${routines.length} ROUTINE${routines.length===1?'':'S'}</span>`}
+                </div>
+                ${programs.length > 1 ? `<button class="icon-btn" style="width:32px;height:32px" onclick="confirmDeleteProgram('${p.id}')">${svg('trash', 16)}</button>` : ''}
+              </div>
+              <div class="serif" style="font-size:24px;margin-bottom:4px">${escapeHtml(p.name)}</div>
+              <div class="v-stack" style="gap:6px;margin-bottom:14px;margin-top:10px">
+                ${preview.length === 0 ? `<div class="mono" style="font-size:11px;color:var(--ink-4)">No routines yet — tap Edit to add some.</div>` : ''}
+                ${preview.map((r, j) => `
+                  <div class="routine-exercise-peek">
+                    <span class="mono" style="font-size:10px;color:var(--ink-4);width:18px">${String(j+1).padStart(2,'0')}</span>
+                    <span style="flex:1;font-size:13px">${escapeHtml(r.name)}</span>
+                    <span class="mono" style="font-size:11px;color:var(--ink-3)">${r.exercises.length} EX</span>
+                  </div>`).join('')}
+                ${routines.length > 4 ? `<div class="mono" style="font-size:10px;color:var(--ink-4);padding-left:28px">+${routines.length - 4} more</div>` : ''}
+              </div>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-block" style="padding:12px 16px;font-size:13px;flex:1" onclick="openProgramEdit('${p.id}')">Edit</button>
+                ${isActive
+                  ? `<button class="btn btn-block" style="padding:12px 16px;font-size:13px;flex:1;color:var(--ink-3)" disabled>In rotation</button>`
+                  : `<button class="btn btn-primary btn-block" style="padding:12px 16px;font-size:13px;flex:1" onclick="requestActivateProgram('${p.id}')">Activate</button>`}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+        <button class="dashed-btn" onclick="openProgramEdit(null)">${svg('plus', 16)} New program</button>`;
+    }
+
+    function openProgramEdit(programId) {
+      if (programId) {
+        const p = appData.programs.find(x => x.id === programId);
+        if (!p) return;
+        programEditingId = programId;
+        programEditName = p.name;
+        programEditRoutineIds = [...p.routineIds];
+      } else {
+        programEditingId = null;
+        programEditName = '';
+        programEditRoutineIds = [];
+      }
+      showScreen('program-edit');
+    }
+
+    function renderProgramEdit() {
+      const el = document.getElementById('program-edit-screen');
+      const inProgram = programEditRoutineIds.map(rid => appData.routines.find(r => r.id === rid)).filter(Boolean);
+      el.innerHTML = `
+        <div style="padding-top:4px">
+          <div class="row-between">
+            <button class="icon-btn" onclick="showScreen('programs')">${svg('chevLeft', 18)}</button>
+            <span class="eyebrow">${programEditingId ? 'EDITING' : 'NEW PROGRAM'}</span>
+            <button class="icon-btn icon-btn-accent" onclick="saveProgramEdit()">${svg('check', 18, 2.5)}</button>
+          </div>
+        </div>
+        <input class="builder-name-input" id="program-name-input" placeholder="Program name..." value="${escapeHtml(programEditName)}"
+          oninput="programEditName=this.value" />
+        <div class="eyebrow" style="margin-top:2px">Routines in order</div>
+        <div class="v-stack" style="gap:6px">
+          ${inProgram.length === 0 ? `<div class="empty-state">Tap + to add routines</div>` : ''}
+          ${inProgram.map((r, i) => `
+            <div class="builder-row">
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <button class="icon-btn" style="width:28px;height:22px;${i===0?'opacity:0.3':''}" ${i===0?'disabled':''} onclick="moveProgramRoutine(${i}, -1)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 15l7-7 7 7"/></svg></button>
+                <button class="icon-btn" style="width:28px;height:22px;${i===inProgram.length-1?'opacity:0.3':''}" ${i===inProgram.length-1?'disabled':''} onclick="moveProgramRoutine(${i}, 1)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"/></svg></button>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${String(i+1).padStart(2,'0')} · ${escapeHtml(r.name)}</div>
+                <div class="mono" style="font-size:10px;color:var(--ink-3);margin-top:2px">${r.exercises.length} EXERCISES</div>
+              </div>
+              <button class="builder-remove-btn" onclick="removeProgramRoutine(${i})">${svg('x', 14)}</button>
+            </div>`).join('')}
+        </div>
+        <button class="dashed-btn" onclick="openProgramAddRoutineSheet()">${svg('plus', 14)} Add routine</button>`;
+    }
+
+    function moveProgramRoutine(i, delta) {
+      const j = i + delta;
+      if (j < 0 || j >= programEditRoutineIds.length) return;
+      const [moved] = programEditRoutineIds.splice(i, 1);
+      programEditRoutineIds.splice(j, 0, moved);
+      renderProgramEdit();
+      triggerHaptic('light');
+    }
+    function removeProgramRoutine(i) {
+      programEditRoutineIds.splice(i, 1);
+      renderProgramEdit();
+      triggerHaptic('light');
+    }
+
+    function openProgramAddRoutineSheet() {
+      renderProgramAddRoutineSheet();
+      openSheet('program-overlay');
+    }
+    function renderProgramAddRoutineSheet() {
+      const currentIds = new Set(programEditRoutineIds);
+      const available = appData.routines.filter(r => !currentIds.has(r.id));
+      document.getElementById('program-sheet').innerHTML = `
+        <div class="sheet-grab"></div>
+        <div class="row-between" style="margin-bottom:14px">
+          <div>
+            <div class="eyebrow eyebrow-accent" style="margin-bottom:3px">Add routine</div>
+            <div class="mono" style="font-size:11px;color:var(--ink-3)">Pick from your library</div>
+          </div>
+          <button class="icon-btn" onclick="closeSheet('program-overlay')" style="width:32px;height:32px">${svg('x', 14)}</button>
+        </div>
+        <div style="max-height:50vh;overflow-y:auto">
+          ${available.length === 0 ? `<div class="empty-state">All your routines are already in this program.</div>` :
+            available.map(r => `
+              <div onclick="selectProgramAddRoutine('${r.id}')" style="display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line);cursor:pointer">
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:14px;font-weight:500">${escapeHtml(r.name)}</div>
+                  <div class="mono" style="font-size:10px;color:var(--ink-3);margin-top:2px">${r.exercises.length} EXERCISES</div>
+                </div>
+                ${svg('plus', 16)}
+              </div>`).join('')}
+        </div>`;
+    }
+    function selectProgramAddRoutine(rid) {
+      if (!programEditRoutineIds.includes(rid)) programEditRoutineIds.push(rid);
+      closeSheet('program-overlay');
+      renderProgramEdit();
+      triggerHaptic('light');
+    }
+
+    async function saveProgramEdit() {
+      const name = (programEditName || '').trim();
+      if (!name) { customAlert('Name required'); return; }
+      if (programEditRoutineIds.length === 0) { customAlert('Add at least one routine'); return; }
+      if (programEditingId) {
+        const p = appData.programs.find(x => x.id === programEditingId);
+        if (p) { p.name = name; p.routineIds = [...programEditRoutineIds]; }
+      } else {
+        appData.programs.push({
+          id: 'prog-' + Date.now(), name, routineIds: [...programEditRoutineIds]
+        });
+      }
+      saveData(appData);
+      triggerHaptic('success');
+      programEditingId = null;
+      showScreen('programs');
+    }
+
+    async function confirmDeleteProgram(id) {
+      if (appData.programs.length <= 1) { customAlert('At least one program is required.'); return; }
+      const p = appData.programs.find(x => x.id === id);
+      if (!p) return;
+      if (!await customConfirm('Delete program "' + p.name + '"?')) return;
+      appData.programs = appData.programs.filter(x => x.id !== id);
+      if (appData.settings.activeProgramId === id) {
+        appData.settings.activeProgramId = appData.programs[0].id;
+        appData.settings.pendingNextRoutineId = null;
+      }
+      saveData(appData);
+      renderPrograms();
+    }
+
+    function requestActivateProgram(programId) {
+      const p = appData.programs.find(x => x.id === programId);
+      if (!p || p.routineIds.length === 0) {
+        customAlert('This program has no routines yet. Tap Edit to add some.');
+        return;
+      }
+      pendingActivateProgramId = programId;
+      const last = appData.sessions.length > 0 ? appData.sessions[appData.sessions.length - 1] : null;
+      pendingActivateRoutineId = (last && p.routineIds.includes(last.routineId))
+        ? last.routineId : p.routineIds[0];
+      renderActivateProgramSheet();
+      openSheet('program-overlay');
+    }
+    function pickActivateRoutine(rid) {
+      pendingActivateRoutineId = rid;
+      renderActivateProgramSheet();
+      triggerHaptic('light');
+    }
+    function renderActivateProgramSheet() {
+      const p = appData.programs.find(x => x.id === pendingActivateProgramId);
+      if (!p) return;
+      const routines = p.routineIds.map(rid => appData.routines.find(r => r.id === rid)).filter(Boolean);
+      document.getElementById('program-sheet').innerHTML = `
+        <div class="sheet-grab"></div>
+        <div class="row-between" style="margin-bottom:14px">
+          <div>
+            <div class="eyebrow eyebrow-accent" style="margin-bottom:3px">Activate · ${escapeHtml(p.name)}</div>
+            <div class="mono" style="font-size:11px;color:var(--ink-3)">Pick your next routine</div>
+          </div>
+          <button class="icon-btn" onclick="closeSheet('program-overlay')" style="width:32px;height:32px">${svg('x', 14)}</button>
+        </div>
+        <div style="max-height:50vh;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
+          ${routines.map((r, i) => {
+            const sel = r.id === pendingActivateRoutineId;
+            return `<div onclick="pickActivateRoutine('${r.id}')" style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid ${sel?'var(--accent)':'var(--line)'};background:${sel?'var(--accent-soft)':'var(--surface)'};border-radius:12px;cursor:pointer">
+              <span class="mono" style="font-size:11px;color:${sel?'var(--accent)':'var(--ink-4)'};width:22px">${String(i+1).padStart(2,'0')}</span>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:14px;font-weight:500;color:${sel?'var(--accent)':'var(--ink)'}">${escapeHtml(r.name)}</div>
+                <div class="mono" style="font-size:10px;color:var(--ink-3);margin-top:2px">${r.exercises.length} EXERCISES</div>
+              </div>
+              ${sel ? svg('check', 16, 2.5) : ''}
+            </div>`;
+          }).join('')}
+        </div>
+        <button class="btn btn-primary btn-block" style="margin-top:14px" onclick="confirmActivateProgram()">${svg('check', 14, 2.5)} Activate program</button>`;
+    }
+    function confirmActivateProgram() {
+      if (!pendingActivateProgramId || !pendingActivateRoutineId) return;
+      appData.settings.activeProgramId = pendingActivateProgramId;
+      appData.settings.pendingNextRoutineId = pendingActivateRoutineId;
+      saveData(appData);
+      pendingActivateProgramId = null;
+      pendingActivateRoutineId = null;
+      closeSheet('program-overlay');
+      triggerHaptic('success');
+      renderPrograms();
     }
 
     /* ========== BUILDER ========== */
@@ -3244,10 +3599,14 @@
         const r = appData.routines.find(x => x.id === builderEditingId);
         if (r) { r.name = name; r.exercises = exercises; }
       } else {
+        const newId = 'custom-' + Date.now();
         appData.routines.push({
-          id: 'custom-' + Date.now(), name, colorIndex: appData.routines.length % 4,
+          id: newId, name, colorIndex: appData.routines.length % 4,
           isDefault: false, exercises
         });
+        // Auto-add new routines to the active program so they enter the rotation
+        const active = getActiveProgram();
+        if (active && !active.routineIds.includes(newId)) active.routineIds.push(newId);
       }
       saveData(appData);
       triggerHaptic('success');
@@ -3264,14 +3623,6 @@
     function renderBuilderAddSheet() {
       const cats = ['All', ...new Set(EXERCISE_LIBRARY.map(e => e.category))];
       const equips = ['All', 'Barbell', 'Dumbbell', 'Cable', 'Machine', 'Bodyweight'];
-      const currentIds = new Set(builderExercises.map(e => e.exerciseId));
-      const filtered = EXERCISE_LIBRARY.filter(ex => {
-        if (currentIds.has(ex.id)) return false;
-        if (builderCat !== 'All' && ex.category !== builderCat) return false;
-        if (builderEquip !== 'All' && ex.equipment !== builderEquip.toLowerCase()) return false;
-        if (builderQuery && !ex.name.toLowerCase().includes(builderQuery.toLowerCase())) return false;
-        return true;
-      });
       document.getElementById('swap-sheet').innerHTML = `
         <div class="sheet-grab"></div>
         <div class="row-between" style="margin-bottom:14px">
@@ -3284,7 +3635,7 @@
         <div style="position:relative;margin-bottom:10px">
           <span style="position:absolute;left:12px;top:12px;color:var(--ink-4)">${svg('search', 14)}</span>
           <input id="builder-search-input" placeholder="Search exercises" value="${escapeHtml(builderQuery)}"
-            oninput="builderQuery=this.value;renderBuilderAddSheet()"
+            oninput="builderQuery=this.value;renderBuilderAddList()"
             style="width:100%;padding:10px 12px 10px 34px;border-radius:10px"/>
         </div>
         <div style="display:flex;gap:4px;overflow-x:auto;margin-bottom:10px;scrollbar-width:none">
@@ -3293,23 +3644,28 @@
         <div style="display:flex;gap:4px;overflow-x:auto;margin-bottom:10px;scrollbar-width:none">
           ${equips.map(e => `<button class="chip${e===builderEquip?' on':''}" onclick="builderEquip='${e}';renderBuilderAddSheet()">${e}</button>`).join('')}
         </div>
-        <div style="max-height:50vh;overflow-y:auto">
-          ${filtered.length === 0 ? `<div class="empty-state">No matches</div>` :
-            filtered.map(ex => `
-              <div onclick="selectBuilderEx('${ex.id}')" style="display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line);cursor:pointer">
-                <div style="flex:1;min-width:0">
-                  <div style="font-size:14px;font-weight:500">${escapeHtml(ex.name)}</div>
-                  <div class="mono" style="font-size:10px;color:var(--ink-3);margin-top:2px">${ex.equipment.toUpperCase()} · ${ex.category.toUpperCase()}</div>
-                </div>
-              </div>`).join('')}
-        </div>`;
-      requestAnimationFrame(() => {
-        const inp = document.getElementById('builder-search-input');
-        if (inp && document.activeElement !== inp) {
-          inp.focus();
-          inp.setSelectionRange(builderQuery.length, builderQuery.length);
-        }
+        <div id="builder-add-list-inner" style="max-height:50vh;overflow-y:auto"></div>`;
+      renderBuilderAddList();
+    }
+    function renderBuilderAddList() {
+      const inner = document.getElementById('builder-add-list-inner');
+      if (!inner) return;
+      const currentIds = new Set(builderExercises.map(e => e.exerciseId));
+      const filtered = EXERCISE_LIBRARY.filter(ex => {
+        if (currentIds.has(ex.id)) return false;
+        if (builderCat !== 'All' && ex.category !== builderCat) return false;
+        if (builderEquip !== 'All' && ex.equipment !== builderEquip.toLowerCase()) return false;
+        if (builderQuery && !ex.name.toLowerCase().includes(builderQuery.toLowerCase())) return false;
+        return true;
       });
+      inner.innerHTML = filtered.length === 0 ? `<div class="empty-state">No matches</div>` :
+        filtered.map(ex => `
+          <div onclick="selectBuilderEx('${ex.id}')" style="display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line);cursor:pointer">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:14px;font-weight:500">${escapeHtml(ex.name)}</div>
+              <div class="mono" style="font-size:10px;color:var(--ink-3);margin-top:2px">${ex.equipment.toUpperCase()} · ${ex.category.toUpperCase()}</div>
+            </div>
+          </div>`).join('');
     }
 
     function selectBuilderEx(libraryId) {
@@ -3558,17 +3914,11 @@
       const el = document.getElementById('exercises-screen');
       const cats = ['All', ...new Set(EXERCISE_LIBRARY.map(e => e.category))];
       const equips = ['All', 'Barbell', 'Dumbbell', 'Cable', 'Machine', 'Bodyweight'];
-      const filtered = EXERCISE_LIBRARY.filter(ex => {
-        if (bestiaryCat !== 'All' && ex.category !== bestiaryCat) return false;
-        if (bestiaryEquip !== 'All' && ex.equipment !== bestiaryEquip.toLowerCase()) return false;
-        if (bestiaryQuery && !ex.name.toLowerCase().includes(bestiaryQuery.toLowerCase())) return false;
-        return true;
-      });
       el.innerHTML = `
         <div style="padding-top:4px">
           <div class="row-between">
             <button class="icon-btn" onclick="showScreen('menu')">${svg('chevLeft', 18)}</button>
-            <span class="eyebrow">${filtered.length} exercises</span>
+            <span class="eyebrow" id="bestiary-count">— exercises</span>
             <button class="icon-btn icon-btn-accent" onclick="openCreateExercise()">${svg('plus', 18, 2.5)}</button>
           </div>
           <h1 class="screen-title" style="margin-top:14px">Bestiary.</h1>
@@ -3576,7 +3926,7 @@
         <div style="position:relative">
           <span style="position:absolute;left:12px;top:12px;color:var(--ink-4)">${svg('search', 14)}</span>
           <input id="bestiary-search-input" placeholder="Search exercises" value="${escapeHtml(bestiaryQuery)}"
-            oninput="bestiaryQuery=this.value;renderBestiary();refocusBestiarySearch()"
+            oninput="bestiaryQuery=this.value;renderBestiaryList()"
             style="width:100%;padding:10px 12px 10px 34px;border-radius:10px"/>
         </div>
         <div style="display:flex;gap:4px;overflow-x:auto;scrollbar-width:none">
@@ -3585,27 +3935,33 @@
         <div style="display:flex;gap:4px;overflow-x:auto;scrollbar-width:none">
           ${equips.map(e => `<button class="chip${e===bestiaryEquip?' on':''}" onclick="bestiaryEquip='${e}';renderBestiary()">${e}</button>`).join('')}
         </div>
-        <div class="card" style="padding:0;overflow:hidden">
-          ${filtered.length === 0 ? `<div class="empty-state">No matches</div>` :
-            filtered.map(ex => {
-              const isCustom = appData.customExercises.some(c => c.id === ex.id);
-              const override = appData.exerciseOverrides[ex.id] || {};
-              const step = override.step !== undefined ? override.step : getWeightStep(ex.equipment, ex.id);
-              return `<div class="menu-row" onclick="openExerciseEditModal('${ex.id}')">
-                <div style="flex:1;min-width:0">
-                  <div class="menu-row-name">${escapeHtml(ex.name)}${isCustom ? ` <span class="pill pill-accent" style="margin-left:6px">CUSTOM</span>` : ''}</div>
-                  <div class="menu-row-sub">${ex.category} · ${ex.equipment} · STEP ${step}</div>
-                </div>
-                ${svg('chevRight', 14)}
-              </div>`;
-            }).join('')}
-        </div>`;
+        <div class="card" id="bestiary-list-inner" style="padding:0;overflow:hidden"></div>`;
+      renderBestiaryList();
     }
-    function refocusBestiarySearch() {
-      requestAnimationFrame(() => {
-        const inp = document.getElementById('bestiary-search-input');
-        if (inp && document.activeElement !== inp) { inp.focus(); inp.setSelectionRange(bestiaryQuery.length, bestiaryQuery.length); }
+    function renderBestiaryList() {
+      const inner = document.getElementById('bestiary-list-inner');
+      if (!inner) return;
+      const filtered = EXERCISE_LIBRARY.filter(ex => {
+        if (bestiaryCat !== 'All' && ex.category !== bestiaryCat) return false;
+        if (bestiaryEquip !== 'All' && ex.equipment !== bestiaryEquip.toLowerCase()) return false;
+        if (bestiaryQuery && !ex.name.toLowerCase().includes(bestiaryQuery.toLowerCase())) return false;
+        return true;
       });
+      const countEl = document.getElementById('bestiary-count');
+      if (countEl) countEl.textContent = `${filtered.length} exercises`;
+      inner.innerHTML = filtered.length === 0 ? `<div class="empty-state">No matches</div>` :
+        filtered.map(ex => {
+          const isCustom = appData.customExercises.some(c => c.id === ex.id);
+          const override = appData.exerciseOverrides[ex.id] || {};
+          const step = override.step !== undefined ? override.step : getWeightStep(ex.equipment, ex.id);
+          return `<div class="menu-row" onclick="openExerciseEditModal('${ex.id}')">
+            <div style="flex:1;min-width:0">
+              <div class="menu-row-name">${escapeHtml(ex.name)}${isCustom ? ` <span class="pill pill-accent" style="margin-left:6px">CUSTOM</span>` : ''}</div>
+              <div class="menu-row-sub">${ex.category} · ${ex.equipment} · STEP ${step}</div>
+            </div>
+            ${svg('chevRight', 14)}
+          </div>`;
+        }).join('');
     }
 
     function openExerciseEditModal(exerciseId) {
