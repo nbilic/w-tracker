@@ -33,6 +33,7 @@
       --accent-2: #b77bd9;
       --accent-soft: rgba(233, 122, 82, 0.14);
       --accent-line: rgba(233, 122, 82, 0.3);
+      --chart-line: #dc6c45; /* accent one step darker: keeps chart marks inside the dark-mode lightness band */
       --good: #8bb98a;
       --good-soft: rgba(139, 185, 138, 0.14);
       --warn: #d4a258;
@@ -59,6 +60,7 @@
       --accent-2: #8a4fb0;
       --accent-soft: rgba(194, 90, 52, 0.12);
       --accent-line: rgba(194, 90, 52, 0.32);
+      --chart-line: #c25a34;
       --good: #4a8749;
       --good-soft: rgba(74, 135, 73, 0.12);
       --warn: #a57c2f;
@@ -74,7 +76,7 @@
       min-height: 100vh; min-height: 100dvh;
       background: var(--bg); color: var(--ink);
       font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      overflow-x: hidden;
+      overflow-x: clip; /* not hidden: hidden makes a scroll container and breaks position: sticky */
       -webkit-tap-highlight-color: transparent;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
@@ -94,13 +96,13 @@
       position: relative;
     }
     .app-body {
-      flex: 1; overflow-x: hidden;
+      flex: 1; overflow-x: clip;
       padding-bottom: calc(80px + env(safe-area-inset-bottom, 0));
     }
     .screen-wrap { display: none; }
     .screen-wrap.active { display: block; animation: fade-up .28s ease-out both; }
     .screen { padding: 4px 20px 24px; display: flex; flex-direction: column; gap: 16px; }
-    #workout-body.screen { gap: 10px; }
+    #workout-body.screen { gap: 0; }
 
     /* ===== TAB BAR ===== */
     .app-tabs {
@@ -252,9 +254,7 @@
     /* ===== ACTIVE WORKOUT ===== */
     .workout-sticky {
       position: sticky; top: 0; z-index: 10;
-      background: color-mix(in srgb, var(--bg) 95%, transparent);
-      backdrop-filter: saturate(140%) blur(14px);
-      -webkit-backdrop-filter: saturate(140%) blur(14px);
+      background: var(--bg);
       padding: 6px 20px 14px;
       border-bottom: 1px solid var(--line);
     }
@@ -288,36 +288,67 @@
       100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--good) 0%, transparent); }
     }
 
+    /* Collapsed exercises are plain rows; only the one you're on is a lifted card. */
     .ex-card {
+      background: transparent;
+      border-bottom: 1px solid var(--line);
+      padding: 14px 4px;
+    }
+    .ex-card.expanded {
       background: var(--surface);
       border: 1px solid var(--line);
       border-radius: 16px;
-      padding: 12px 14px;
-      transition: padding .15s;
+      /* Grows outward (negative margin = padding − row padding) so its content stays aligned with the rows */
+      padding: 16px 16px 14px 16px;
+      margin: 8px -12px;
+      box-shadow: 0 10px 28px -14px rgba(0,0,0,0.45);
     }
-    .ex-card.expanded { padding: 14px; }
-    .ex-card.dragging { opacity: 0.95; z-index: 20; box-shadow: var(--shadow); }
+    .ex-card.expanded .ex-name { font-family: 'Fraunces', serif; font-weight: 600; font-size: 20px; letter-spacing: -0.015em; }
+    .ex-card.done:not(.expanded) { opacity: 0.55; }
+    .ex-ring { width: 24px; height: 24px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
+    .ex-ring.done { border-radius: 50%; background: var(--good); color: var(--bg); }
+    .session-progress { display: flex; align-items: center; gap: 10px; margin: 2px 0 10px; }
+    .sp-bar { flex: 1; height: 3px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+    .sp-fill { height: 100%; border-radius: 3px; background: var(--accent); transition: width .35s ease; }
+    .sp-label { font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.08em; color: var(--ink-3);
+      text-transform: uppercase; white-space: nowrap; }
     .ex-head { display: flex; align-items: center; gap: 12px; cursor: pointer; }
-    .ex-drag-handle { color: var(--ink-3); cursor: grab; touch-action: none;
-      padding: 6px 4px; margin: -6px -4px -6px -8px; flex-shrink: 0;
-      display: inline-flex; align-items: center; }
-    .ex-drag-handle:active { cursor: grabbing; color: var(--ink); }
-    .ex-index { font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-4); min-width: 18px; }
+    .ex-move { display: flex; flex-direction: column; margin: -8px -2px -8px -8px; flex-shrink: 0; }
+    .ex-move-btn { background: none; border: none; color: var(--ink-3); cursor: pointer;
+      padding: 3px 6px; display: inline-flex; align-items: center; justify-content: center; }
+    .ex-move-btn:active { color: var(--accent); }
+    .ex-move-btn:disabled { opacity: 0.25; cursor: default; }
     .ex-name { font-size: 16px; font-weight: 500; letter-spacing: -0.01em;
       display: flex; align-items: center; gap: 8px; }
     .ex-name-text { cursor: pointer; }
     .ex-name-text:active { color: var(--accent); }
     .ex-sub { font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--ink-3);
       margin-top: 3px; letter-spacing: 0.04em; }
-    .ex-done-chip {
-      font-family: 'Geist Mono', monospace; font-size: 11px;
-      padding: 4px 9px; border-radius: 999px;
-      background: var(--surface-2); color: var(--ink-3); border: 1px solid var(--line);
-    }
-    .ex-done-chip.has-done { background: var(--good-soft); color: var(--good);
-      border-color: color-mix(in srgb, var(--good) 30%, transparent); }
 
     .ex-body { margin-top: 12px; }
+    .ex-bump { font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.04em; color: var(--ink-3);
+      margin: -4px 0 12px; }
+    .ex-bump.earned { color: var(--accent); font-weight: 600; }
+    .exs-section { margin-bottom: 18px; }
+    .exs-focus { font-size: 14px; color: var(--accent); font-weight: 500; line-height: 1.4; }
+    .exs-recent { padding: 9px 0; border-bottom: 1px solid var(--line); }
+    .exs-recent-head { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-2); }
+    .exs-recent-sets { font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-3); margin-top: 3px; }
+    .exs-chart { width: 100%; height: auto; display: block; overflow: visible; }
+    .exs-grid { stroke: var(--line); stroke-width: 1; }
+    .exs-axis, .exs-reps { font-family: 'Geist Mono', monospace; font-size: 9px; fill: var(--ink-3); }
+    .exs-line { fill: none; stroke: var(--chart-line); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+    .exs-dot { fill: var(--chart-line); stroke: var(--surface); stroke-width: 2; }
+    .exs-dot.on { stroke-width: 2.5; }
+    .exs-chart-cap { font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-2); margin-top: 6px; }
+    .exs-unit { color: var(--ink-4); }
+    .exs-drop { color: var(--accent-2); }
+    .exs-recent:last-child { border-bottom: none; }
+    .exs-res { font-family: 'Geist Mono', monospace; font-size: 12px; color: var(--ink-4); }
+    .exs-recent.up .exs-res { color: var(--accent); font-weight: 600; }
+    .exs-recent.down .exs-res { color: var(--ink-3); }
+    .exs-stats { font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-3); letter-spacing: 0.04em; }
+    .exhist-note { width: 100%; resize: none; margin-bottom: 14px; font-size: 13px; line-height: 1.4; }
     .set-head-row {
       display: grid; grid-template-columns: 20px 1fr 52px 32px; gap: 6px; margin-bottom: 6px;
       padding: 0 2px;
@@ -381,17 +412,20 @@
       background: var(--surface-2); border-radius: 8px; letter-spacing: 0.06em;
     }
 
-    /* Rest ring bar */
+    /* Rest bar: the whole bar is the timer (fill empties right to left) */
     .rest-bar {
-      display: flex; align-items: center; gap: 14px;
+      position: relative; overflow: hidden;
       background: var(--surface); border: 1px solid var(--accent-line);
-      padding: 10px 12px; border-radius: 14px; margin-top: 6px;
+      border-radius: 14px; margin-top: 6px;
     }
-    .rest-ring-wrap { position: relative; width: 52px; height: 52px; flex-shrink: 0; }
-    .rest-ring-time {
-      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-      font-family: 'Geist Mono', monospace; font-size: 13px; font-weight: 600; color: var(--accent);
+    .rest-fill {
+      position: absolute; top: 0; bottom: 0; left: 0;
+      background: color-mix(in srgb, var(--accent) 22%, transparent);
+      transition: width 1s linear;
     }
+    .rest-content { position: relative; display: flex; align-items: center; gap: 14px; padding: 10px 12px; }
+    .rest-time { font-family: 'Geist Mono', monospace; font-size: 22px; font-weight: 700; letter-spacing: -0.02em;
+      color: var(--accent); min-width: 62px; }
     .rest-label { font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.18em;
       text-transform: uppercase; color: var(--accent); margin-bottom: 3px; font-weight: 500; }
     .rest-name { font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -810,9 +844,6 @@
   <div class="sheet-overlay" id="notes-overlay">
     <div class="sheet" id="notes-sheet"></div>
   </div>
-  <div class="sheet-overlay" id="exnotes-overlay">
-    <div class="sheet" id="exnotes-sheet"></div>
-  </div>
   <div class="sheet-overlay" id="exhistory-overlay">
     <div class="sheet" id="exhistory-sheet"></div>
   </div>
@@ -833,6 +864,7 @@
       chevLeft: `<path d="M15 5l-7 7 7 7"/>`,
       chevRight: `<path d="M9 5l7 7-7 7"/>`,
       chevDown: `<path d="M5 9l7 7 7-7"/>`,
+      chevUp: `<path d="M5 15l7-7 7 7"/>`,
       plus: `<path d="M12 5v14M5 12h14"/>`,
       minus: `<path d="M5 12h14"/>`,
       check: `<path d="M4 12l5 5 11-12"/>`,
@@ -1120,6 +1152,7 @@
         appData.settings.barWeight = appData.settings.unit === 'lbs' ? 45 : 20;
       }
       if (!appData.exerciseNotes) appData.exerciseNotes = {};
+      if (!appData.restOverrides) appData.restOverrides = {}; // learned rest per exercise, from ±30 taps
       if (!appData.settings.chartOrder) appData.settings.chartOrder = [];
       if (!appData.customExercises) appData.customExercises = [];
       if (!appData.exerciseOverrides) appData.exerciseOverrides = {};
@@ -1229,10 +1262,24 @@
     function requestNotificationPermission() {
       if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
     }
+    // Only matters when you've switched away. Must go through the service worker:
+    // Android Chrome rejects `new Notification()` from a page.
     function sendRestNotification() {
-      if ('Notification' in window && Notification.permission === 'granted' && document.visibilityState === 'hidden') {
-        new Notification('Rest Over', { body: 'Time for your next set!', icon: 'icon-192.png', tag: 'rest-done' });
-      }
+      if (!('Notification' in window) || Notification.permission !== 'granted' || document.visibilityState !== 'hidden') return;
+      if (!('serviceWorker' in navigator)) return;
+      navigator.serviceWorker.ready.then(reg => reg.showNotification('Rest over', {
+        body: 'Time for your next set.', icon: 'icon-192.png', tag: 'rest-done', renotify: true, vibrate: [200, 100, 200],
+      })).catch(() => {});
+    }
+
+    // Mobile browsers only let audio play from a context unlocked by a tap. Ticking a set is a tap,
+    // so we unlock there and reuse the context for the rest-over beep.
+    let audioCtx = null;
+    function unlockAudio() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+      } catch (e) {}
     }
 
     /* ========== CONFETTI (opt-in) ========== */
@@ -1909,18 +1956,15 @@
       document.getElementById('workout-sticky').innerHTML = `
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
           <button class="icon-btn" onclick="showScreen('home')">${svg('chevLeft', 18)}</button>
-          <div style="flex:1;min-width:0;display:flex;align-items:center;gap:16px">
-            <div class="workout-name">${escapeHtml(currentSession.routineName || 'Workout')}</div>
-            <div class="elapsed-row">
-              <span class="elapsed-dot"></span>
-              <span class="elapsed-time" id="elapsed-display">${formatTime(getElapsedSeconds())}</span>
-            </div>
+          <div class="workout-name" style="flex:1;min-width:0">${escapeHtml(currentSession.routineName || 'Workout')}</div>
+          <div class="elapsed-row">
+            <span class="elapsed-dot"></span>
+            <span class="elapsed-time" id="elapsed-display">${formatTime(getElapsedSeconds())}</span>
           </div>
-          <button class="icon-btn" onclick="openNotesSheet()" title="Notes">${svg('note', 17)}</button>
-          <button class="icon-btn" onclick="openAddExerciseSheet()" title="Add exercise">${svg('plus', 18)}</button>
-          <button class="icon-btn icon-btn-accent" onclick="finishWorkout()" title="Finish">${svg('check', 18, 2.5)}</button>
         </div>
+        <div class="session-progress" id="session-progress"></div>
         <div id="rest-bar-slot"></div>`;
+      updateSessionProgress();
       renderRestBar();
     }
 
@@ -1930,33 +1974,33 @@
       return ex || null;
     }
 
+    // The whole bar is the timer: an ember fill that empties right to left as rest runs out.
+    // Updated in place each tick so the width transition glides instead of jumping.
     function renderRestBar() {
       const slot = document.getElementById('rest-bar-slot');
       if (!slot) return;
       if (!isResting) { slot.innerHTML = ''; return; }
       const rem = getRestRemaining();
-      const frac = rem / restDuration;
-      const r = 22, c = 2 * Math.PI * r;
+      const pct = Math.max(0, Math.min(100, rem / restDuration * 100));
+      const bar = slot.querySelector('.rest-bar');
+      if (bar && bar.dataset.name === restExName && bar.dataset.set === String(restSet)) {
+        bar.querySelector('.rest-fill').style.width = pct + '%';
+        bar.querySelector('.rest-time').textContent = formatTime(rem);
+        return;
+      }
       slot.innerHTML = `
-        <div class="rest-bar">
-          <div class="rest-ring-wrap">
-            <svg width="52" height="52" viewBox="0 0 52 52">
-              <circle cx="26" cy="26" r="${r}" stroke="var(--surface-3)" stroke-width="3" fill="none"/>
-              <circle cx="26" cy="26" r="${r}" stroke="var(--accent)" stroke-width="3" fill="none"
-                stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - frac)}"
-                stroke-linecap="round" transform="rotate(-90 26 26)"
-                style="transition:stroke-dashoffset 1s linear;filter:drop-shadow(0 0 6px var(--accent-soft))"/>
-            </svg>
-            <div class="rest-ring-time">${formatTime(rem)}</div>
-          </div>
-          <div style="flex:1;min-width:0">
-            <div class="rest-label">Rest</div>
-            <div class="rest-name">${escapeHtml(restExName)}</div>
-          </div>
-          <div class="rest-actions">
-            <button class="icon-btn" onclick="adjustRest(30)"><span class="rest-add-label">+30</span></button>
-            <button class="icon-btn" onclick="togglePauseRest()">${restPaused ? svg('play', 14) : svg('pause', 14)}</button>
-            <button class="icon-btn" style="color:var(--accent)" onclick="dismissRest()">${svg('skip', 14)}</button>
+        <div class="rest-bar" data-name="${escapeHtml(restExName)}" data-set="${restSet}">
+          <div class="rest-fill" style="width:${pct}%"></div>
+          <div class="rest-content">
+            <div class="rest-time">${formatTime(rem)}</div>
+            <div style="flex:1;min-width:0">
+              <div class="rest-label">Rest · after set ${restSet + 1}</div>
+              <div class="rest-name">${escapeHtml(restExName)}</div>
+            </div>
+            <div class="rest-actions">
+              <button class="icon-btn" onclick="adjustRest(-30)"><span class="rest-add-label">−30</span></button>
+              <button class="icon-btn" onclick="adjustRest(30)"><span class="rest-add-label">+30</span></button>
+            </div>
           </div>
         </div>`;
     }
@@ -1978,27 +2022,48 @@
         const isExpanded = expandedExerciseId === key;
         const activeSetIdx = sets.findIndex(s => !s.completed);
 
-        const libEx = ex.exerciseId ? LIBRARY_MAP[ex.exerciseId] : null;
-        const muscle = libEx ? libEx.category : (ex.equipment || '');
-        const lastEx = findLastSessionWithExercise(ex.name);
-        const lastWeight = lastEx ? (lastEx.sets.find(s => s.weight !== '' && s.weight !== null) || {}).weight : '';
+        // Subtitle only once you've started: what you did, plus how many sets are left.
+        const fmt = s => {
+          const w = s.weight !== '' && s.weight !== null && Number(s.weight) ? s.weight : '';
+          const r = s.reps !== '' && s.reps !== null ? s.reps : '—';
+          return (s.drop ? '↓' : '') + (w ? `${w}×${r}` : `${r}`);
+        };
+        const doneSets = sets.filter(s => s.completed);
+        const left = sets.filter(s => !s.completed && !s.drop).length;
+        const subtitle = !doneSets.length ? ''
+          : doneSets.map(fmt).join(' · ') + (isDone || !left ? '' : ` · ${left} left`);
 
-        html += `<div class="ex-card${isExpanded?' expanded':''}" id="exc-${ei}" data-ei="${ei}">
+        html += `<div class="ex-card${isExpanded?' expanded':''}${isDone?' done':''}" id="exc-${ei}" data-ei="${ei}">
           <div class="ex-head" onclick="toggleExpanded('${key}')">
-            <span class="ex-drag-handle" data-ei="${ei}" onclick="event.stopPropagation()">${svg('drag', 16)}</span>
-            <span class="ex-index">${String(ei+1).padStart(2,'0')}</span>
+            <span class="ex-move" onclick="event.stopPropagation()">
+              <button class="ex-move-btn" ${ei === 0 ? 'disabled' : ''} onclick="moveExercise(${ei},-1)" aria-label="Move up">${svg('chevUp', 13, 2)}</button>
+              <button class="ex-move-btn" ${ei === currentSession.exercises.length - 1 ? 'disabled' : ''} onclick="moveExercise(${ei},1)" aria-label="Move down">${svg('chevDown', 13, 2)}</button>
+            </span>
             <div style="flex:1;min-width:0">
               <div class="ex-name">
                 <span class="ex-name-text" onclick="event.stopPropagation();openExerciseHistory('${escapeHtml(ex.name)}')">${escapeHtml(ex.name)}</span>
-                ${isDone ? svg('check', 14, 2.5).replace('stroke="currentColor"','stroke="var(--good)"') : ''}
               </div>
-              <div class="ex-sub">${muscle.toUpperCase()}${lastWeight !== '' ? ' · LAST ' + lastWeight + unit : ''}</div>
+              ${subtitle ? `<div class="ex-sub">${subtitle}</div>` : ''}
             </div>
-            <span class="ex-done-chip${doneCount>0?' has-done':''}">${doneCount}/${totalCount}</span>
+            ${progressRing(doneCount, totalCount)}
           </div>`;
 
         if (isExpanded) {
           html += `<div class="ex-body">`;
+          // What earns next session's weight bump. The rule mirrors the auto-advance at workout start: every regular set at one
+          // weight, all ticked, all at or above the target reps.
+          const target = parseInt(ex.targetReps) || 0;
+          const po = getPOStep(ex.equipment, ex.exerciseId);
+          const regular = sets.filter(s => !s.drop);
+          const w0 = regular.length ? Number(regular[0].weight) || 0 : 0;
+          let bump = '', earned = false;
+          if (target && po > 0 && w0 > 0 && regular.every(s => Number(s.weight) === w0)
+              && !regular.some(s => s.completed && Number(s.reps) < target)) {
+            const next = +(w0 + po).toFixed(2);
+            earned = regular.every(s => s.completed);
+            bump = earned ? `✓ ${next} ${unit} next time` : `Hit ${target} on every set → ${next} ${unit} next time`;
+          }
+          if (bump) html += `<div class="ex-bump${earned ? ' earned' : ''}">${bump}</div>`;
           if (ex.equipment === 'barbell') {
             const nextSet = sets.find(s => !s.completed) || sets[0];
             const plateWeight = nextSet && nextSet.weight !== '' && nextSet.weight !== null ? Number(nextSet.weight) : 0;
@@ -2045,82 +2110,53 @@
         html += `</div>`;
       });
 
-      html += `<button class="dashed-btn" onclick="openAddExerciseSheet()">${svg('plus', 16)} Add exercise</button>
+      html += `<div style="display:flex;gap:8px;margin-top:14px">
+          <button class="dashed-btn" style="flex:1" onclick="openAddExerciseSheet()">${svg('plus', 16)} Add exercise</button>
+          <button class="dashed-btn" style="flex:1" onclick="openNotesSheet()">${svg('note', 15)} ${currentSession.notes ? 'Edit note' : 'Add note'}</button>
+        </div>
         <div style="margin-top:8px">
           <button class="btn btn-primary btn-block" style="padding:16px;font-size:15px" onclick="finishWorkout()">Finish session</button>
           <button class="btn btn-ghost btn-block" style="margin-top:6px;font-size:13px;color:var(--ink-3)" onclick="discardWorkout()">Discard session</button>
         </div>`;
 
       body.innerHTML = html;
-      initExerciseDragHandles();
+      updateSessionProgress();
     }
 
-    let exDragState = null;
-    function initExerciseDragHandles() {
-      document.querySelectorAll('.ex-drag-handle').forEach(h => {
-        h.addEventListener('touchstart', onExDragTouch, { passive: false });
-        h.addEventListener('mousedown', onExDragMouse);
-      });
+    // Small ring per exercise: ember arc for sets ticked, solid green check when all are done.
+    function progressRing(done, total) {
+      if (total && done >= total) return `<span class="ex-ring done">${svg('check', 13, 3)}</span>`;
+      const r = 9, c = 2 * Math.PI * r, frac = total ? done / total : 0;
+      return `<svg class="ex-ring" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="${r}" fill="none" stroke="var(--surface-3)" stroke-width="2.5"/>
+        ${frac ? `<circle cx="12" cy="12" r="${r}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"
+          stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - frac)}" transform="rotate(-90 12 12)"/>` : ''}
+      </svg>`;
     }
-    function onExDragTouch(e) {
-      e.preventDefault();
-      const ei = parseInt(e.currentTarget.getAttribute('data-ei'));
-      startExDrag(ei, e.touches[0].clientY);
-      const mv = (ev) => { ev.preventDefault(); moveExDrag(ev.touches[0].clientY); };
-      const en = () => { endExDrag(); document.removeEventListener('touchmove', mv); document.removeEventListener('touchend', en); };
-      document.addEventListener('touchmove', mv, { passive: false });
-      document.addEventListener('touchend', en);
+
+    // Thin bar under the header filling as sets are ticked (drop sets are extras, not counted).
+    function updateSessionProgress() {
+      const el = document.getElementById('session-progress');
+      if (!el || !currentSession) return;
+      const sets = currentSession.exercises.flatMap(e => e.sets.filter(s => !s.drop));
+      const done = sets.filter(s => s.completed).length;
+      const width = `${sets.length ? done / sets.length * 100 : 0}%`, label = `${done} of ${sets.length} sets`;
+      const fill = el.querySelector('.sp-fill');
+      if (fill) { fill.style.width = width; el.querySelector('.sp-label').textContent = label; return; } // keeps the width transition
+      el.innerHTML = `<div class="sp-bar"><div class="sp-fill" style="width:${width}"></div></div><div class="sp-label">${label}</div>`;
     }
-    function onExDragMouse(e) {
-      e.preventDefault();
-      const ei = parseInt(e.currentTarget.getAttribute('data-ei'));
-      startExDrag(ei, e.clientY);
-      const mv = (ev) => moveExDrag(ev.clientY);
-      const en = () => { endExDrag(); document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', en); };
-      document.addEventListener('mousemove', mv);
-      document.addEventListener('mouseup', en);
-    }
-    function startExDrag(ei, startY) {
-      const cards = document.querySelectorAll('.ex-card');
-      const card = cards[ei]; if (!card) return;
-      triggerHaptic('dragStart');
-      const rects = Array.from(cards).map(c => c.getBoundingClientRect());
-      exDragState = { ei, startY, card, rects };
-      card.classList.add('dragging');
-    }
-    function moveExDrag(clientY) {
-      if (!exDragState) return;
-      const { ei, startY, card, rects } = exDragState;
-      const delta = clientY - startY;
-      card.style.transform = `translateY(${delta}px)`;
-      const dragCenter = rects[ei].top + rects[ei].height / 2 + delta;
-      let newIndex = ei;
-      for (let i = 0; i < rects.length; i++) {
-        if (i === ei) continue;
-        const center = rects[i].top + rects[i].height / 2;
-        if (ei < i && dragCenter > center) newIndex = i;
-        if (ei > i && dragCenter < center && i < newIndex) newIndex = i;
-      }
-      const cards = document.querySelectorAll('.ex-card');
-      cards.forEach((c, i) => {
-        if (i === ei) return;
-        if (ei < newIndex && i > ei && i <= newIndex) c.style.transform = `translateY(-${rects[ei].height + 16}px)`;
-        else if (ei > newIndex && i < ei && i >= newIndex) c.style.transform = `translateY(${rects[ei].height + 16}px)`;
-        else c.style.transform = '';
-      });
-      exDragState.targetIndex = newIndex;
-    }
-    function endExDrag() {
-      if (!exDragState) return;
-      const { ei, targetIndex } = exDragState;
-      document.querySelectorAll('.ex-card').forEach(c => { c.style.transform = ''; c.classList.remove('dragging'); });
-      if (targetIndex !== undefined && targetIndex !== ei) {
-        const [moved] = currentSession.exercises.splice(ei, 1);
-        currentSession.exercises.splice(targetIndex, 0, moved);
-        saveSessionBackup();
-        renderWorkoutExercises();
-      }
-      exDragState = null;
+
+    // Tap ↑/↓ to move an exercise one place. The open card stays open (its key includes its index).
+    function moveExercise(ei, dir) {
+      const exs = currentSession && currentSession.exercises;
+      const to = ei + dir;
+      if (!exs || to < 0 || to >= exs.length) return;
+      const open = exs.find((e, i) => exKey(e, i) === expandedExerciseId);
+      [exs[ei], exs[to]] = [exs[to], exs[ei]];
+      if (open) expandedExerciseId = exKey(open, exs.indexOf(open));
+      triggerHaptic('light');
+      saveSessionBackup();
+      renderWorkoutExercises();
     }
 
     function toggleExpanded(key) {
@@ -2133,6 +2169,7 @@
       const set = currentSession.exercises[ei].sets[si];
       set.completed = !set.completed;
       if (set.completed) {
+        unlockAudio();
         const exName = currentSession.exercises[ei].name;
         const isPR = !set.drop && checkForNewPR(exName, set.weight, set.reps);
         set.isPR = isPR;
@@ -2142,7 +2179,7 @@
         const allDone = currentSession.exercises.every(ex => ex.sets.every(s => s.completed));
         if (allDone) { dismissRest(); showAutoFinishToast(); }
         else {
-          startRestTimer(ei);
+          startRestTimer(ei, si);
           // Auto-advance expanded to next incomplete exercise
           const thisEx = currentSession.exercises[ei];
           if (thisEx.sets.every(s => s.completed)) {
@@ -2176,26 +2213,35 @@
       saveSessionBackup();
     }
 
+    // A weight change carries to later sets that still hold the old weight (or none):
+    // drop from 55 to 50 on set 2 and set 3 follows. Ticked sets and drop sets are skipped;
+    // a set you've deliberately set to something else stops the carry.
+    function carryWeightForward(ei, si, oldWeight, newWeight) {
+      const ex = currentSession.exercises[ei];
+      if (ex.sets[si].drop) return;
+      const blank = w => w === '' || w === null || w === undefined;
+      for (let i = si + 1; i < ex.sets.length; i++) {
+        const s = ex.sets[i];
+        if (s.completed || s.drop) continue;
+        if (!blank(s.weight) && (blank(oldWeight) || Number(s.weight) !== Number(oldWeight))) break;
+        s.weight = newWeight;
+        const ip = document.getElementById('wi-' + ei + '-' + i);
+        if (ip) ip.value = newWeight;
+      }
+    }
+
     function adjSetWeight(ei, si, direction) {
       if (!currentSession) return;
       const ex = currentSession.exercises[ei];
       const step = ex.step !== undefined && ex.step !== null ? ex.step : getWeightStep(ex.equipment, ex.exerciseId);
-      const current = (ex.sets[si].weight !== '' && ex.sets[si].weight !== null) ? Number(ex.sets[si].weight) : 0;
+      const old = ex.sets[si].weight;
+      const current = (old !== '' && old !== null) ? Number(old) : 0;
       const newWeight = Math.max(0, +(current + direction * step).toFixed(2));
       ex.sets[si].weight = newWeight;
       const input = document.getElementById('wi-' + ei + '-' + si);
       if (input) input.value = newWeight;
       triggerHaptic('weightAdjust');
-      // If first set, propagate to empty following sets
-      if (si === 0) {
-        for (let i = 1; i < ex.sets.length; i++) {
-          if (ex.sets[i].weight === '' || ex.sets[i].weight === null) {
-            ex.sets[i].weight = newWeight;
-            const ip = document.getElementById('wi-' + ei + '-' + i);
-            if (ip) ip.value = newWeight;
-          }
-        }
-      }
+      carryWeightForward(ei, si, old, newWeight);
       refreshPlateBreakdown(ei);
       saveSessionBackup();
     }
@@ -2204,28 +2250,81 @@
       if (!currentSession) return;
       const numVal = value === '' ? '' : Number(value);
       const ex = currentSession.exercises[ei];
+      const old = ex.sets[si][field];
       ex.sets[si][field] = numVal;
-      if (field === 'weight' && si === 0 && numVal !== '') {
-        for (let i = 1; i < ex.sets.length; i++) {
-          if (ex.sets[i].weight === '' || ex.sets[i].weight === null) {
-            ex.sets[i].weight = numVal;
-            const ip = document.getElementById('wi-' + ei + '-' + i);
-            if (ip) ip.value = numVal;
-          }
-        }
-      }
+      if (field === 'weight' && numVal !== '') carryWeightForward(ei, si, old, numVal);
       if (field === 'weight') refreshPlateBreakdown(ei);
       saveSessionBackup();
     }
 
     /* ========== EXERCISE HISTORY VIEW ========== */
-    function getExerciseHistory(name, limit = 8) {
-      const out = [];
-      for (let i = appData.sessions.length - 1; i >= 0 && out.length < limit; i--) {
-        const ex = appData.sessions[i].exercises.find(e => e.name === name);
-        if (ex) out.push({ date: appData.sessions[i].date, sets: ex.sets });
+    // One concrete thing to aim for today, from last time's sets.
+    function exerciseFocus(name, prevSets, curEx) {
+      const unit = appData.settings.unit;
+      const W = s => Number(s.weight) || 0, R = s => Number(s.reps) || 0;
+      const label = s => W(s) ? `${W(s)}×${R(s)}` : `${R(s)} reps`;
+      if (curEx && curEx.autoAdvanced && curEx.prevWeight !== '' && curEx.sets[0]) {
+        return `Weight's up: ${curEx.prevWeight} → ${curEx.sets[0].weight} ${unit}. Match last time's reps.`;
       }
-      return out;
+      if (!prevSets.length) return '';
+      const libEx = EXERCISE_LIBRARY.find(e => e.name === name);
+      const target = parseInt((curEx && curEx.targetReps) || (libEx && libEx.defaultReps)) || 0;
+      const w0 = W(prevSets[0]);
+      if (target && prevSets.every(s => W(s) === w0 && R(s) >= target)) {
+        const po = getPOStep(libEx ? libEx.equipment : (curEx && curEx.equipment), libEx ? libEx.id : (curEx && curEx.exerciseId));
+        return po > 0 && w0 ? `You hit ${target} on every set last time. Try ${+(w0 + po).toFixed(2)} ${unit}.` : 'Match last time, then add a rep anywhere.';
+      }
+      // The weakest set (below target if any fell short; latest on ties) is where the next rep comes from.
+      const all = prevSets.map((s, i) => ({ s, i }));
+      const pool = target ? all.filter(({ s }) => R(s) < target) : all;
+      const pick = (pool.length ? pool : all).reduce((a, c) => R(c.s) <= R(a.s) ? c : a);
+      return `+1 rep on set ${pick.i + 1} · ${label(pick.s)} last time`;
+    }
+
+    // Working weight over the last sessions as a step line (weight holds until it changes), with each
+    // session's reps written underneath. Nothing estimated: it's the log, drawn. Tap a column for its sets.
+    let exsChartData = [];
+    function exerciseChartHTML(name) {
+      const W = s => Number(s.weight) || 0, R = s => Number(s.reps) || 0;
+      const pts = [];
+      for (let i = appData.sessions.length - 1; i >= 0 && pts.length < 6; i--) {
+        const e = appData.sessions[i].exercises.find(x => x.name === name);
+        const sets = e ? e.sets.filter(s => s.completed && !s.drop) : [];
+        if (!sets.length) continue;
+        pts.unshift({ date: appData.sessions[i].date, w: Math.max(...sets.map(W)), reps: sets.map(R).join('·'),
+          sets: sets.map(s => W(s) ? `${W(s)}×${R(s)}` : `${R(s)}`).join(' · ') });
+      }
+      if (pts.length < 2 || pts.every(p => !p.w)) return ''; // needs history and a weight to plot
+      exsChartData = pts;
+      const unit = appData.settings.unit;
+      const vw = 320, padL = 36, padR = 8, padT = 10, plotH = 84, labelH = 22, vh = padT + plotH + labelH;
+      const colW = (vw - padL - padR) / pts.length;
+      const x = i => padL + colW * (i + 0.5);
+      const lo = Math.min(...pts.map(p => p.w)), hi = Math.max(...pts.map(p => p.w));
+      const y = w => hi === lo ? padT + plotH / 2 : padT + (hi - w) / (hi - lo) * plotH;
+      // Step-after path: flat until the next session, then a vertical jump to its weight.
+      const path = pts.map((p, i) => i === 0 ? `M${x(0)},${y(p.w)}` : `H${x(i)}V${y(p.w)}`).join('');
+      const ticks = [...new Set([hi, lo])];
+      const last = pts.length - 1;
+      return `<div class="exs-section">
+        <div class="eyebrow" style="margin-bottom:6px">Working weight · reps</div>
+        <svg class="exs-chart" viewBox="0 0 ${vw} ${vh}" role="img" aria-label="Working weight over the last ${pts.length} sessions">
+          ${ticks.map(t => `<line x1="${padL}" x2="${vw - padR}" y1="${y(t)}" y2="${y(t)}" class="exs-grid"/>
+            <text x="${padL - 6}" y="${y(t) + 3}" text-anchor="end" class="exs-axis">${t}</text>`).join('')}
+          <path d="${path}" class="exs-line"/>
+          ${pts.map((p, i) => `<circle cx="${x(i)}" cy="${y(p.w)}" r="${i === last ? 5 : 4}" class="exs-dot${i === last ? ' on' : ''}" data-i="${i}"/>
+            <text x="${x(i)}" y="${vh - 6}" text-anchor="middle" class="exs-reps">${p.reps}</text>
+            <rect x="${x(i) - colW / 2}" y="0" width="${colW}" height="${vh}" fill="transparent" style="cursor:pointer"
+              onclick="selectExsChart(this.closest('.exs-section'), ${i})"/>`).join('')}
+        </svg>
+        <div class="exs-chart-cap">${formatDate(pts[last].date)} · ${pts[last].sets} <span class="exs-unit">${unit}</span></div>
+      </div>`;
+    }
+    function selectExsChart(section, i) {
+      const p = exsChartData[i];
+      if (!p || !section) return;
+      section.querySelectorAll('.exs-dot').forEach(d => { const on = +d.dataset.i === i; d.classList.toggle('on', on); d.setAttribute('r', on ? 5 : 4); });
+      section.querySelector('.exs-chart-cap').innerHTML = `${formatDate(p.date)} · ${p.sets} <span class="exs-unit">${appData.settings.unit}</span>`;
     }
 
     function renderExerciseHistoryBody(name) {
@@ -2233,39 +2332,39 @@
       const pr = appData.personalRecords[name];
       const est1rm = computeEstimated1RM(name);
       const libEx = EXERCISE_LIBRARY.find(e => e.name === name);
-      const history = getExerciseHistory(name, 10);
-
-      const statsHtml = (pr || est1rm) ? `
-        <div style="display:grid;grid-template-columns:${pr && est1rm ? '1fr 1fr' : '1fr'};gap:8px;margin-bottom:14px">
-          ${pr ? `<div class="card card-tight" style="padding:12px">
-            <div class="eyebrow" style="font-size:9px;margin-bottom:4px">PR</div>
-            <div class="mono" style="font-size:20px;font-weight:700;letter-spacing:-0.02em;color:var(--accent)">${pr.maxWeight}<span style="font-size:11px;color:var(--ink-3);margin-left:2px">${unit}</span></div>
-            <div class="mono" style="font-size:10px;color:var(--ink-4);margin-top:2px">${pr.reps ? pr.reps + 'R · ' : ''}${pr.date ? formatDate(pr.date).toUpperCase() : ''}</div>
-          </div>` : ''}
-          ${est1rm ? `<div class="card card-tight" style="padding:12px">
-            <div class="eyebrow" style="font-size:9px;margin-bottom:4px">EST. 1RM</div>
-            <div class="mono" style="font-size:20px;font-weight:700;letter-spacing:-0.02em">${est1rm}<span style="font-size:11px;color:var(--ink-3);margin-left:2px">${unit}</span></div>
-            <div class="mono" style="font-size:10px;color:var(--ink-4);margin-top:2px">EPLEY</div>
-          </div>` : ''}
-        </div>` : '';
-
       const subtitle = libEx ? `${libEx.category.toUpperCase()} · ${libEx.equipment.toUpperCase()}` : '';
+      // Same key the workout and exercise library use for notes.
+      const noteKey = libEx ? libEx.id : name;
+      const note = (appData.exerciseNotes || {})[noteKey] || '';
 
-      const histHtml = history.length === 0
-        ? `<div class="empty-state" style="padding:24px">No prior sessions for this lift.</div>`
-        : history.map(h => `
-            <div style="padding:10px 0;border-bottom:1px solid var(--line)">
-              <div class="mono" style="font-size:10px;color:var(--ink-3);letter-spacing:0.08em;margin-bottom:4px">${formatDate(h.date).toUpperCase()}</div>
-              <div class="mono" style="font-size:12px;color:var(--ink-2);display:flex;gap:8px;flex-wrap:wrap">
-                ${h.sets.map(s => {
-                  const w = s.weight !== '' && s.weight !== null ? s.weight : '—';
-                  const r = s.reps !== '' && s.reps !== null ? s.reps : '—';
-                  const done = s.completed;
-                  const color = !done ? 'var(--ink-4)' : s.drop ? 'var(--accent-2)' : 'var(--ink)';
-                  return `<span style="color:${color}">${done ? '' : '◯ '}${s.drop ? '↓' : ''}${w}×${r}</span>`;
-                }).join('')}
-              </div>
-            </div>`).join('');
+      // Mid-workout: compare against the same "last time" the recap uses, and show today's sets live.
+      const curEx = currentSession && currentSession.exercises.find(e => e.name === name);
+      const found = findPreviousSets(currentSession || {}, name);
+      const prevSets = found ? found.sets : [];
+      let lift = null;
+      if (curEx && curEx.sets.some(s => s.completed && !s.drop)) {
+        lift = compareToLastTime({ ...currentSession, exercises: [curEx] }).lifts[0] || null;
+      }
+      const label = s => Number(s.weight) ? `${s.weight}×${s.reps}` : String(s.reps);
+      const gridLift = lift || { last: prevSets.map(label), tiles: [], drops: [] };
+      const focus = exerciseFocus(name, prevSets, curEx);
+      const fromOther = found && found.sess.routineName && found.sess.routineId !== (currentSession && currentSession.routineId)
+        && currentSession;
+
+      // Recent log: the last 5 sessions with this lift, their sets, each judged against its own "last time".
+      const recent = [];
+      for (let i = appData.sessions.length - 1; i >= 0 && recent.length < 5; i--) {
+        const sess = appData.sessions[i];
+        if (!sess.exercises.some(e => e.name === name && e.sets.some(s => s.completed && !s.drop))) continue;
+        const l = compareToLastTime(sess).lifts.find(x => x.name === name);
+        const e = sess.exercises.find(x => x.name === name);
+        const fmt = s => Number(s.weight) ? `${s.weight}×${s.reps}` : `${s.reps}`;
+        const sets = e.sets.filter(s => s.completed).map(s => s.drop ? `<span class="exs-drop">↓${fmt(s)}</span>` : fmt(s)).join(' · ');
+        if (l) recent.push({ date: sess.date, l, sets });
+      }
+
+      const stats = [pr ? `PR ${pr.maxWeight}×${pr.reps || 0}` : '', est1rm ? `est. 1RM ${est1rm} ${unit}` : ''].filter(Boolean).join(' · ');
+      const hasHistory = prevSets.length || recent.length;
 
       return `
         <div class="row-between" style="margin-bottom:14px">
@@ -2276,9 +2375,29 @@
           </div>
           <button class="icon-btn" onclick="closeSheet('exhistory-overlay')" style="width:32px;height:32px">${svg('x', 14)}</button>
         </div>
-        ${statsHtml}
-        <div class="eyebrow" style="margin-bottom:6px">RECENT SESSIONS</div>
-        ${histHtml}`;
+        <textarea class="exhist-note" rows="2" placeholder="Note · seat, pins, grip, cues…"
+          data-key="${escapeHtml(noteKey)}" oninput="saveExerciseNote(this.dataset.key, this.value)">${escapeHtml(note)}</textarea>
+        ${!hasHistory ? `<div class="empty-state" style="padding:20px">First time. No history yet.</div>` : `
+          ${focus ? `<div class="exs-section">
+            <div class="eyebrow" style="margin-bottom:6px">Focus today</div>
+            <div class="exs-focus">${focus}</div>
+          </div>` : ''}
+          ${gridLift.last.length || gridLift.tiles.length ? `<div class="exs-section">
+            ${fromOther ? `<div class="recap-meta">vs ${escapeHtml(found.sess.routineName)}</div>` : ''}
+            ${setsGridHTML(gridLift)}
+          </div>` : ''}
+          ${exerciseChartHTML(name)}
+          ${recent.length ? `<div class="exs-section">
+            <div class="eyebrow" style="margin-bottom:4px">Recent</div>
+            ${recent.map(({ date, l, sets }) => `<div class="exs-recent ${l.status}">
+              <div class="exs-recent-head">
+                <span>${formatDate(date)}</span>
+                <span class="exs-res">${l.pr ? '<span class="recap-star">★</span>' : ''}${l.summary}</span>
+              </div>
+              <div class="exs-recent-sets">${sets}</div>
+            </div>`).join('')}
+          </div>` : ''}
+          ${stats ? `<div class="exs-stats">${stats}</div>` : ''}`}`;
     }
 
     function openExerciseHistory(name) {
@@ -2375,28 +2494,42 @@
     let finishedSessionMemo = null;
 
     /* ========== REST TIMER ========== */
-    let restPaused = false;
-    function startRestTimer(ei) {
+    // Learned rest is stored per exercise per set: { [exerciseKey]: { [setIndex]: seconds } }, where
+    // setIndex is the set just finished. An untuned set inherits from the nearest earlier tuned set.
+    function learnedRest(key, si) {
+      let byset = (appData.restOverrides || {})[key];
+      if (typeof byset === 'number') byset = { 0: byset }; // tolerate the earlier per-exercise format
+      if (!byset) return 0;
+      for (let i = si; i >= 0; i--) if (byset[i]) return byset[i];
+      return 0;
+    }
+
+    function startRestTimer(ei, si = 0) {
       clearInterval(restInterval);
+      // Rest length: what you've tuned for this set with ±30, else the library default, else Settings.
       let restTime = appData.settings.defaultRestTime;
-      restExName = 'REST';
+      restExName = 'REST'; restKey = ''; restSet = si;
       if (ei !== undefined && currentSession && currentSession.exercises[ei]) {
         const ex = currentSession.exercises[ei];
         restExName = ex.name;
+        restKey = ex.exerciseId || ex.name;
         const libEx = LIBRARY_MAP[ex.exerciseId];
-        if (libEx && libEx.defaultRest) restTime = libEx.defaultRest;
+        const learned = learnedRest(restKey, si);
+        if (learned) restTime = learned;
+        else if (libEx && libEx.defaultRest) restTime = libEx.defaultRest;
       }
       restStartedAt = Date.now();
       restDuration = restTime;
-      isResting = true; restPaused = false;
+      isResting = true;
       if (currentSession) {
         currentSession.restStartedAt = restStartedAt;
         currentSession.restDuration = restDuration;
         currentSession.restExName = restExName;
+        currentSession.restKey = restKey;
+        currentSession.restSet = restSet;
         saveSessionBackup();
       }
       restInterval = setInterval(() => {
-        if (restPaused) return;
         const rem = getRestRemaining();
         if (rem <= 0) { clearInterval(restInterval); restFinished(); }
         if (activeScreen === 'workout') renderRestBar();
@@ -2404,28 +2537,24 @@
       if (activeScreen === 'workout') renderRestBar();
     }
 
+    // ±30 changes this rest and is remembered for this exercise's set, so next time it starts at that length.
     function adjustRest(delta) {
       if (!isResting) return;
-      restStartedAt += delta * 1000;
-      if (currentSession) { currentSession.restStartedAt = restStartedAt; saveSessionBackup(); }
+      restDuration = Math.max(15, Math.min(600, restDuration + delta));
+      if (restKey) {
+        if (!appData.restOverrides) appData.restOverrides = {};
+        const cur = appData.restOverrides[restKey];
+        const byset = typeof cur === 'object' && cur ? cur : {};
+        byset[restSet] = restDuration;
+        appData.restOverrides[restKey] = byset;
+        saveData(appData);
+      }
+      if (currentSession) { currentSession.restDuration = restDuration; saveSessionBackup(); }
+      triggerHaptic('light');
+      if (getRestRemaining() <= 0) { dismissRest(); return; } // −30 past zero just ends the rest, quietly
       renderRestBar();
     }
 
-    function togglePauseRest() {
-      if (!isResting) return;
-      if (restPaused) {
-        // Resume: shift start to account for paused duration
-        restStartedAt += (Date.now() - restPauseStart);
-        if (currentSession) currentSession.restStartedAt = restStartedAt;
-        restPaused = false;
-      } else {
-        restPauseStart = Date.now();
-        restPaused = true;
-      }
-      saveSessionBackup();
-      renderRestBar();
-    }
-    let restPauseStart = 0;
 
     /* ========== SHEET HELPERS ========== */
     function openSheet(id) {
@@ -2560,6 +2689,15 @@
     }
 
     /* ========== NOTES SHEET ========== */
+    // Exercise note (the same one the exercise library edits), saved as you type in the exercise sheet.
+    function saveExerciseNote(key, value) {
+      const note = value.trim();
+      if (!appData.exerciseNotes) appData.exerciseNotes = {};
+      if (note) appData.exerciseNotes[key] = note;
+      else delete appData.exerciseNotes[key];
+      saveData(appData);
+    }
+
     function openNotesSheet() {
       if (!currentSession) return;
       document.getElementById('notes-sheet').innerHTML = `
@@ -2579,6 +2717,7 @@
       if (currentSession) {
         currentSession.notes = (document.getElementById('session-notes-input')?.value || '').trim();
         saveSessionBackup();
+        renderWorkoutExercises(); // refresh the "Add note" / "Edit note" label
       }
       closeSheet('notes-overlay');
     }
@@ -2757,6 +2896,22 @@
       if (!open) row.classList.add('open');
     }
 
+    // Last/today sets as a grid so set N lines up under set N. Drop sets trail today's row, past both
+    // rows' regular sets, so they never sit under a "last" value. Used by the recap and the exercise sheet.
+    function setsGridHTML(l) {
+      const today = l.tiles.filter(t => t.kind !== 'missed');
+      const regular = Math.max(l.last.length, today.length);
+      const todayCells = today.length || l.drops.length
+        ? [...today, ...Array(regular - today.length).fill(null), ...l.drops.map(val => ({ val, kind: 'drop' }))] : [];
+      const n = Math.max(todayCells.length, l.last.length);
+      const row = (tag, cells) => `<span class="recap-tag">${tag}</span>` +
+        Array.from({ length: n }, (_, i) => cells[i] ? `<span class="v ${cells[i].kind}">${cells[i].val}</span>` : '<span></span>').join('');
+      return `<div class="recap-grid" style="--n:${n}">
+        ${l.last.length ? row('Last', l.last.map(val => ({ val, kind: 'last' }))) : ''}
+        ${todayCells.length ? row('Today', todayCells) : ''}
+      </div>`;
+    }
+
     function renderFinish() {
       const s = finishedSessionMemo;
       const el = document.getElementById('finish-screen');
@@ -2768,19 +2923,7 @@
       const { lifts, up } = compareToLastTime(s);
       const stronger = up > 0 || lifts.some(l => l.pr);
       // Last/today as a grid so set N lines up under set N; short rows are padded with empty cells.
-      const grid = l => {
-        // Drop sets trail today's row, past both rows' regular sets, so they never sit under a "last" value.
-        const today = l.tiles.filter(t => t.kind !== 'missed');
-        const regular = Math.max(l.last.length, today.length);
-        const todayCells = [...today, ...Array(regular - today.length).fill(null), ...l.drops.map(val => ({ val, kind: 'drop' }))];
-        const n = todayCells.length;
-        const row = (tag, cells) => `<span class="recap-tag">${tag}</span>` +
-          Array.from({ length: n }, (_, i) => cells[i] ? `<span class="v ${cells[i].kind}">${cells[i].val}</span>` : '<span></span>').join('');
-        return `<div class="recap-grid" style="--n:${n}">
-          ${l.last.length ? row('Last', l.last.map(val => ({ val, kind: 'last' }))) : ''}
-          ${row('Today', todayCells)}
-        </div>`;
-      };
+      const grid = setsGridHTML;
       el.innerHTML = `
         <div class="finish-head">
           <div class="eyebrow eyebrow-accent" style="margin-bottom:6px">Session complete</div>
@@ -4060,6 +4203,10 @@
       saveData(appData); closeSheet('exedit-overlay'); renderBestiary();
     }
 
+    // Rest timer state. Declared before boot: session recovery resumes a running rest timer,
+    // and touching these before their declaration throws (which used to wipe the backup).
+    let restInterval = null, isResting = false, restStartedAt = 0, restDuration = 0, restExName = 'REST', restKey = '', restSet = 0;
+
     /* ========== BOOT ========== */
     (function boot() {
       // Onboarding gate
@@ -4092,13 +4239,13 @@
       } catch (e) { clearSessionBackup(); }
     }
 
-    // Rest timer state placeholders
-    let restInterval = null, isResting = false, restStartedAt = 0, restDuration = 0, restExName = 'REST';
     function resumeRestTimer() {
       if (!currentSession || !currentSession.restStartedAt || !currentSession.restDuration) return;
       restStartedAt = currentSession.restStartedAt;
       restDuration = currentSession.restDuration;
       restExName = currentSession.restExName || 'REST';
+      restKey = currentSession.restKey || '';
+      restSet = currentSession.restSet || 0;
       const remaining = Math.max(0, restDuration - Math.floor((Date.now() - restStartedAt) / 1000));
       if (remaining <= 0) { clearRestState(); return; }
       isResting = true;
@@ -4115,7 +4262,7 @@
     }
     function clearRestState() {
       restStartedAt = 0; restDuration = 0; isResting = false;
-      if (currentSession) { delete currentSession.restStartedAt; delete currentSession.restDuration; delete currentSession.restExName; }
+      if (currentSession) { delete currentSession.restStartedAt; delete currentSession.restDuration; delete currentSession.restExName; delete currentSession.restKey; delete currentSession.restSet; }
     }
     function dismissRest() {
       clearInterval(restInterval); clearRestState();
@@ -4126,7 +4273,8 @@
       triggerHaptic('restTimerDone');
       sendRestNotification();
       try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        unlockAudio();
+        const ctx = audioCtx;
         for (let i = 0; i < 3; i++) {
           const osc = ctx.createOscillator(); const gain = ctx.createGain();
           osc.connect(gain); gain.connect(ctx.destination);

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'workout-v52-redesign';
+const CACHE_NAME = 'workout-v65-redesign';
 const ASSETS = [
   './',
   './index.html',
@@ -43,6 +43,17 @@ self.addEventListener('fetch', event => {
       if (event.request.mode === 'navigate') {
         return caches.match('./index.html');
       }
+    })
+  );
+});
+
+// Tapping the "Rest over" notification brings the app back to the front.
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      const open = list.find(c => 'focus' in c);
+      return open ? open.focus() : self.clients.openWindow('./');
     })
   );
 });
