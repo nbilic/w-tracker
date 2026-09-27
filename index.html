@@ -330,6 +330,8 @@
       margin: -4px 0 12px; }
     .ex-bump.earned { color: var(--accent); font-weight: 600; }
     .exs-section { margin-bottom: 18px; }
+    .exs-target { font-family: 'Geist Mono', monospace; font-size: 15px; font-weight: 600; color: var(--ink); }
+    .exs-target-sub { font-size: 11px; font-weight: 400; color: var(--ink-3); margin-top: 3px; }
     .exs-focus { font-size: 14px; color: var(--accent); font-weight: 500; line-height: 1.4; }
     .exs-recent { padding: 9px 0; border-bottom: 1px solid var(--line); }
     .exs-recent-head { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-2); }
@@ -355,7 +357,7 @@
     }
     .set-head-row .eyebrow { font-size: 9px; }
     .set-head-row .eyebrow.num-col { text-align: center; }
-    .set-head-row .eyebrow.reps-col { text-align: center; }
+    .set-head-row .eyebrow.reps-col { text-align: center; white-space: nowrap; }
 
     .set-row {
       display: grid; grid-template-columns: 20px 1fr 52px 32px; gap: 6px;
@@ -594,17 +596,26 @@
     .routine-exercise-peek { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
     .builder-row {
       background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
-      padding: 12px 14px; display: flex; align-items: center; gap: 10px;
+      padding: 12px 14px; display: flex; align-items: flex-start; gap: 10px;
       transition: transform .08s;
     }
     .builder-row.dragging { opacity: 0.9; box-shadow: var(--shadow); z-index: 30; }
     .builder-drag-handle { color: var(--ink-4); cursor: grab; touch-action: none; padding: 4px; }
     .builder-field-input {
-      width: 42px; background: var(--surface-2); border: 1px solid var(--line);
+      width: 36px; background: var(--surface-2); border: 1px solid var(--line);
       color: var(--ink); padding: 6px 4px; border-radius: 8px; text-align: center;
       font-family: 'Geist Mono', monospace; font-size: 13px; outline: none;
     }
-    .builder-field-input[type=text] { width: 56px; }
+    /* Scoped so it outranks the global input[type=number] rule (declared later), whose 12px padding clipped two-digit values */
+    .builder-row input.builder-field-input { -moz-appearance: textfield; appearance: textfield; padding: 6px 2px; border-radius: 8px;
+      font-family: 'Geist Mono', monospace; font-size: 13px; }
+    .builder-field-input::-webkit-outer-spin-button, .builder-field-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .builder-field-input::placeholder { color: var(--ink-4); font-size: 11px; }
+    .builder-row .builder-drag-handle { margin-top: 1px; }
+    .builder-name { font-size: 14px; font-weight: 500; line-height: 1.3; }
+    .builder-type { font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--ink-3); margin-top: 2px; }
+    .builder-fields { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
+    .builder-unit { font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.06em; color: var(--ink-4); }
     .builder-remove-btn { background: none; border: none; color: var(--ink-4); cursor: pointer; padding: 4px; }
     .dashed-btn {
       background: transparent; border: 1px dashed var(--line-2); color: var(--ink-3);
@@ -681,6 +692,14 @@
     .recap-grid .v { min-width: 30px; padding: 3px 7px; border-radius: 6px; text-align: center; }
     .recap-note { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line);
       font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-3); }
+    .recap-list.off .recap-res { color: var(--ink-4) !important; font-weight: 400 !important; }
+    .offday { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 6px 0 4px;
+      font-size: 12px; color: var(--ink-3); }
+    .offday button { background: none; border: none; padding: 4px 2px; font: inherit; color: var(--ink-3);
+      text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+    .offday.suggest button { color: var(--ink); }
+    .exs-dot.off { fill: var(--surface); stroke: var(--chart-line); stroke-width: 1.75; }
+    .exs-recent.off .exs-res { color: var(--ink-4); font-style: italic; }
     .recap-grid .v.last { color: var(--ink-2); opacity: 0.7; }
     .recap-grid .v.up, .recap-grid .v.new { color: var(--accent); background: var(--accent-soft); font-weight: 600; }
     .recap-grid .v.down { color: var(--ink-3); }
@@ -1094,6 +1113,40 @@
       }
       return equipment === 'barbell' ? 2.5 : 1;
     }
+    // Rep target: "10-15" is a range, "10" a range of one. Returns { lo, hi } or null.
+    function parseRepRange(v) {
+      const m = String(v ?? '').match(/(\d+)\s*(?:[-–—]|to)\s*(\d+)/);
+      if (m) { const a = +m[1], b = +m[2]; return { lo: Math.min(a, b), hi: Math.max(a, b) }; }
+      const n = parseInt(v);
+      return n > 0 ? { lo: n, hi: n } : null;
+    }
+    // Rep target for an exercise newly added to a routine: your library override if you set one,
+    // else a range sized to the usual weight jump (big relative jumps need wider ranges).
+    function defaultRepTarget(libEx) {
+      const ov = appData.exerciseOverrides && appData.exerciseOverrides[libEx.id];
+      if (ov && ov.defaultReps !== undefined) return String(ov.defaultReps);
+      if (parseRepRange(libEx.defaultReps)?.hi > parseRepRange(libEx.defaultReps)?.lo) return String(libEx.defaultReps);
+      if (libEx.equipment === 'bodyweight') return String(libEx.defaultReps);
+      return { barbell: '5-8', machine: '10-15' }[libEx.equipment] || '8-12';
+    }
+    // After a weight jump: if the last 2 normal sessions at this weight both fell below the bottom of
+    // the range (best set < lo), suggest stepping back. Off days don't count. Returns advice or ''.
+    function belowRangeAdvice(name, weight, range, po) {
+      if (!range || !weight || !(po > 0)) return '';
+      let streak = 0;
+      for (let i = appData.sessions.length - 1; i >= 0 && streak < 2; i--) {
+        const sess = appData.sessions[i];
+        if (sess.offDay) continue;
+        const e = sess.exercises.find(x => x.name === name);
+        const sets = e ? e.sets.filter(s => s.completed && !s.drop) : [];
+        if (!sets.length) continue;
+        if (Math.max(...sets.map(s => Number(s.weight) || 0)) !== Number(weight)) break;
+        if (Math.max(...sets.map(s => Number(s.reps) || 0)) >= range.lo) break;
+        streak++;
+      }
+      return streak >= 2 ? `Below range twice at ${weight} ${appData.settings.unit}. Consider ${+(weight - po).toFixed(2)} for another round.` : '';
+    }
+
     function getPOStep(equipment, exerciseId) {
       if (exerciseId && appData && appData.exerciseOverrides && appData.exerciseOverrides[exerciseId] && appData.exerciseOverrides[exerciseId].po !== undefined) {
         return appData.exerciseOverrides[exerciseId].po;
@@ -1428,10 +1481,15 @@
       if (!currentSession || !currentSession.startedAt) return 0;
       return Math.floor((Date.now() - currentSession.startedAt) / 1000);
     }
+    // Last time you did this exercise. Off days are skipped (they'd drag prefill and bumps down),
+    // unless there's nothing else to go on.
     function findLastSessionWithExercise(name) {
-      for (let i = appData.sessions.length - 1; i >= 0; i--) {
-        const ex = appData.sessions[i].exercises.find(e => e.name === name);
-        if (ex) return ex;
+      for (const skipOff of [true, false]) {
+        for (let i = appData.sessions.length - 1; i >= 0; i--) {
+          if (skipOff && appData.sessions[i].offDay) continue;
+          const ex = appData.sessions[i].exercises.find(e => e.name === name);
+          if (ex) return ex;
+        }
       }
       return null;
     }
@@ -1683,6 +1741,9 @@
           let lastWeight = (lastSets.find(s => s.weight !== '' && s.weight !== null) || {}).weight || '';
           const step = getWeightStep(t.equipment, t.exerciseId);
           const po = getPOStep(t.equipment, t.exerciseId);
+          // Double progression: the weight goes up only once every set reached the TOP of the rep range
+          // (a single-number target is a range of one), then reps restart at the bottom of the range.
+          const range = parseRepRange(t.reps);
           let autoAdvanced = false, prevWeight = lastWeight;
           if (lastEx && lastWeight !== '' && po > 0) {
             const completedSets = lastSets.filter(s => s.completed && s.weight !== '' && s.weight !== null);
@@ -1691,15 +1752,15 @@
               const weights = completedSets.map(s => Number(s.weight));
               const maxW = Math.max(...weights);
               const allSameTopWeight = weights.every(w => w === maxW);
-              const targetReps = parseInt(t.reps) || 0;
-              const allMetReps = targetReps === 0 || completedSets.every(s => Number(s.reps) >= targetReps);
+              const allMetReps = !range || completedSets.every(s => Number(s.reps) >= range.hi);
               if (allSameTopWeight && allMetReps) { lastWeight = +(maxW + po).toFixed(1); autoAdvanced = true; }
             }
           }
           const sets = [];
           for (let i = 0; i < t.sets; i++) {
-            const lastReps = lastSets[i] && lastSets[i].reps !== '' && lastSets[i].reps !== null ? lastSets[i].reps : t.reps;
-            sets.push({ weight: lastWeight, reps: lastReps, completed: false });
+            const lastReps = lastSets[i] && lastSets[i].reps !== '' && lastSets[i].reps !== null ? lastSets[i].reps : '';
+            const reps = autoAdvanced && range ? range.lo : (lastReps !== '' ? lastReps : (range ? range.lo : ''));
+            sets.push({ weight: lastWeight, reps, completed: false });
           }
           return { name: t.name, exerciseId: t.exerciseId, equipment: t.equipment, targetSets: t.sets,
             targetReps: t.reps, step, sets, autoAdvanced, prevWeight };
@@ -1854,7 +1915,7 @@
       });
       const prCount = lifts.filter(l => l.pr).length;
       const progress = compared ? `${up} of ${compared} up` : `${lifts.length} lift${lifts.length === 1 ? '' : 's'}`;
-      const detailHtml = recapListHTML(lifts);
+      const detailHtml = recapListHTML(lifts, session.offDay) + offDayControlHTML(session, lifts, compared);
 
       const notesHtml = session.notes ? `<div class="hist-notes">${escapeHtml(session.notes)}</div>` : '';
 
@@ -1864,7 +1925,7 @@
           <div style="flex:1;min-width:0">
             <div class="hist-title">${escapeHtml(rName)} · ${formatDate(session.date)}</div>
             <div class="hist-meta">
-              ${session.totalDuration ? formatTime(session.totalDuration) + ' · ' : ''}${progress.toUpperCase()}${prCount ? ` <span class="pr">· ★ ${prCount} PR</span>` : ''}
+              ${session.totalDuration ? formatTime(session.totalDuration) + ' · ' : ''}${session.offDay ? 'OFF DAY' : progress.toUpperCase()}${prCount ? ` <span class="pr">· ★ ${prCount} PR</span>` : ''}
             </div>
           </div>
           <button class="hist-delete" onclick="event.stopPropagation();deleteSession('${session.id}')" title="Delete">${svg('trash', 16)}</button>
@@ -1877,6 +1938,26 @@
     function toggleHistItem(id) {
       historyExpandedId = historyExpandedId === String(id) ? null : String(id);
       renderHistory();
+    }
+
+    // Off day: kept in History, but never used as "last time", can't earn a weight bump and doesn't
+    // count toward the below-range fallback.
+    function toggleOffDay(sessionId) {
+      const sess = appData.sessions.find(x => String(x.id) === String(sessionId));
+      if (!sess) return;
+      if (sess.offDay) delete sess.offDay; else sess.offDay = true;
+      saveData(appData);
+      triggerHaptic('light');
+      if (activeScreen === 'finish') renderFinish();
+      else if (activeScreen === 'history') renderHistory();
+    }
+    // Quiet control under a session's lifts. Suggests marking when half or more of the compared lifts dipped.
+    function offDayControlHTML(session, lifts, compared) {
+      const id = String(session.id).replace(/'/g, '');
+      if (session.offDay) return `<div class="offday"><span>Marked as off day</span><button onclick="toggleOffDay('${id}')">Undo</button></div>`;
+      const dipped = lifts.filter(l => l.status === 'down').length;
+      const tough = compared >= 2 && dipped * 2 >= compared;
+      return `<div class="offday${tough ? ' suggest' : ''}">${tough ? '<span>Tougher day?</span>' : ''}<button onclick="toggleOffDay('${id}')">Mark as off day</button></div>`;
     }
 
     async function deleteSession(sessionId) {
@@ -2014,18 +2095,18 @@
 
         if (isExpanded) {
           html += `<div class="ex-body">`;
-          // What earns next session's weight bump. The rule mirrors the auto-advance at workout start: every regular set at one
-          // weight, all ticked, all at or above the target reps.
-          const target = parseInt(ex.targetReps) || 0;
+          // What earns next session's weight bump. Mirrors the auto-advance at workout start: every regular
+          // set at one weight, all ticked, all at the TOP of the rep range. After a jump that's gone badly
+          // twice, the fallback advice takes its place.
+          const range = parseRepRange(ex.targetReps);
           const po = getPOStep(ex.equipment, ex.exerciseId);
           const regular = sets.filter(s => !s.drop);
           const w0 = regular.length ? Number(regular[0].weight) || 0 : 0;
-          let bump = '', earned = false;
-          if (target && po > 0 && w0 > 0 && regular.every(s => Number(s.weight) === w0)
-              && !regular.some(s => s.completed && Number(s.reps) < target)) {
+          let bump = belowRangeAdvice(ex.name, w0, range, po), earned = false;
+          if (!bump && range && po > 0 && w0 > 0 && regular.every(s => Number(s.weight) === w0)) {
             const next = +(w0 + po).toFixed(2);
-            earned = regular.every(s => s.completed);
-            bump = earned ? `✓ ${next} ${unit} next time` : `Hit ${target} on every set → ${next} ${unit} next time`;
+            earned = regular.every(s => s.completed && Number(s.reps) >= range.hi);
+            bump = earned ? `✓ ${next} ${unit} next time` : `Hit ${range.hi} on every set → ${next} ${unit} next time`;
           }
           if (bump) html += `<div class="ex-bump${earned ? ' earned' : ''}">${bump}</div>`;
           if (ex.equipment === 'barbell') {
@@ -2227,20 +2308,24 @@
       const unit = appData.settings.unit;
       const W = s => Number(s.weight) || 0, R = s => Number(s.reps) || 0;
       const label = s => W(s) ? `${W(s)}×${R(s)}` : `${R(s)} reps`;
+      const libEx = EXERCISE_LIBRARY.find(e => e.name === name);
+      const range = parseRepRange((curEx && curEx.targetReps) || (libEx && defaultRepTarget(libEx)));
       if (curEx && curEx.autoAdvanced && curEx.prevWeight !== '' && curEx.sets[0]) {
-        return `Weight's up: ${curEx.prevWeight} → ${curEx.sets[0].weight} ${unit}. Match last time's reps.`;
+        return `Weight's up: ${curEx.prevWeight} → ${curEx.sets[0].weight} ${unit}. ${range ? `Aim for ${range.lo}+ on each set.` : "Match last time's reps."}`;
       }
       if (!prevSets.length) return '';
-      const libEx = EXERCISE_LIBRARY.find(e => e.name === name);
-      const target = parseInt((curEx && curEx.targetReps) || (libEx && libEx.defaultReps)) || 0;
-      const w0 = W(prevSets[0]);
-      if (target && prevSets.every(s => W(s) === w0 && R(s) >= target)) {
-        const po = getPOStep(libEx ? libEx.equipment : (curEx && curEx.equipment), libEx ? libEx.id : (curEx && curEx.exerciseId));
-        return po > 0 && w0 ? `You hit ${target} on every set last time. Try ${+(w0 + po).toFixed(2)} ${unit}.` : 'Match last time, then add a rep anywhere.';
+      const po = getPOStep(libEx ? libEx.equipment : (curEx && curEx.equipment), libEx ? libEx.id : (curEx && curEx.exerciseId));
+      const top = Math.max(...prevSets.map(W));
+      const fallback = belowRangeAdvice(name, top, range, po);
+      if (fallback) return fallback;
+      if (range && prevSets.every(s => W(s) === top && R(s) >= range.hi)) {
+        return po > 0 && top ? `You hit ${range.hi} on every set last time. Try ${+(top + po).toFixed(2)} ${unit}.` : 'Match last time, then add a rep anywhere.';
       }
-      // The weakest set (below target if any fell short; latest on ties) is where the next rep comes from.
+      const best = Math.max(...prevSets.map(R));
+      if (range && best < range.lo) return `Below range last time (${best} at ${top} ${unit}). Build toward ${range.lo}.`;
+      // The weakest set short of the top of the range (latest on ties) is where the next rep comes from.
       const all = prevSets.map((s, i) => ({ s, i }));
-      const pool = target ? all.filter(({ s }) => R(s) < target) : all;
+      const pool = range ? all.filter(({ s }) => R(s) < range.hi) : all;
       const pick = (pool.length ? pool : all).reduce((a, c) => R(c.s) <= R(a.s) ? c : a);
       return `+1 rep on set ${pick.i + 1} · ${label(pick.s)} last time`;
     }
@@ -2255,7 +2340,7 @@
         const e = appData.sessions[i].exercises.find(x => x.name === name);
         const sets = e ? e.sets.filter(s => s.completed && !s.drop) : [];
         if (!sets.length) continue;
-        pts.unshift({ date: appData.sessions[i].date, w: Math.max(...sets.map(W)), reps: sets.map(R).join('·'),
+        pts.unshift({ date: appData.sessions[i].date, off: !!appData.sessions[i].offDay, w: Math.max(...sets.map(W)), reps: sets.map(R).join('·'),
           sets: sets.map(s => W(s) ? `${W(s)}×${R(s)}` : `${R(s)}`).join(' · ') });
       }
       if (pts.length < 2 || pts.every(p => !p.w)) return ''; // needs history and a weight to plot
@@ -2267,7 +2352,9 @@
       const lo = Math.min(...pts.map(p => p.w)), hi = Math.max(...pts.map(p => p.w));
       const y = w => hi === lo ? padT + plotH / 2 : padT + (hi - w) / (hi - lo) * plotH;
       // Step-after path: flat until the next session, then a vertical jump to its weight.
-      const path = pts.map((p, i) => i === 0 ? `M${x(0)},${y(p.w)}` : `H${x(i)}V${y(p.w)}`).join('');
+      let line = pts.map((p, i) => i).filter(i => !pts[i].off);
+      if (!line.length) line = pts.map((p, i) => i);
+      const path = line.map((i, k) => k === 0 ? `M${x(i)},${y(pts[i].w)}` : `H${x(i)}V${y(pts[i].w)}`).join('');
       const ticks = [...new Set([hi, lo])];
       const last = pts.length - 1;
       return `<div class="exs-section">
@@ -2276,7 +2363,7 @@
           ${ticks.map(t => `<line x1="${padL}" x2="${vw - padR}" y1="${y(t)}" y2="${y(t)}" class="exs-grid"/>
             <text x="${padL - 6}" y="${y(t) + 3}" text-anchor="end" class="exs-axis">${t}</text>`).join('')}
           <path d="${path}" class="exs-line"/>
-          ${pts.map((p, i) => `<circle cx="${x(i)}" cy="${y(p.w)}" r="${i === last ? 5 : 4}" class="exs-dot${i === last ? ' on' : ''}" data-i="${i}"/>
+          ${pts.map((p, i) => `<circle cx="${x(i)}" cy="${y(p.w)}" r="${i === last ? 5 : 4}" class="exs-dot${i === last ? ' on' : ''}${p.off ? ' off' : ''}" data-i="${i}"/>
             <text x="${x(i)}" y="${vh - 6}" text-anchor="middle" class="exs-reps">${p.reps}</text>
             <rect x="${x(i) - colW / 2}" y="0" width="${colW}" height="${vh}" fill="transparent" style="cursor:pointer"
               onclick="selectExsChart(this.closest('.exs-section'), ${i})"/>`).join('')}
@@ -2312,6 +2399,16 @@
       const label = s => Number(s.weight) ? `${s.weight}×${s.reps}` : String(s.reps);
       const gridLift = lift || { last: prevSets.map(label), tiles: [], drops: [] };
       const focus = exerciseFocus(name, prevSets, curEx);
+      // Target from the routine: sets × rep range, and what earns the next weight.
+      let target = '';
+      const tRange = curEx && parseRepRange(curEx.targetReps);
+      if (tRange) {
+        const nSets = curEx.sets.filter(s => !s.drop).length;
+        const w0 = Number((curEx.sets[0] || {}).weight) || 0;
+        const po = getPOStep(curEx.equipment, curEx.exerciseId);
+        target = `${nSets} × ${tRange.hi > tRange.lo ? tRange.lo + '–' + tRange.hi : tRange.lo}`
+          + (po > 0 && w0 ? `<div class="exs-target-sub">${tRange.hi} on every set → ${+(w0 + po).toFixed(2)} ${unit}</div>` : '');
+      }
       const fromOther = found && found.sess.routineName && found.sess.routineId !== (currentSession && currentSession.routineId)
         && currentSession;
 
@@ -2324,7 +2421,7 @@
         const e = sess.exercises.find(x => x.name === name);
         const fmt = s => Number(s.weight) ? `${s.weight}×${s.reps}` : `${s.reps}`;
         const sets = e.sets.filter(s => s.completed).map(s => s.drop ? `<span class="exs-drop">↓${fmt(s)}</span>` : fmt(s)).join(' · ');
-        if (l) recent.push({ date: sess.date, l, sets });
+        if (l) recent.push({ date: sess.date, l, sets, off: !!sess.offDay });
       }
 
       const stats = [pr ? `PR ${pr.maxWeight}×${pr.reps || 0}` : '', est1rm ? `est. 1RM ${est1rm} ${unit}` : ''].filter(Boolean).join(' · ');
@@ -2341,6 +2438,7 @@
         </div>
         <textarea class="exhist-note" rows="2" placeholder="Note · seat, pins, grip, cues…"
           data-key="${escapeHtml(noteKey)}" oninput="saveExerciseNote(this.dataset.key, this.value)">${escapeHtml(note)}</textarea>
+        ${target ? `<div class="exs-section"><div class="eyebrow" style="margin-bottom:6px">Target</div><div class="exs-target">${target}</div></div>` : ''}
         ${!hasHistory ? `<div class="empty-state" style="padding:20px">First time. No history yet.</div>` : `
           ${focus ? `<div class="exs-section">
             <div class="eyebrow" style="margin-bottom:6px">Focus today</div>
@@ -2353,10 +2451,10 @@
           ${exerciseChartHTML(name)}
           ${recent.length ? `<div class="exs-section">
             <div class="eyebrow" style="margin-bottom:4px">Recent</div>
-            ${recent.map(({ date, l, sets }) => `<div class="exs-recent ${l.status}">
+            ${recent.map(({ date, l, sets, off }) => `<div class="exs-recent ${off ? 'off' : l.status}">
               <div class="exs-recent-head">
                 <span>${formatDate(date)}</span>
-                <span class="exs-res">${l.pr ? '<span class="recap-star">★</span>' : ''}${l.summary}</span>
+                <span class="exs-res">${l.pr ? '<span class="recap-star">★</span>' : ''}${off ? 'off day' : l.summary}</span>
               </div>
               <div class="exs-recent-sets">${sets}</div>
             </div>`).join('')}
@@ -2642,7 +2740,7 @@
         sets.push({ weight: lastWeight, reps: lastReps, completed: false });
       }
       const newEx = { name: libEx.name, exerciseId: libEx.id, equipment: libEx.equipment,
-        targetSets: libEx.defaultSets, targetReps: libEx.defaultReps, step, sets };
+        targetSets: libEx.defaultSets, targetReps: defaultRepTarget(libEx), step, sets };
       if (swapMode === 'add') { currentSession.exercises.push(newEx); }
       else { currentSession.exercises[swapExerciseIndex] = newEx; }
       expandedExerciseId = exKey(newEx, swapMode === 'add' ? currentSession.exercises.length - 1 : swapExerciseIndex);
@@ -2742,10 +2840,12 @@
     /* ========== FINISH SCREEN ========== */
     // Completed sets from the last time this exercise was done before sessions[before]:
     // same routine first (same position, same fatigue), then any routine. Returns { sets, sess } or null.
+    // Off days are skipped as a baseline, so a weak day doesn't make the next one look like a big gain.
     function findPreviousSets(session, name, before = appData.sessions.length) {
-      const lastWith = sameRoutine => {
+      const lastWith = (sameRoutine, skipOff = true) => {
         for (let i = before - 1; i >= 0; i--) {
           const sess = appData.sessions[i];
+          if (skipOff && sess.offDay) continue;
           if (sameRoutine && sess.routineId !== session.routineId) continue;
           const e = sess.exercises.find(e => e.name === name);
           // Drop sets are extras, never part of the comparison.
@@ -2754,7 +2854,7 @@
         }
         return null;
       };
-      return (session.routineId && lastWith(true)) || lastWith(false);
+      return (session.routineId && lastWith(true)) || lastWith(false) || lastWith(false, false);
     }
 
     // Compare each exercise against the last time it was done — same routine first, since
@@ -2877,9 +2977,9 @@
     }
 
     // One row per lift: result on the right, tap to open last vs today. Used by the recap and History.
-    function recapListHTML(lifts) {
+    function recapListHTML(lifts, offDay = false) {
       if (!lifts.length) return '';
-      return `<div class="recap-list">
+      return `<div class="recap-list${offDay ? ' off' : ''}">
         ${lifts.map(l => `<div class="recap-row ${l.status}" onclick="toggleRecapRow(this)">
           <div class="recap-head">
             <div class="recap-name">${escapeHtml(l.name)}</div>
@@ -2902,17 +3002,19 @@
           <button class="btn btn-primary btn-block" onclick="showScreen('home')">Go home</button>`;
         return;
       }
-      const { lifts, up } = compareToLastTime(s);
+      const { lifts, up, compared } = compareToLastTime(s);
       const stronger = up > 0 || lifts.some(l => l.pr);
+      const title = s.offDay ? 'Showed <em>up.</em>' : stronger ? 'Stronger than <em>last time.</em>' : 'Clean work.';
       el.innerHTML = `
         <div class="finish-head">
           <div class="eyebrow eyebrow-accent" style="margin-bottom:6px">Session complete</div>
-          <div class="finish-title">${stronger ? 'Stronger than <em>last time.</em>' : 'Clean work.'}</div>
+          <div class="finish-title">${title}</div>
           <div class="mono" style="font-size:11px;color:var(--ink-3);letter-spacing:0.1em">
             ${escapeHtml(s.routineName || 'WORKOUT').toUpperCase()} · ${formatTime(s.totalDuration || 0)}
           </div>
         </div>
-        ${recapListHTML(lifts)}
+        ${recapListHTML(lifts, s.offDay)}
+        ${s.id !== undefined ? offDayControlHTML(s, lifts, compared) : ''}
         <button class="btn btn-primary btn-block" style="padding:16px;font-size:15px" onclick="finishedSessionMemo=null;showScreen('home')">${svg('check', 16, 2.5)} Save & go home</button>`;
     }
 
@@ -2948,7 +3050,7 @@
             if (w > 0 && r > 0) { const e = w * (1 + r / 30); if (e > best1RM) best1RM = e; }
           }
         });
-        if (maxW > 0) data.push({ date: s.date, weight: maxW, volume: totalVolume, est1rm: Math.round(best1RM), sets: completed });
+        if (maxW > 0) data.push({ date: s.date, weight: maxW, volume: totalVolume, est1rm: Math.round(best1RM), sets: completed, offDay: !!s.offDay });
       });
       return data;
     }
@@ -2989,8 +3091,11 @@
       const t0 = ts[0], t1 = ts[ts.length - 1];
       const xfn = i => padL + (t1 > t0 ? (ts[i] - t0) / (t1 - t0) : 0.5) * (w - padL - padR);
       const yfn = v => padT + (h - padT - padB) * (1 - (v - yMin) / span);
-      const path = vals.map((v, i) => `${i === 0 ? 'M' : 'L'} ${xfn(i).toFixed(1)} ${yfn(v).toFixed(1)}`).join(' ');
-      const area = path + ` L ${xfn(vals.length - 1).toFixed(1)} ${(h - padB).toFixed(1)} L ${xfn(0).toFixed(1)} ${(h - padB).toFixed(1)} Z`;
+      // The line runs through normal sessions only; off days sit on it as hollow dots.
+      let onLine = vals.map((v, i) => i).filter(i => !filtered[i].offDay);
+      if (!onLine.length) onLine = vals.map((v, i) => i);
+      const path = onLine.map((i, k) => `${k === 0 ? 'M' : 'L'} ${xfn(i).toFixed(1)} ${yfn(vals[i]).toFixed(1)}`).join(' ');
+      const area = path + ` L ${xfn(onLine[onLine.length - 1]).toFixed(1)} ${(h - padB).toFixed(1)} L ${xfn(onLine[0]).toFixed(1)} ${(h - padB).toFixed(1)} Z`;
 
       // Y-axis ticks (3 rows: top, middle, bottom)
       const yTicks = [1, 0.5, 0].map(t => {
@@ -3012,6 +3117,7 @@
       // Dots on every point
       const dots = vals.map((v, i) => {
         if (i === vals.length - 1) return '';
+        if (filtered[i].offDay) return `<circle cx="${xfn(i).toFixed(1)}" cy="${yfn(v).toFixed(1)}" r="3" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.25"/>`;
         return `<circle cx="${xfn(i).toFixed(1)}" cy="${yfn(v).toFixed(1)}" r="2.5" fill="var(--accent)" opacity="0.7"/>`;
       }).join('');
 
@@ -3626,16 +3732,23 @@
             <div class="builder-row" data-bi="${i}">
               <div class="builder-drag-handle" data-bi="${i}">${svg('drag', 16)}</div>
               <div style="flex:1;min-width:0">
-                <div style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(ex.name)}</div>
-                <div class="mono" style="font-size:10px;color:var(--ink-3);margin-top:2px">${(ex.equipment||'').toUpperCase()}</div>
-              </div>
-              <div style="display:flex;align-items:center;gap:6px">
-                <input class="builder-field-input" type="number" min="1" max="10" value="${ex.sets}" oninput="updateBuilderEx(${i},'sets',this.value)" inputmode="numeric"/>
-                <span class="mono" style="font-size:11px;color:var(--ink-4)">×</span>
-                <input class="builder-field-input" type="text" value="${escapeHtml(ex.reps)}" oninput="updateBuilderEx(${i},'reps',this.value)"/>
+                <div class="builder-name">${escapeHtml(ex.name)}</div>
+                <div class="builder-type">${(ex.equipment||'').toUpperCase()}</div>
+                <div class="builder-fields">
+                  <input class="builder-field-input" type="number" min="1" max="10" aria-label="Sets" value="${ex.sets}" oninput="updateBuilderEx(${i},'sets',this.value)" inputmode="numeric"/>
+                  <span class="builder-unit">sets ×</span>
+                  ${(() => { const r = parseRepRange(ex.reps) || { lo: '', hi: '' }; return `
+                  <input class="builder-field-input" type="number" min="1" placeholder="min" aria-label="Min reps" value="${r.lo}"
+                    oninput="updateBuilderEx(${i},'repsLo',this.value)" onchange="renderBuilder()" inputmode="numeric"/>
+                  <span class="builder-unit">–</span>
+                  <input class="builder-field-input" type="number" min="1" placeholder="max" aria-label="Max reps" value="${r.hi}"
+                    oninput="updateBuilderEx(${i},'repsHi',this.value)" onchange="renderBuilder()" inputmode="numeric"/>`; })()}
+                  <span class="builder-unit">reps</span>
+                </div>
               </div>
               <button class="builder-remove-btn" onclick="removeBuilderEx(${i})">${svg('x', 14)}</button>
             </div>`).join('')}
+
         </div>
         <button class="dashed-btn" onclick="openBuilderAdd()">${svg('plus', 14)} Add exercise</button>`;
       initBuilderDragHandles();
@@ -3645,8 +3758,15 @@
       if (!builderExercises[i]) return;
       if (field === 'sets') {
         const n = parseInt(value); if (n >= 1 && n <= 10) builderExercises[i].sets = n;
-      } else if (field === 'reps') {
-        builderExercises[i].reps = (value || '').trim() || '8';
+      } else if (field === 'repsLo' || field === 'repsHi') {
+        // Two inputs, one stored target: "10-15", or "10" when min and max match (or max is left empty).
+        const cur = parseRepRange(builderExercises[i].reps) || { lo: 8, hi: 8 };
+        const n = parseInt(value);
+        if (!(n > 0)) return;
+        let lo = field === 'repsLo' ? n : cur.lo, hi = field === 'repsHi' ? n : cur.hi;
+        if (field === 'repsLo' && cur.lo === cur.hi) hi = Math.max(hi, n); // single target: keep max ≥ min
+        if (hi < lo) hi = lo;
+        builderExercises[i].reps = hi > lo ? `${lo}-${hi}` : `${lo}`;
       }
     }
     function removeBuilderEx(i) { builderExercises.splice(i, 1); renderBuilder(); triggerHaptic('light'); }
@@ -3737,7 +3857,7 @@
       if (!libEx) return;
       builderExercises.push({
         exerciseId: libEx.id, name: libEx.name, equipment: libEx.equipment,
-        sets: libEx.defaultSets, reps: String(libEx.defaultReps)
+        sets: libEx.defaultSets, reps: defaultRepTarget(libEx)
       });
       closeSheet('swap-overlay');
       renderBuilder();
