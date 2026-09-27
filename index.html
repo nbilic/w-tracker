@@ -233,21 +233,9 @@
     .cal-day.today { color: var(--accent); font-weight: 700;
       background: var(--accent-soft); border-color: var(--accent-line); }
     .cal-day.future { color: var(--ink-4); }
-    .cal-day.creatine { color: var(--good); }
-    .cal-day.today.creatine { color: var(--accent); }
     .cal-day .cal-dots { position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);
       display: flex; gap: 2px; pointer-events: none; }
     .cal-day .cal-dots .badge-dot { width: 4px; height: 4px; }
-
-    /* Creatine card */
-    .creatine-check {
-      width: 36px; height: 36px; border-radius: 12px;
-      border: 1.5px solid var(--line-2); background: transparent;
-      color: var(--ink-3); cursor: pointer;
-      display: inline-flex; align-items: center; justify-content: center;
-      transition: all .15s; flex-shrink: 0;
-    }
-    .creatine-check.on { border-color: var(--good); background: var(--good); color: var(--bg); }
 
     /* PR rows (home) */
     .pr-row {
@@ -666,23 +654,40 @@
     /* ===== FINISH ===== */
     #screen-finish .screen { min-height: 80vh; justify-content: center; }
     .finish-head {
-      text-align: center; padding: 20px 0;
+      text-align: center; padding: 8px 0;
     }
     .finish-title {
-      font-family: 'Fraunces', serif; font-size: 44px; font-weight: 600;
-      letter-spacing: -0.02em; line-height: 1.02; margin: 10px 0;
+      font-family: 'Fraunces', serif; font-size: 26px; font-weight: 600;
+      letter-spacing: -0.015em; line-height: 1.1; margin: 4px 0 6px;
     }
     .finish-title em { font-style: italic; color: var(--accent); }
-    .finish-stat-row {
-      display: flex; align-items: baseline; padding: 16px 20px;
-      border-bottom: 1px solid var(--line);
-    }
-    .finish-stat-row:last-child { border-bottom: none; }
-    .finish-stat-label { flex: 1; font-size: 13px; color: var(--ink-2); }
-    .finish-stat-val { font-family: 'Geist Mono', monospace; font-size: 22px; font-weight: 700;
-      letter-spacing: -0.02em; margin-right: 6px; }
-    .finish-stat-unit { font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--ink-4);
-      letter-spacing: 0.08em; min-width: 32px; text-align: right; }
+    .recap-list { margin: 8px 0; }
+    .recap-row { border-bottom: 1px solid var(--line); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .recap-row:last-child { border-bottom: none; }
+    .recap-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 15px 4px; }
+    .recap-name { font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .recap-res { display: flex; align-items: center; font-family: 'Geist Mono', monospace; font-size: 12px;
+      color: var(--ink-4); white-space: nowrap; }
+    .recap-row.up .recap-res { color: var(--accent); font-weight: 600; }
+    .recap-row.down .recap-res { color: var(--ink-3); }
+    .recap-star { color: var(--gold); margin-right: 7px; }
+    .recap-chev { display: inline-flex; margin-left: 8px; color: var(--ink-4); opacity: 0.6; transition: transform .2s ease; }
+    .recap-row.open .recap-chev { transform: rotate(90deg); opacity: 1; }
+    .recap-detail { display: none; margin: -4px 0 14px; padding: 12px 14px 13px; border-radius: 12px;
+      background: var(--surface-2); border: 1px solid var(--line); }
+    .recap-row.open .recap-detail { display: block; animation: fade-up .22s ease-out both; }
+    .recap-meta { font-family: 'Geist Mono', monospace; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--ink-3); margin-bottom: 10px; }
+    .recap-grid { display: grid; grid-template-columns: 42px repeat(var(--n), auto); justify-content: start;
+      align-items: center; gap: 6px 4px; font-family: 'Geist Mono', monospace; font-size: 13px; }
+    .recap-tag { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
+    .recap-grid .v { min-width: 30px; padding: 3px 7px; border-radius: 6px; text-align: center; }
+    .recap-note { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line);
+      font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-3); }
+    .recap-grid .v.last { color: var(--ink-2); opacity: 0.7; }
+    .recap-grid .v.up, .recap-grid .v.new { color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+    .recap-grid .v.down { color: var(--ink-3); }
+    .recap-grid .v.pr { color: var(--gold); background: color-mix(in srgb, var(--gold) 18%, transparent); font-weight: 600; }
 
     /* ===== UTIL ===== */
     .empty-state { text-align: center; padding: 48px 16px; color: var(--ink-3); font-size: 13px; }
@@ -1526,7 +1531,6 @@
         let cls = 'cal-day';
         if (isToday) cls += ' today';
         if (isFuture) cls += ' future';
-        if (appData.creatineLog[dateStr]) cls += ' creatine';
         let dotsHtml = '';
         if (dayMap[day] && !isToday) {
           dotsHtml = '<div class="cal-dots">';
@@ -1583,13 +1587,6 @@
           </div>` : ''}
         </div>` : '';
 
-      // Creatine
-      const today = todayISO();
-      const creatineOn = !!appData.creatineLog[today];
-      const monthPrefix = today.slice(0, 7);
-      const monthCount = Object.keys(appData.creatineLog).filter(d => d.startsWith(monthPrefix)).length;
-      const creatineMeta = creatineOn ? `TAKEN TODAY · ${monthCount} THIS MONTH` : 'NOT YET TODAY';
-
       // Recent PRs (top 3 most recent)
       const prs = Object.entries(appData.personalRecords).map(([name, pr]) => ({ name, ...pr }))
         .sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 3);
@@ -1638,14 +1635,6 @@
         <div class="card">
           <div id="home-cal"></div>
         </div>
-        <div class="card card-tight" style="display:flex;align-items:center;gap:14px">
-          <button class="creatine-check${creatineOn?' on':''}" onclick="toggleCreatine()">${creatineOn ? svg('check', 18, 2.5) : ''}</button>
-          <div style="flex:1">
-            <div style="font-size:14px;font-weight:500">Creatine · 5g</div>
-            <div class="mono" style="font-size:11px;color:var(--ink-3);margin-top:2px">${creatineMeta}</div>
-          </div>
-          <span class="mono" style="font-size:11px;color:${creatineOn?'var(--good)':'var(--ink-4)'}">${creatineOn ? '✓' : '—'}</span>
-        </div>
         ${prsHtml}
         ${lastHtml}
       `;
@@ -1660,19 +1649,6 @@
           t.textContent = formatTime(getElapsedSeconds());
         }, 1000);
       }
-    }
-
-    async function toggleCreatine() {
-      const today = todayISO();
-      if (appData.creatineLog[today]) {
-        if (!await customConfirm('Undo creatine for today?')) return;
-        delete appData.creatineLog[today];
-      } else {
-        appData.creatineLog[today] = true;
-      }
-      saveData(appData);
-      triggerHaptic('light');
-      renderHome();
     }
 
     async function startWorkoutById(routineId) {
@@ -2815,6 +2791,116 @@
     }
 
     /* ========== FINISH SCREEN ========== */
+    // Compare each exercise against the last time it was done — same routine first, since
+    // position in the workout changes how fresh you are — falling back to any routine.
+    // Returns { lifts, up, compared }. Each lift:
+    //   { name, meta, status: 'up'|'steady'|'down'|'first', summary, pr, tiles: [{ val, delta, kind }] }
+    // Tile kinds: up, same, down, new (extra set today), missed (done last time, not today), pr.
+    function compareToLastTime(session) {
+      const idx = appData.sessions.indexOf(session);
+      const before = idx === -1 ? appData.sessions.length : idx;
+      const W = s => Number(s.weight) || 0, R = s => Number(s.reps) || 0;
+      const unit = appData.settings.unit;
+      const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+      const signed = (d, suffix = '') => `${d > 0 ? '+' : '−'}${+Math.abs(d).toFixed(2)}${suffix}`;
+      const lifts = [];
+      session.exercises.forEach(ex => {
+        const cur = ex.sets.filter(s => s.completed);
+        if (!cur.length) return;
+        const pr = cur.some(s => s.isPR);
+        const lastWith = sameRoutine => {
+          for (let i = before - 1; i >= 0; i--) {
+            const sess = appData.sessions[i];
+            if (sameRoutine && sess.routineId !== session.routineId) continue;
+            const e = sess.exercises.find(e => e.name === ex.name);
+            if (e && e.sets.some(s => s.completed)) return { sets: e.sets.filter(s => s.completed), sess };
+          }
+          return null;
+        };
+        const found = (session.routineId && lastWith(true)) || lastWith(false);
+        const prev = found ? found.sets : [];
+        // Always weight×reps; bodyweight sets show reps only.
+        const label = s => W(s) ? `${W(s)}×${R(s)}` : String(R(s));
+        const from = found && !(found.sess.routineId && found.sess.routineId === session.routineId)
+          ? `vs ${found.sess.routineName || 'other workout'}` : '';
+        const meta = from;
+
+        if (!found) {
+          lifts.push({ name: ex.name, meta, status: 'first', summary: 'new', pr, last: [],
+            tiles: cur.map(s => ({ val: label(s), delta: '', kind: s.isPR ? 'pr' : 'same' })) });
+          return;
+        }
+
+        const tiles = [];
+        for (let i = 0; i < Math.max(cur.length, prev.length); i++) {
+          const c = cur[i], p = prev[i];
+          if (!c) { tiles.push({ val: label(p), delta: '—', kind: 'missed' }); continue; }
+          let kind = 'new', delta = 'new';
+          if (p && W(c) === W(p)) {
+            const d = R(c) - R(p);
+            kind = d > 0 ? 'up' : d < 0 ? 'down' : 'same';
+            delta = d ? signed(d) : '';
+          } else if (p) {
+            const d = W(c) - W(p);
+            kind = d > 0 ? 'up' : 'down';
+            delta = signed(d, unit);
+          }
+          tiles.push({ val: label(c), delta, kind: c.isPR ? 'pr' : kind });
+        }
+
+        const n = Math.min(cur.length, prev.length);
+        const extra = cur.length - prev.length;
+        let status, summary, note = '';
+        if (cur.slice(0, n).every((s, i) => W(s) === W(prev[i]))) {
+          // Same weights set-for-set: reps decide. Any slipped or skipped set means it didn't move forward.
+          let down = extra < 0, up = false, net = 0;
+          for (let i = 0; i < n; i++) {
+            const d = R(cur[i]) - R(prev[i]);
+            if (d > 0) up = true; if (d < 0) down = true; net += d;
+          }
+          if (!down && up) { status = 'up'; summary = `+${plural(net, 'rep')}`; }
+          else if (!down && extra > 0) { status = 'up'; summary = `+${plural(extra, 'set')}`; }
+          else if (!down && extra === 0) { status = 'steady'; summary = 'held'; }
+          else {
+            status = 'down';
+            summary = net < 0 ? `−${plural(-net, 'rep')}` : extra < 0 ? `−${plural(-extra, 'set')}` : 'mixed';
+          }
+        } else {
+          // Weights changed: heavier top set wins, otherwise total work at the same top weight.
+          const topW = sets => Math.max(...sets.map(W));
+          const vol = sets => sets.reduce((a, s) => a + W(s) * R(s), 0);
+          // Show the top weight as from → to (unambiguous vs a bare "+2.5 kg"), volume as a percentage.
+          const tc = topW(cur), tp = topW(prev), vp = vol(prev), dv = vol(cur) - vp;
+          const pct = vp ? Math.max(1, Math.round(Math.abs(dv) / vp * 100)) : 0;
+          const topChange = `${tp} → ${tc} ${unit}`;
+          if (tc > tp) { status = 'up'; summary = topChange; }
+          else if (tc === tp && dv > 0) { status = 'up'; summary = `+${pct}% volume`; }
+          else if (tc < tp) { status = 'down'; summary = topChange; }
+          else { status = 'down'; summary = dv < 0 ? `−${pct}% volume` : 'mixed'; }
+          // Top weight and total work moved in opposite directions: state the trade-off, don't judge it.
+          if (pct >= 10 && tc !== tp && (tc > tp) !== (dv > 0)) {
+            note = `Top set ${tc > tp ? 'up' : 'down'} · total volume ${dv > 0 ? '+' : '−'}${pct}%`;
+          }
+        }
+        lifts.push({ name: ex.name, meta, status, summary, note, pr, tiles, last: prev.map(label) });
+      });
+      // Forward (and PRs) first, then held, then dipped, then new lifts.
+      const rank = l => l.status === 'up' || l.pr ? 0 : { steady: 1, down: 2, first: 3 }[l.status];
+      lifts.sort((a, b) => rank(a) - rank(b));
+      return {
+        lifts,
+        up: lifts.filter(l => l.status === 'up').length,
+        compared: lifts.filter(l => l.status !== 'first').length,
+      };
+    }
+
+    // Recap rows expand one at a time. Toggled in the DOM (no re-render) so the sample preview keeps its data.
+    function toggleRecapRow(row) {
+      const open = row.classList.contains('open');
+      row.parentElement.querySelectorAll('.recap-row.open').forEach(r => r.classList.remove('open'));
+      if (!open) row.classList.add('open');
+    }
+
     function renderFinish() {
       const s = finishedSessionMemo;
       const el = document.getElementById('finish-screen');
@@ -2823,49 +2909,41 @@
           <button class="btn btn-primary btn-block" onclick="showScreen('home')">Go home</button>`;
         return;
       }
-      const unit = appData.settings.unit;
-      const volume = calcSessionVolume(s);
-      const setCount = s.exercises.reduce((a,e) => a + e.sets.filter(x => x.completed).length, 0);
-      // Top set
-      let topSet = null, topSetEx = '';
-      s.exercises.forEach(ex => ex.sets.forEach(set => {
-        if (set.completed && (!topSet || Number(set.weight) > Number(topSet.weight))) { topSet = set; topSetEx = ex.name; }
-      }));
-      // PRs in this session
-      const prCount = s.exercises.reduce((n, ex) => n + ex.sets.filter(x => x.isPR).length, 0);
-      // Avg rest approx — skip (no per-rest tracking kept)
+      const { lifts, up } = compareToLastTime(s);
+      const stronger = up > 0 || lifts.some(l => l.pr);
+      // Last/today as a grid so set N lines up under set N; short rows are padded with empty cells.
+      const grid = l => {
+        const today = l.tiles.filter(t => t.kind !== 'missed');
+        const n = Math.max(l.last.length, today.length);
+        const row = (tag, cells) => `<span class="recap-tag">${tag}</span>` +
+          Array.from({ length: n }, (_, i) => cells[i] ? `<span class="v ${cells[i].kind}">${cells[i].val}</span>` : '<span></span>').join('');
+        return `<div class="recap-grid" style="--n:${n}">
+          ${l.last.length ? row('Last', l.last.map(val => ({ val, kind: 'last' }))) : ''}
+          ${row('Today', today)}
+        </div>`;
+      };
       el.innerHTML = `
         <div class="finish-head">
-          <div class="eyebrow eyebrow-accent" style="margin-bottom:14px">Session complete</div>
-          <div class="finish-title">Clean work.</div>
+          <div class="eyebrow eyebrow-accent" style="margin-bottom:6px">Session complete</div>
+          <div class="finish-title">${stronger ? 'Stronger than <em>last time.</em>' : 'Clean work.'}</div>
           <div class="mono" style="font-size:11px;color:var(--ink-3);letter-spacing:0.1em">
-            ${escapeHtml(s.routineName || 'WORKOUT').toUpperCase()} · ${formatTime(s.totalDuration || 0)} · ${setCount} SETS
+            ${escapeHtml(s.routineName || 'WORKOUT').toUpperCase()} · ${formatTime(s.totalDuration || 0)}
           </div>
         </div>
-        <div class="card" style="padding:0;overflow:hidden">
-          <div class="finish-stat-row">
-            <div class="finish-stat-label">Volume</div>
-            <div class="finish-stat-val">${formatVolume(volume)}</div>
-            <div class="finish-stat-unit">${unit.toUpperCase()}</div>
-          </div>
-          ${topSet ? `<div class="finish-stat-row">
-            <div class="finish-stat-label">Top set</div>
-            <div class="finish-stat-val">${topSet.weight}</div>
-            <div class="finish-stat-unit">${unit.toUpperCase()} · ${topSet.reps}r</div>
-          </div>` : ''}
-          <div class="finish-stat-row">
-            <div class="finish-stat-label">PRs</div>
-            <div class="finish-stat-val">${prCount}</div>
-            <div class="finish-stat-unit">${prCount ? 'NEW' : '—'}</div>
-          </div>
-          <div class="finish-stat-row">
-            <div class="finish-stat-label">Sets</div>
-            <div class="finish-stat-val">${setCount}</div>
-            <div class="finish-stat-unit">DONE</div>
-          </div>
-        </div>
-        <button class="btn btn-primary btn-block" style="padding:16px;font-size:15px" onclick="finishedSessionMemo=null;showScreen('home')">${svg('check', 16, 2.5)} Save & go home</button>
-        <button class="btn btn-ghost btn-block" style="font-size:13px;color:var(--ink-3)" onclick="finishedSessionMemo=null;showScreen('history')">View in history</button>`;
+        ${lifts.length ? `<div class="recap-list">
+          ${lifts.map(l => `<div class="recap-row ${l.status}" onclick="toggleRecapRow(this)">
+            <div class="recap-head">
+              <div class="recap-name">${escapeHtml(l.name)}</div>
+              <div class="recap-res">${l.pr ? '<span class="recap-star">★</span>' : ''}${l.summary}<span class="recap-chev">${svg('chevRight', 12, 2)}</span></div>
+            </div>
+            <div class="recap-detail">
+              ${l.meta ? `<div class="recap-meta">${escapeHtml(l.meta)}</div>` : ''}
+              ${grid(l)}
+              ${l.note ? `<div class="recap-note">${l.note}</div>` : ''}
+            </div>
+          </div>`).join('')}
+        </div>` : ''}
+        <button class="btn btn-primary btn-block" style="padding:16px;font-size:15px" onclick="finishedSessionMemo=null;showScreen('home')">${svg('check', 16, 2.5)} Save & go home</button>`;
     }
 
     /* ========== PROGRESS ========== */
