@@ -1,0 +1,16 @@
+{
+  "appId": "dev.nbilic.workout",
+  "appName": "Workout Tracker",
+  "webDir": "www",
+  "backgroundColor": "#0e0d0c",
+  "android": {
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "native",
+      "initialViewportFitValueHint": "auto",
+      "style": "DARK"
+    }
+  }
+}

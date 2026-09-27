@@ -1,10 +1,19 @@
-const CACHE_NAME = 'workout-v75-redesign';
+const CACHE_NAME = 'workout-v76-local-fonts';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  './fonts/fonts.css',
+  './fonts/Fraunces-italic-latin-ext.woff2',
+  './fonts/Fraunces-italic-latin.woff2',
+  './fonts/Fraunces-normal-latin-ext.woff2',
+  './fonts/Fraunces-normal-latin.woff2',
+  './fonts/Geist-normal-latin-ext.woff2',
+  './fonts/Geist-normal-latin.woff2',
+  './fonts/GeistMono-normal-latin-ext.woff2',
+  './fonts/GeistMono-normal-latin.woff2'
 ];
 
 // Install: cache all assets

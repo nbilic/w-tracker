@@ -10,9 +10,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon-192.png">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,700;1,600;1,700&family=Geist+Mono:wght@400;500;600;700&family=Geist:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="fonts/fonts.css">
   <title>Workout</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -870,6 +868,10 @@
   </div>
 
   <script>
+    /* ========== PLATFORM ========== */
+    // Capacitor injects window.Capacitor before page scripts run; absent in a plain browser.
+    const IS_NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+
     /* ========== ICON FRAGMENTS ========== */
     const SVG = (d) => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
     const ICONS = {
@@ -4401,10 +4403,10 @@
       } else {
         showScreen('home');
       }
-      // Service worker
-      if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+      // Service worker (web only; the native app bundles its files)
+      if (!IS_NATIVE && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
       // Ask for persistent storage so Chrome won't clear the data under space pressure (granted silently for installed apps)
-      if (navigator.storage && navigator.storage.persist) {
+      if (!IS_NATIVE && navigator.storage && navigator.storage.persist) {
         navigator.storage.persisted().then(p => p || navigator.storage.persist()).catch(() => {});
       }
       // Session recovery
