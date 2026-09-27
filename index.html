@@ -1871,7 +1871,7 @@
             targetReps: t.reps, step, sets, autoAdvanced, prevWeight };
         })
       };
-      expandedExerciseId = currentSession.exercises[0] ? (currentSession.exercises[0].exerciseId || currentSession.exercises[0].name + '|0') : null;
+      expandedExerciseId = currentSession.exercises[0] ? exKey(currentSession.exercises[0], 0) : null;
       clearInterval(elapsedInterval);
       elapsedInterval = setInterval(() => {
         const el = document.getElementById('elapsed-display');
