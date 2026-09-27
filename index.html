@@ -871,6 +871,10 @@
     /* ========== PLATFORM ========== */
     // Capacitor injects window.Capacitor before page scripts run; absent in a plain browser.
     const IS_NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    // Native plugins, exposed by the Android bridge (no bundler needed).
+    const NP = IS_NATIVE ? window.Capacitor.Plugins : {};
+    let APP_VERSION = '';
+    const versionLabel = () => 'WORKOUT · ' + (APP_VERSION ? 'v' + APP_VERSION : 'WEB');
 
     /* ========== ICON FRAGMENTS ========== */
     const SVG = (d) => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
@@ -1164,8 +1168,30 @@
       if (raw) return JSON.parse(raw);
       return { sessions: [], settings: { defaultRestTime: 90, unit: 'kg', hapticsEnabled: true }, personalRecords: {} };
     }
-    function saveData(data) { localStorage.setItem('workoutData', JSON.stringify(data)); }
+    function saveData(data) {
+      localStorage.setItem('workoutData', JSON.stringify(data));
+      scheduleMirror();
+    }
+    // migrateData() saves defaults on a fresh install, so remember whether there was real data first.
+    const HAD_DATA = !!localStorage.getItem('workoutData');
     let appData = loadData();
+
+    // Native safety net: a copy of workoutData in the app's files dir, which Android Auto Backup
+    // saves to Google. Held off until boot has checked for a restore, so a fresh install's
+    // defaults never overwrite the copy it might restore from.
+    const MIRROR_FILE = 'workoutData.json';
+    let mirrorReady = false, mirrorTimer = null;
+    function scheduleMirror() {
+      if (!IS_NATIVE || !mirrorReady) return;
+      clearTimeout(mirrorTimer);
+      mirrorTimer = setTimeout(writeMirror, 2000);
+    }
+    function writeMirror() {
+      clearTimeout(mirrorTimer); mirrorTimer = null;
+      const raw = localStorage.getItem('workoutData');
+      if (!IS_NATIVE || !mirrorReady || !raw) return;
+      NP.Filesystem.writeFile({ path: MIRROR_FILE, data: raw, directory: 'DATA', encoding: 'utf8' }).catch(() => {});
+    }
 
     function migrateData() {
       if (!appData.personalRecords) appData.personalRecords = {};
@@ -1291,28 +1317,86 @@
 
     /* ========== HAPTICS + WAKE LOCK + NOTIFY ========== */
     function triggerHaptic(type) {
-      if (!appData.settings.hapticsEnabled || !navigator.vibrate) return;
+      if (!appData.settings.hapticsEnabled) return;
       const patterns = {
         setComplete: [30], pr: [50, 30, 50, 30, 100], restTimerDone: [200, 100, 200, 100, 200],
         workoutFinished: [100, 50, 100, 50, 200], dragStart: [20], weightAdjust: [10], light: [15], success: [30, 30, 60],
       };
-      navigator.vibrate(patterns[type] || [20]);
+      const pattern = patterns[type] || [20];
+      if (IS_NATIVE) {
+        // Same on/off pattern as navigator.vibrate: even entries buzz, odd entries are gaps.
+        let t = 0;
+        pattern.forEach((ms, i) => {
+          if (i % 2 === 0) setTimeout(() => NP.Haptics.vibrate({ duration: ms }).catch(() => {}), t);
+          t += ms;
+        });
+        return;
+      }
+      if (navigator.vibrate) navigator.vibrate(pattern);
     }
     let wakeLock = null;
     async function acquireWakeLock() {
+      if (IS_NATIVE) { NP.KeepAwake.keepAwake().catch(() => {}); return; }
       if (!('wakeLock' in navigator)) return;
       try { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } catch (e) {}
     }
-    function releaseWakeLock() { if (wakeLock) { wakeLock.release(); wakeLock = null; } }
+    function releaseWakeLock() {
+      if (IS_NATIVE) { NP.KeepAwake.allowSleep().catch(() => {}); return; }
+      if (wakeLock) { wakeLock.release(); wakeLock = null; }
+    }
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible' && currentSession) acquireWakeLock();
     });
-    function requestNotificationPermission() {
+
+    // Native rest alarm: a notification scheduled for when the rest ends, so it fires even with the
+    // phone locked or the app killed. Rescheduled on ±30, cancelled whenever the rest is cleared.
+    const REST_NOTIF_ID = 1;
+    let exactAlarms = false, alarmChain = Promise.resolve();
+    async function setupRestNotifications() {
+      const LN = NP.LocalNotifications;
+      await LN.createChannel({ id: 'rest', name: 'Rest timer', description: 'Tells you when a rest is over',
+                               importance: 5, visibility: 1, vibration: true });
+      // Exact alarms are granted via USE_EXACT_ALARM; if not, schedule inexact rather than have the
+      // plugin open the system settings screen in the middle of a workout.
+      const s = await LN.checkExactNotificationSetting();
+      exactAlarms = s.exact_alarm === 'granted';
+    }
+    function scheduleRestAlarm() {
+      if (!IS_NATIVE || !restStartedAt || !restDuration) return;
+      const at = new Date(restStartedAt + restDuration * 1000);
+      const body = restExName && restExName !== 'REST' ? `Next set · ${restExName}` : 'Time for your next set.';
+      const LN = NP.LocalNotifications;
+      alarmChain = alarmChain
+        .then(() => LN.cancel({ notifications: [{ id: REST_NOTIF_ID }] }))
+        .then(() => LN.schedule({ notifications: [{
+          id: REST_NOTIF_ID, title: 'Rest over', body, channelId: 'rest', smallIcon: 'ic_stat_workout',
+          iconColor: '#E97A52', foreground: true, isExactNotification: exactAlarms,
+          schedule: { at, allowWhileIdle: true },
+        }] }))
+        .catch(() => {});
+    }
+    function cancelRestAlarm() {
+      if (!IS_NATIVE) return;
+      alarmChain = alarmChain
+        .then(() => NP.LocalNotifications.cancel({ notifications: [{ id: REST_NOTIF_ID }] }))
+        .catch(() => {});
+    }
+
+    async function requestNotificationPermission() {
+      if (IS_NATIVE) {
+        try {
+          const LN = NP.LocalNotifications;
+          const p = await LN.checkPermissions();
+          if (p.display !== 'granted' && p.display !== 'denied') await LN.requestPermissions();
+        } catch (e) {}
+        return;
+      }
       if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
     }
     // Only matters when you've switched away. Must go through the service worker:
-    // Android Chrome rejects `new Notification()` from a page.
+    // Android Chrome rejects `new Notification()` from a page. (Native uses the scheduled alarm.)
     function sendRestNotification() {
+      if (IS_NATIVE) return;
       if (!('Notification' in window) || Notification.permission !== 'granted' || document.visibilityState !== 'hidden') return;
       if (!('serviceWorker' in navigator)) return;
       navigator.serviceWorker.ready.then(reg => reg.showNotification('Rest over', {
@@ -1808,7 +1892,7 @@
             </div>`).join('')}
         </div>
         <div class="mono" style="text-align:center;font-size:10px;color:var(--ink-4);padding:8px 0 16px;letter-spacing:0.1em">
-          WORKOUT · REDESIGN v2.0
+          ${versionLabel()}
         </div>`;
     }
     function menuNav(id) {
@@ -2595,8 +2679,10 @@
         currentSession.restSet = restSet;
         saveSessionBackup();
       }
+      scheduleRestAlarm();
       restInterval = setInterval(() => {
         const rem = getRestRemaining();
+        if (rem <= 1) cancelAlarmIfWatching();
         if (rem <= 0) { clearInterval(restInterval); restFinished(); }
         if (activeScreen === 'workout') renderRestBar();
       }, 1000);
@@ -2617,7 +2703,8 @@
       }
       if (currentSession) { currentSession.restDuration = restDuration; saveSessionBackup(); }
       triggerHaptic('light');
-      if (getRestRemaining() <= 0) { dismissRest(); return; } // −30 past zero just ends the rest, quietly
+      if (getRestRemaining() <= 0) { cancelRestAlarm(); dismissRest(); return; } // −30 past zero just ends the rest, quietly
+      scheduleRestAlarm();
       renderRestBar();
     }
 
@@ -4044,7 +4131,7 @@
         </div>
 
         <div class="mono" style="text-align:center;font-size:10px;color:var(--ink-4);padding:8px 0 16px;letter-spacing:0.1em">
-          WORKOUT · REDESIGN v2.0
+          ${versionLabel()}
         </div>`;
     }
     function stepRest(d) {
@@ -4078,6 +4165,7 @@
       URL.revokeObjectURL(url);
     }
     async function backupData() {
+      if (IS_NATIVE) { if (await shareBackupNative()) markBackedUp(); return; }
       const json = JSON.stringify(appData, null, 2);
       // Plain text on purpose: Android Chrome only shares allow-listed file types, and .json isn't one
       // (canShare() says no and we'd fall back to a download). The content is the same JSON.
@@ -4095,6 +4183,23 @@
         if (e && e.name === 'AbortError') return; // closed the share sheet: nothing was saved
         await fallback();
       }
+      markBackedUp();
+    }
+    // Native: write a real .json to the cache dir and hand it to Android's share sheet.
+    async function shareBackupNative() {
+      const name = 'workout-backup-' + todayISO() + '.json';
+      try {
+        const { uri } = await NP.Filesystem.writeFile({ path: name, data: JSON.stringify(appData, null, 2), directory: 'CACHE', encoding: 'utf8' });
+        await NP.Share.share({ title: 'Workout backup', files: [uri] });
+        return true;
+      } catch (e) {
+        const msg = (e && e.message) || String(e);
+        if (/cancel/i.test(msg)) return false; // closed the share sheet: nothing was saved
+        await customAlert('Could not share the backup: ' + msg);
+        return false;
+      }
+    }
+    function markBackedUp() {
       appData.settings.lastBackupAt = Date.now();
       saveData(appData);
       triggerHaptic('success');
@@ -4411,7 +4516,49 @@
       }
       // Session recovery
       checkSessionRecovery();
+      if (IS_NATIVE) setupNative();
     })();
+
+    async function setupNative() {
+      // Hardware back: close a sheet/dialog → go back a screen → leave the app from home.
+      NP.App.addListener('backButton', ({ canGoBack }) => {
+        if (closeAnyOpenSheet() || closeAnyOpenDialog()) return;
+        if (activeScreen === 'home' || activeScreen === 'onboarding') { NP.App.minimizeApp(); return; }
+        if (canGoBack) history.back(); else showScreen('home');
+      });
+      // Flush the pending mirror write before Android may kill the backgrounded app.
+      NP.App.addListener('pause', () => { if (mirrorTimer) writeMirror(); });
+      // Back in the app: a "Rest over" notification in the tray has done its job.
+      NP.App.addListener('resume', () => { NP.LocalNotifications.removeAllDeliveredNotifications().catch(() => {}); });
+      NP.App.getInfo().then(info => {
+        APP_VERSION = info.version;
+        if (activeScreen === 'menu') renderMenu();
+        else if (activeScreen === 'settings') renderSettings();
+      }).catch(() => {});
+      // Session recovery may already have resumed a rest; reschedule it now the channel exists.
+      setupRestNotifications().then(() => { if (isResting) scheduleRestAlarm(); }).catch(() => {});
+      await offerMirrorRestore();
+      mirrorReady = true;
+      writeMirror();
+    }
+
+    // Fresh install (or cleared app data) but Auto Backup brought back the mirror file: offer it.
+    async function offerMirrorRestore() {
+      if (HAD_DATA) return;
+      let saved;
+      try {
+        const res = await NP.Filesystem.readFile({ path: MIRROR_FILE, directory: 'DATA', encoding: 'utf8' });
+        saved = JSON.parse(res.data);
+      } catch (e) { return; } // no mirror file: nothing to restore
+      if (!saved || !saved.sessions || !saved.sessions.length || !saved.settings) return;
+      const n = saved.sessions.length;
+      if (!await customConfirm(`Found a backup of your data on this phone (${n} session${n === 1 ? '' : 's'}). Restore it?`)) return;
+      localStorage.setItem('workoutData', JSON.stringify(saved));
+      localStorage.setItem('w-onboarded', '1');
+      appData = loadData();
+      migrateData();
+      showScreen('home');
+    }
 
     function checkSessionRecovery() {
       const raw = localStorage.getItem('workoutBackup');
@@ -4441,9 +4588,11 @@
       const remaining = Math.max(0, restDuration - Math.floor((Date.now() - restStartedAt) / 1000));
       if (remaining <= 0) { clearRestState(); return; }
       isResting = true;
+      scheduleRestAlarm();
       clearInterval(restInterval);
       restInterval = setInterval(() => {
         const rem = getRestRemaining();
+        if (rem <= 1) cancelAlarmIfWatching();
         if (rem <= 0) { clearInterval(restInterval); restFinished(); }
         if (activeScreen === 'workout') updateRestRing();
       }, 1000);
@@ -4453,6 +4602,9 @@
       return Math.max(0, restDuration - Math.floor((Date.now() - restStartedAt) / 1000));
     }
     function clearRestState() {
+      // Only a rest cleared early has a pending alarm to cancel; once it has fired, leave the
+      // notification up (it's cleared when the app comes back to the foreground).
+      if (restStartedAt && Date.now() < restStartedAt + restDuration * 1000) cancelRestAlarm();
       restStartedAt = 0; restDuration = 0; isResting = false;
       if (currentSession) { delete currentSession.restStartedAt; delete currentSession.restDuration; delete currentSession.restExName; delete currentSession.restKey; delete currentSession.restSet; }
     }
@@ -4460,8 +4612,16 @@
       clearInterval(restInterval); clearRestState();
       if (activeScreen === 'workout') renderRestBar();
     }
+    // App on screen at the end of a rest: the in-app beep covers it, so drop the notification.
+    function cancelAlarmIfWatching() {
+      if (IS_NATIVE && document.visibilityState === 'visible') cancelRestAlarm();
+    }
     function restFinished() {
+      // Native: if the rest ended a while ago (phone locked/app in background), the scheduled
+      // alarm already went off, so don't beep again on return.
+      const lateMs = Date.now() - (restStartedAt + restDuration * 1000);
       dismissRest();
+      if (IS_NATIVE && (document.visibilityState === 'hidden' || lateMs > 3000)) return;
       triggerHaptic('restTimerDone');
       sendRestNotification();
       try {

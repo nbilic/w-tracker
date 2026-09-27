@@ -11,6 +11,10 @@
       "insetsHandling": "native",
       "initialViewportFitValueHint": "auto",
       "style": "DARK"
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_workout",
+      "iconColor": "#E97A52"
     }
   }
 }

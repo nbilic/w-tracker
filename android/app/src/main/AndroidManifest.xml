@@ -33,4 +33,7 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Rest alarm must fire on time with the phone locked. USE_EXACT_ALARM is granted automatically
+         on Android 13+ (the Play Store restricts it, but this app is sideloaded). -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
 </manifest>
