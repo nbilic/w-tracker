@@ -56,7 +56,12 @@ const DATA = {
   sessions: buildSessions(),
   settings: { defaultRestTime: 90, unit: 'kg', hapticsEnabled: true, lastBackupAt: Date.parse('2026-09-20') },
   personalRecords: {},
+  routines: [['default-a', 'Workout A', A], ['default-b', 'Workout B', B]].map(([id, name, plan], i) => ({
+    id, name, colorIndex: i, exercises: plan.map(([n, exerciseId, equipment, , , reps, sets]) => ({ exerciseId, name: n, equipment, sets, reps: String(reps) })),
+  })),
+  programs: [{ id: 'prog-fullbody', name: 'Full Body', routineIds: ['default-a', 'default-b'] }],
 };
+DATA.settings.activeProgramId = 'prog-fullbody';
 
 const shots = [
   ['today', async p => { await p.evaluate(() => showScreen('home')); }],

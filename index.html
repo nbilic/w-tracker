@@ -1070,32 +1070,7 @@
       'Machine Row': 'machine-row', 'Biceps Curl': 'bicep-curl-db', 'Leg Press': 'leg-press',
     };
 
-    const DEFAULT_ROUTINES = [
-      {
-        id: 'default-a', name: 'Workout A', colorIndex: 0, isDefault: true,
-        exercises: [
-          { exerciseId:'squat-bb', name:'Squat (Barbell)', sets:4, reps:'8', equipment:'barbell' },
-          { exerciseId:'bench-press-bb', name:'Bench Press (Barbell)', sets:3, reps:'10', equipment:'barbell' },
-          { exerciseId:'ohp-bb', name:'Overhead Press (Barbell)', sets:4, reps:'8', equipment:'barbell' },
-          { exerciseId:'incline-bench-bb', name:'Incline Bench (Barbell)', sets:3, reps:'10', equipment:'barbell' },
-          { exerciseId:'lat-pulldown', name:'Lat Pulldown', sets:3, reps:'10', equipment:'cable' },
-          { exerciseId:'bicep-curl-db', name:'Bicep Curl (Dumbbell)', sets:3, reps:'10', equipment:'dumbbell' },
-          { exerciseId:'leg-press', name:'Leg Press', sets:3, reps:'10', equipment:'machine' },
-        ]
-      },
-      {
-        id: 'default-b', name: 'Workout B', colorIndex: 1, isDefault: true,
-        exercises: [
-          { exerciseId:'deadlift', name:'Deadlift', sets:4, reps:'8', equipment:'barbell' },
-          { exerciseId:'barbell-row', name:'Barbell Row', sets:3, reps:'10', equipment:'barbell' },
-          { exerciseId:'lat-pulldown', name:'Lat Pulldown', sets:3, reps:'10', equipment:'cable' },
-          { exerciseId:'machine-row', name:'Machine Row', sets:3, reps:'10', equipment:'machine' },
-          { exerciseId:'bicep-curl-db', name:'Bicep Curl (Dumbbell)', sets:3, reps:'10', equipment:'dumbbell' },
-          { exerciseId:'leg-extension', name:'Leg Extension', sets:3, reps:'10', equipment:'machine' },
-        ]
-      }
-    ];
-
+    // Only used to wrap routines from before programs existed; new installs start with no program.
     const DEFAULT_PROGRAM_ID = 'default-fullbody';
 
     /* ========== PROGRAMS ========== */
@@ -1193,12 +1168,8 @@
       if (!appData.personalRecords) appData.personalRecords = {};
       if (appData.settings.hapticsEnabled === undefined) appData.settings.hapticsEnabled = true;
       if (appData.settings.confettiOnPR === undefined) appData.settings.confettiOnPR = false;
-      if (!appData.routines) appData.routines = JSON.parse(JSON.stringify(DEFAULT_ROUTINES));
-      DEFAULT_ROUTINES.forEach(def => {
-        if (!appData.routines.find(r => r.id === def.id)) {
-          appData.routines.push(JSON.parse(JSON.stringify(def)));
-        }
-      });
+      // New installs start empty: you build your own routines and program.
+      if (!appData.routines) appData.routines = [];
       appData.sessions.forEach(s => {
         if (s.notes === undefined) s.notes = '';
         if (!s.routineId && s.type) {
@@ -1239,24 +1210,23 @@
       });
       if (!appData.creatineLog) appData.creatineLog = {};
 
-      // Programs migration: seed a default "Full Body" program containing all existing routines
-      if (!appData.programs) appData.programs = [];
-      if (appData.programs.length === 0) {
-        appData.programs.push({
-          id: DEFAULT_PROGRAM_ID,
-          name: 'Full Body',
-          routineIds: appData.routines.map(r => r.id),
-        });
-        appData.settings.activeProgramId = DEFAULT_PROGRAM_ID;
+      // Programs migration (once, for data from before programs existed): wrap existing routines in a
+      // "Full Body" program. With no routines, or once programs exist, having none is fine.
+      if (!appData.programs) {
+        appData.programs = [];
+        if (appData.routines.length) {
+          appData.programs.push({ id: DEFAULT_PROGRAM_ID, name: 'Full Body', routineIds: appData.routines.map(r => r.id) });
+          appData.settings.activeProgramId = DEFAULT_PROGRAM_ID;
+        }
       }
       // Keep program routineIds in sync with existing routines (drop refs to deleted routines)
       const liveIds = new Set(appData.routines.map(r => r.id));
       appData.programs.forEach(p => {
         p.routineIds = (p.routineIds || []).filter(id => liveIds.has(id));
       });
-      // Ensure an active program exists
-      if (!appData.settings.activeProgramId || !appData.programs.find(p => p.id === appData.settings.activeProgramId)) {
-        appData.settings.activeProgramId = appData.programs[0].id;
+      // Point at a program that exists (or none)
+      if (!appData.programs.find(p => p.id === appData.settings.activeProgramId)) {
+        appData.settings.activeProgramId = appData.programs.length ? appData.programs[0].id : null;
       }
 
       rebuildAllPRs();
@@ -1746,7 +1716,7 @@
            </div>` : '';
 
       const altRoutines = programRoutines.length > 0 ? programRoutines : appData.routines;
-      const nextCardHtml = !currentSession && nextRoutine ? `
+      const nextCardHtml = !currentSession && program && nextRoutine ? `
         <div class="home-next-card">
           ${program ? `<div class="mono" style="font-size:10px;color:var(--ink-3);letter-spacing:0.16em;text-transform:uppercase;margin-bottom:8px;cursor:pointer" onclick="showScreen('programs')">Program · ${escapeHtml(program.name)}</div>` : ''}
           <div class="eyebrow eyebrow-accent home-next-eyebrow">Next Up · ${escapeHtml(nextRoutine.name)}</div>
@@ -1754,6 +1724,17 @@
           <button class="btn btn-primary btn-block" onclick="startWorkoutById('${nextRoutine.id}')">${svg('play', 15)} Begin session</button>
           ${altRoutines.length > 1 ? `<div style="display:flex;gap:6px;margin-top:8px">
             ${altRoutines.filter(r=>r.id!==nextRoutine.id).slice(0,2).map(r => `<button class="btn" style="flex:1;font-size:12px;padding:8px 10px" onclick="startWorkoutById('${r.id}')">${escapeHtml(r.name)}</button>`).join('')}
+          </div>` : ''}
+        </div>` : '';
+      // No program yet: one tap to create one (routines get built from inside it).
+      const setupCardHtml = !currentSession && !program ? `
+        <div class="home-next-card">
+          <div class="eyebrow eyebrow-accent home-next-eyebrow">Get set up</div>
+          <div class="home-next-meta" style="margin-bottom:18px">Create a program: the routines you rotate through, like Upper / Lower. You can build the routines right inside it.</div>
+          <button class="btn btn-primary btn-block" onclick="openProgramEdit(null, 'home')">${svg('plus', 15)} Create a program</button>
+          ${appData.routines.length ? `<div class="mono" style="font-size:10px;color:var(--ink-3);letter-spacing:0.12em;margin:14px 0 6px">OR JUST START A ROUTINE</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${appData.routines.slice(0, 3).map(r => `<button class="btn" style="flex:1;font-size:12px;padding:8px 10px" onclick="startWorkoutById('${r.id}')">${escapeHtml(r.name)}</button>`).join('')}
           </div>` : ''}
         </div>` : '';
 
@@ -1801,6 +1782,7 @@
           <div class="home-streak-row">${streakPill}</div>
         </div>
         ${continueHtml}
+        ${setupCardHtml}
         ${nextCardHtml}
         <div class="card">
           <div id="home-cal"></div>
@@ -3593,7 +3575,7 @@
                     ? `<span class="pill pill-accent">${svg('check', 11, 2.5)} ACTIVE</span>`
                     : `<span class="eyebrow">${routines.length} ROUTINE${routines.length===1?'':'S'}</span>`}
                 </div>
-                ${programs.length > 1 ? `<button class="icon-btn" style="width:32px;height:32px" onclick="confirmDeleteProgram('${p.id}')">${svg('trash', 16)}</button>` : ''}
+                <button class="icon-btn" style="width:32px;height:32px" onclick="confirmDeleteProgram('${p.id}')">${svg('trash', 16)}</button>
               </div>
               <div class="serif" style="font-size:24px;margin-bottom:4px">${escapeHtml(p.name)}</div>
               <div class="v-stack" style="gap:6px;margin-bottom:14px;margin-top:10px">
@@ -3618,7 +3600,9 @@
         <button class="dashed-btn" onclick="openProgramEdit(null)">${svg('plus', 16)} New program</button>`;
     }
 
-    function openProgramEdit(programId) {
+    let programReturnTo = 'programs';
+    function openProgramEdit(programId, returnTo = 'programs') {
+      programReturnTo = returnTo;
       if (programId) {
         const p = appData.programs.find(x => x.id === programId);
         if (!p) return;
@@ -3639,7 +3623,7 @@
       el.innerHTML = `
         <div style="padding-top:4px">
           <div class="row-between">
-            <button class="icon-btn" onclick="leaveScreen('programs')">${svg('chevLeft', 18)}</button>
+            <button class="icon-btn" onclick="leaveScreen(programReturnTo)">${svg('chevLeft', 18)}</button>
             <span class="eyebrow">${programEditingId ? 'EDITING' : 'NEW PROGRAM'}</span>
             <button class="icon-btn icon-btn-accent" onclick="saveProgramEdit()">${svg('check', 18, 2.5)}</button>
           </div>
@@ -3663,6 +3647,7 @@
             </div>`).join('')}
         </div>
         <button class="dashed-btn" onclick="openProgramAddRoutineSheet()">${svg('plus', 14)} Add routine</button>`;
+      if (!programEditingId && !programEditName && !inProgram.length) document.getElementById('program-name-input').focus();
     }
 
     function moveProgramRoutine(i, delta) {
@@ -3733,24 +3718,27 @@
         const p = appData.programs.find(x => x.id === programEditingId);
         if (p) { p.name = name; p.routineIds = [...programEditRoutineIds]; }
       } else {
-        appData.programs.push({
-          id: 'prog-' + Date.now(), name, routineIds: [...programEditRoutineIds]
-        });
+        const id = 'prog-' + Date.now();
+        appData.programs.push({ id, name, routineIds: [...programEditRoutineIds] });
+        // Your first program goes straight into rotation.
+        if (!appData.programs.some(p => p.id === appData.settings.activeProgramId)) {
+          appData.settings.activeProgramId = id;
+          appData.settings.pendingNextRoutineId = null;
+        }
       }
       saveData(appData);
       triggerHaptic('success');
       programEditingId = null;
-      leaveScreen('programs');
+      leaveScreen(programReturnTo);
     }
 
     async function confirmDeleteProgram(id) {
-      if (appData.programs.length <= 1) { customAlert('At least one program is required.'); return; }
       const p = appData.programs.find(x => x.id === id);
       if (!p) return;
       if (!await customConfirm('Delete program "' + p.name + '"?')) return;
       appData.programs = appData.programs.filter(x => x.id !== id);
       if (appData.settings.activeProgramId === id) {
-        appData.settings.activeProgramId = appData.programs[0].id;
+        appData.settings.activeProgramId = appData.programs.length ? appData.programs[0].id : null;
         appData.settings.pendingNextRoutineId = null;
       }
       saveData(appData);
@@ -4312,7 +4300,7 @@
           if (!await customConfirm('Replace all data with this backup? (' + imported.sessions.length + ' sessions) Your current data is kept so you can undo this in Settings.')) return;
           takeSnapshot('import');
           appData = imported;
-          if (!appData.routines) appData.routines = JSON.parse(JSON.stringify(DEFAULT_ROUTINES));
+          if (!appData.routines) appData.routines = [];
           if (!appData.personalRecords) appData.personalRecords = {};
           migrateData();
           showScreen('home');
@@ -4334,7 +4322,7 @@
       clearSessionBackup();
       currentSession = null;
       clearInterval(elapsedInterval);
-      appData = { sessions: [], settings: { defaultRestTime: 90, unit: 'kg', hapticsEnabled: true, confettiOnPR: false }, personalRecords: {}, routines: JSON.parse(JSON.stringify(DEFAULT_ROUTINES)) };
+      appData = { sessions: [], settings: { defaultRestTime: 90, unit: 'kg', hapticsEnabled: true, confettiOnPR: false }, personalRecords: {}, routines: [], programs: [] };
       migrateData();
       showScreen('home');
     }
