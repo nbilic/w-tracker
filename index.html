@@ -1375,9 +1375,8 @@
       // A workout is live exactly while its recovery backup exists (cleared on finish/discard).
       const live = !!currentSession && !!localStorage.getItem('workoutBackup');
       const restEndsAt = live && isResting && restStartedAt ? restStartedAt + restDuration * 1000 : 0;
-      const restLabel = restExName && restExName !== 'REST' ? `${restExName} · after set ${restSet + 1}` : '';
       W.session({ active: live, title: live ? (currentSession.routineName || 'Workout') : '',
-                  startedAt: live ? (currentSession.startedAt || Date.now()) : 0, restEndsAt, restLabel }).catch(() => {});
+                  startedAt: live ? (currentSession.startedAt || Date.now()) : 0, restEndsAt }).catch(() => {});
 
       const program = getActiveProgram();
       const next = program && !live ? appData.routines.find(r => r.id === getNextRoutineId()) : null;

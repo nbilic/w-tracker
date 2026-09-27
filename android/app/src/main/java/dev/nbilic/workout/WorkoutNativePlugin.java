@@ -41,7 +41,7 @@ public class WorkoutNativePlugin extends Plugin {
         instance.notifyListeners("restAction", ev);
     }
 
-    /** { active, title, startedAt, restEndsAt, restLabel }: shows, updates or removes the live notification. */
+    /** { active, title, startedAt, restEndsAt }: shows, updates or removes the live notification. */
     @PluginMethod
     public void session(PluginCall call) {
         Context ctx = getContext();
@@ -54,15 +54,13 @@ public class WorkoutNativePlugin extends Plugin {
         String title = call.getString("title", "Workout");
         long startedAt = call.getLong("startedAt", System.currentTimeMillis());
         long restEndsAt = call.getLong("restEndsAt", 0L);
-        String restLabel = call.getString("restLabel", "");
         if (WorkoutService.instance != null) {
-            WorkoutService.instance.apply(title, startedAt, restEndsAt, restLabel);
+            WorkoutService.instance.apply(title, startedAt, restEndsAt);
         } else {
             Intent i = new Intent(ctx, WorkoutService.class)
                 .putExtra(WorkoutService.EXTRA_TITLE, title)
                 .putExtra(WorkoutService.EXTRA_STARTED, startedAt)
-                .putExtra(WorkoutService.EXTRA_REST_ENDS, restEndsAt)
-                .putExtra(WorkoutService.EXTRA_REST_LABEL, restLabel);
+                .putExtra(WorkoutService.EXTRA_REST_ENDS, restEndsAt);
             try {
                 ContextCompat.startForegroundService(ctx, i);
             } catch (Exception e) {

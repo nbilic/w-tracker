@@ -12,6 +12,8 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.SystemClock;
+import android.widget.RemoteViews;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 
@@ -24,14 +26,13 @@ public class WorkoutService extends Service {
 
     static final String CHANNEL_ID = "workout_live";
     static final int NOTIFICATION_ID = 4201;
-    static final String EXTRA_TITLE = "title", EXTRA_STARTED = "startedAt", EXTRA_REST_ENDS = "restEndsAt", EXTRA_REST_LABEL = "restLabel";
+    static final String EXTRA_TITLE = "title", EXTRA_STARTED = "startedAt", EXTRA_REST_ENDS = "restEndsAt";
 
     static WorkoutService instance;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable restEnded = () -> { restEndsAt = 0; post(); };
     private String title = "Workout";
-    private String restLabel = "";
     private long startedAt = System.currentTimeMillis();
     private long restEndsAt = 0;
 
@@ -57,7 +58,6 @@ public class WorkoutService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null) {
             title = orDefault(intent.getStringExtra(EXTRA_TITLE), "Workout");
-            restLabel = orDefault(intent.getStringExtra(EXTRA_REST_LABEL), "");
             startedAt = intent.getLongExtra(EXTRA_STARTED, System.currentTimeMillis());
             restEndsAt = intent.getLongExtra(EXTRA_REST_ENDS, 0);
         }
@@ -72,11 +72,10 @@ public class WorkoutService extends Service {
     }
 
     /** New state from the app while the service is running. */
-    void apply(String title, long startedAt, long restEndsAt, String restLabel) {
+    void apply(String title, long startedAt, long restEndsAt) {
         this.title = orDefault(title, "Workout");
         this.startedAt = startedAt;
         this.restEndsAt = restEndsAt;
-        this.restLabel = orDefault(restLabel, "");
         scheduleRestEnd();
         post();
     }
@@ -129,11 +128,18 @@ public class WorkoutService extends Service {
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setContentIntent(contentIntent);
 
-        if (restEndsAt > System.currentTimeMillis()) {
-            b.setContentTitle(restLabel.isEmpty() ? "Rest" : "Rest · " + restLabel)
-                .setContentText(title)
-                .setWhen(restEndsAt)
-                .setChronometerCountDown(true)
+        long left = restEndsAt - System.currentTimeMillis();
+        if (left > 0) {
+            // Big countdown in a custom view; the Chronometer runs on the elapsed-realtime clock.
+            RemoteViews rest = new RemoteViews(getPackageName(), R.layout.notif_rest);
+            rest.setChronometer(R.id.n_timer, SystemClock.elapsedRealtime() + left, null, true);
+            rest.setChronometerCountDown(R.id.n_timer, true);
+            b.setStyle(new NotificationCompat.DecoratedCustomViewStyle())
+                .setCustomContentView(rest)
+                .setCustomBigContentView(rest)
+                .setContentTitle("Rest")
+                .setShowWhen(false)
+                .setUsesChronometer(false)
                 .addAction(0, "+30s", actionIntent("add30", 1))
                 .addAction(0, "Skip rest", actionIntent("skip", 2));
         } else {
