@@ -695,7 +695,9 @@
       font-size: 12px; color: var(--ink-3); }
     .offday button { background: none; border: none; padding: 4px 2px; font: inherit; color: var(--ink-3);
       text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-    .offday.suggest button, .backup-nudge button { color: var(--ink); }
+    .offday.suggest button, .backup-nudge button, .update-nudge button { color: var(--ink); }
+    .update-notes { font-size: 13px; line-height: 1.5; color: var(--ink-2); white-space: pre-wrap;
+      max-height: 40vh; overflow-y: auto; margin: 4px 0 14px; }
     .setting-sub { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
     .setting-sub.due { color: var(--accent); }
     .exs-dot.off { fill: var(--surface); stroke: var(--chart-line); stroke-width: 1.75; }
@@ -865,6 +867,9 @@
   </div>
   <div class="sheet-overlay" id="program-overlay">
     <div class="sheet" id="program-sheet"></div>
+  </div>
+  <div class="sheet-overlay" id="update-overlay">
+    <div class="sheet" id="update-sheet"></div>
   </div>
 
   <script>
@@ -3106,6 +3111,7 @@
         </div>
         ${recapListHTML(lifts, s.offDay)}
         ${s.id !== undefined ? offDayControlHTML(s, lifts, compared) : ''}
+        ${availableUpdate ? `<div class="offday update-nudge"><span>Update available · v${escapeHtml(availableUpdate.version)}</span><button onclick="openUpdateSheet()">See what's new</button></div>` : ''}
         ${backupDue() ? `<div class="offday backup-nudge"><span>Last backup: ${backupAgeText()}</span><button onclick="backupData()">Back up now</button></div>` : ''}
         <button class="btn btn-primary btn-block" style="padding:16px;font-size:15px" onclick="finishedSessionMemo=null;showScreen('home')">${svg('check', 16, 2.5)} Save & go home</button>`;
     }
@@ -4093,6 +4099,13 @@
         <div>
           <div class="eyebrow" style="margin-bottom:10px;padding:0 2px">DATA</div>
           <div class="card setting-group" style="padding:0;overflow:hidden">
+            ${IS_NATIVE ? `<div class="setting-row" style="cursor:pointer" onclick="checkForUpdateNow()">
+              <div style="flex:1;min-width:0">
+                <div class="setting-label">App updates</div>
+                <div class="setting-sub${availableUpdate ? ' due' : ''}">${updateStatusText()}</div>
+              </div>
+              <span class="setting-value">${svg('chevRight', 14)}</span>
+            </div>` : ''}
             <div class="setting-row" style="cursor:pointer" onclick="backupData()">
               <div style="flex:1;min-width:0">
                 <div class="setting-label">Back up</div>
@@ -4496,6 +4509,100 @@
       saveData(appData); closeSheet('exedit-overlay'); renderBestiary();
     }
 
+    /* ========== UPDATES (native) ========== */
+    // Checks the repo's latest GitHub Release; a newer tag with an .apk shows a row on Home.
+    const UPDATE_API = 'https://api.github.com/repos/nbilic/w-tracker/releases/latest';
+    const UPDATE_CHECK_EVERY = 6 * 3600 * 1000;
+    let availableUpdate = null, updateBusy = false;
+    function isNewerVersion(a, b) {
+      const pa = String(a).split('.').map(Number), pb = String(b).split('.').map(Number);
+      for (let i = 0; i < 3; i++) { const d = (pa[i] || 0) - (pb[i] || 0); if (d) return d > 0; }
+      return false;
+    }
+    // The last release seen is cached, so the Home row survives restarts between checks.
+    function applyCachedRelease() {
+      let rel = null;
+      try { rel = JSON.parse(localStorage.getItem('w-update') || 'null'); } catch (e) {}
+      availableUpdate = rel && APP_VERSION && isNewerVersion(rel.version, APP_VERSION) ? rel : null;
+    }
+    async function fetchLatestRelease() {
+      const res = await fetch(UPDATE_API, { headers: { Accept: 'application/vnd.github+json' }, cache: 'no-store' });
+      if (!res.ok) throw new Error('GitHub said ' + res.status);
+      const r = await res.json();
+      const apk = (r.assets || []).find(a => /\.apk$/i.test(a.name));
+      localStorage.setItem('w-update-checked', String(Date.now()));
+      if (!apk) return;
+      localStorage.setItem('w-update', JSON.stringify({
+        version: String(r.tag_name).replace(/^v/, ''), url: apk.browser_download_url, size: apk.size,
+        notes: (r.body || '').trim(),
+      }));
+    }
+    // Automatic: on launch/resume, at most every 6 h, never mid-workout.
+    async function checkForUpdate() {
+      if (!IS_NATIVE || !APP_VERSION) return;
+      applyCachedRelease();
+      const last = Number(localStorage.getItem('w-update-checked') || 0);
+      if (!currentSession && Date.now() - last > UPDATE_CHECK_EVERY) {
+        try { await fetchLatestRelease(); applyCachedRelease(); } catch (e) {} // offline: try next time
+      }
+      if (activeScreen === 'home') renderHome();
+      else if (activeScreen === 'settings') renderSettings();
+    }
+    async function checkForUpdateNow() {
+      if (!APP_VERSION) return;
+      try { await fetchLatestRelease(); applyCachedRelease(); }
+      catch (e) { await customAlert("Couldn't check for updates. Are you online?"); return; }
+      if (activeScreen === 'settings') renderSettings();
+      if (availableUpdate) openUpdateSheet();
+      else await customAlert(`You're on the latest version (v${APP_VERSION}).`);
+    }
+    function updateStatusText() {
+      const cur = 'v' + (APP_VERSION || '?');
+      if (availableUpdate) return `${cur} · v${escapeHtml(availableUpdate.version)} available`;
+      const last = Number(localStorage.getItem('w-update-checked') || 0);
+      if (!last) return cur + ' · tap to check';
+      return `${cur} · up to date · checked ${new Date(last).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    }
+    function openUpdateSheet() {
+      const u = availableUpdate; if (!u) return;
+      const mb = u.size ? ` · ${(u.size / 1048576).toFixed(1)} MB` : '';
+      document.getElementById('update-sheet').innerHTML = `
+        <div class="sheet-grab"></div>
+        <div class="row-between" style="margin-bottom:10px">
+          <div>
+            <div class="eyebrow eyebrow-accent" style="margin-bottom:3px">Update available</div>
+            <div class="mono" style="font-size:11px;color:var(--ink-3)">v${escapeHtml(APP_VERSION)} → v${escapeHtml(u.version)}${mb}</div>
+          </div>
+          <button class="icon-btn" onclick="closeSheet('update-overlay')" style="width:32px;height:32px">${svg('x', 14)}</button>
+        </div>
+        <div class="update-notes">${escapeHtml(u.notes || 'No release notes.')}</div>
+        <div class="mono" style="font-size:11px;color:var(--ink-3);margin-bottom:12px">Your data stays as it is. Android asks you to confirm the install.</div>
+        <button id="update-install-btn" class="btn btn-primary btn-block" style="padding:14px;font-size:14px" onclick="installUpdate()">${updateBusy ? 'Downloading…' : 'Install'}</button>`;
+      openSheet('update-overlay');
+    }
+    function setUpdateButton(text) { const b = document.getElementById('update-install-btn'); if (b) b.textContent = text; }
+    async function installUpdate() {
+      if (!availableUpdate || updateBusy) return;
+      const AI = NP.ApkInstaller;
+      try {
+        let { allowed } = await AI.canInstall();
+        if (!allowed) {
+          if (!await customConfirm('Android needs your OK, once, to let Workout Tracker install its own updates. Open that setting? Turn on "Allow from this source", then come back.')) return;
+          ({ allowed } = await AI.openInstallSettings());
+          if (!allowed) return;
+        }
+        writeMirror(); // the app restarts after installing; flush any pending save first
+        updateBusy = true;
+        setUpdateButton('Downloading…');
+        await AI.downloadAndInstall({ url: availableUpdate.url });
+      } catch (e) {
+        await customAlert("The update didn't install: " + ((e && e.message) || e) + '. You can also download it from the Releases page on GitHub.');
+      } finally {
+        updateBusy = false;
+        setUpdateButton('Install');
+      }
+    }
+
     // Rest timer state. Declared before boot: session recovery resumes a running rest timer,
     // and touching these before their declaration throws (which used to wipe the backup).
     let restInterval = null, isResting = false, restStartedAt = 0, restDuration = 0, restExName = 'REST', restKey = '', restSet = 0;
@@ -4534,7 +4641,10 @@
         APP_VERSION = info.version;
         if (activeScreen === 'menu') renderMenu();
         else if (activeScreen === 'settings') renderSettings();
+        checkForUpdate();
       }).catch(() => {});
+      NP.App.addListener('resume', () => checkForUpdate());
+      NP.ApkInstaller.addListener('progress', ({ percent }) => setUpdateButton(`Downloading… ${percent}%`));
       // Session recovery may already have resumed a rest; reschedule it now the channel exists.
       setupRestNotifications().then(() => { if (isResting) scheduleRestAlarm(); }).catch(() => {});
       await offerMirrorRestore();

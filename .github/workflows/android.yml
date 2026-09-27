@@ -61,8 +61,16 @@ jobs:
           mv app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/workout-tracker-$GITHUB_REF_NAME.apk"
           rm -f "$ANDROID_KEYSTORE_PATH"
 
+      # The annotated tag's message becomes the release notes, which the app shows before updating.
+      - name: Release notes from tag message
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
+          git tag -l --format='%(contents)' "$GITHUB_REF_NAME" > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
+
       - uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/v')
         with:
           files: ${{ runner.temp }}/workout-tracker-${{ github.ref_name }}.apk
-          generate_release_notes: true
+          body_path: ${{ runner.temp }}/notes.md
