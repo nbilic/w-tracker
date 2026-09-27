@@ -13,7 +13,7 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
-        <!-- Matches the app's --bg so there's no white flash and the system-bar padding blends in -->
+        <!-- Matches the app's background (#0e0d0c) so there's no white flash and the system-bar padding blends in -->
         <item name="android:windowBackground">@color/ic_launcher_background</item>
     </style>
 
