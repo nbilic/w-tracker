@@ -1142,6 +1142,7 @@
     function saveData(data) {
       localStorage.setItem('workoutData', JSON.stringify(data));
       scheduleMirror();
+      queueNativeSync();
     }
     // migrateData() saves defaults on a fresh install, so remember whether there was real data first.
     const HAD_DATA = !!localStorage.getItem('workoutData');
@@ -1337,6 +1338,7 @@
     }
     function scheduleRestAlarm() {
       if (!IS_NATIVE || !restStartedAt || !restDuration) return;
+      queueNativeSync();
       const at = new Date(restStartedAt + restDuration * 1000);
       const body = restExName && restExName !== 'REST' ? `Next set · ${restExName}` : 'Time for your next set.';
       const LN = NP.LocalNotifications;
@@ -1354,6 +1356,70 @@
       alarmChain = alarmChain
         .then(() => NP.LocalNotifications.cancel({ notifications: [{ id: REST_NOTIF_ID }] }))
         .catch(() => {});
+    }
+
+    /* ========== NATIVE: LIVE NOTIFICATION, SHORTCUTS, WIDGET ========== */
+    // After a change to the workout or the data, push one snapshot to Android: the ongoing workout
+    // notification (elapsed time, or rest countdown with +30/Skip), the long-press shortcuts on the
+    // app icon, and the home-screen widget. Coalesced, since a set tick triggers several saves.
+    const APP_URL = 'dev.nbilic.workout://';
+    let nativeSyncTimer = null;
+    function queueNativeSync() {
+      if (!IS_NATIVE) return;
+      clearTimeout(nativeSyncTimer);
+      nativeSyncTimer = setTimeout(syncNative, 250);
+    }
+    function syncNative() {
+      const W = NP.WorkoutNative;
+      if (!W) return;
+      // A workout is live exactly while its recovery backup exists (cleared on finish/discard).
+      const live = !!currentSession && !!localStorage.getItem('workoutBackup');
+      const restEndsAt = live && isResting && restStartedAt ? restStartedAt + restDuration * 1000 : 0;
+      const restLabel = restExName && restExName !== 'REST' ? `${restExName} · after set ${restSet + 1}` : '';
+      W.session({ active: live, title: live ? (currentSession.routineName || 'Workout') : '',
+                  startedAt: live ? (currentSession.startedAt || Date.now()) : 0, restEndsAt, restLabel }).catch(() => {});
+
+      const program = getActiveProgram();
+      const next = program && !live ? appData.routines.find(r => r.id === getNextRoutineId()) : null;
+      const startUrl = r => APP_URL + 'start/' + encodeURIComponent(r.id);
+
+      const items = [];
+      if (live) items.push({ id: 'continue', label: `Continue ${currentSession.routineName || 'workout'}`, url: APP_URL + 'continue', icon: 'continue' });
+      else if (next) {
+        items.push({ id: 'start-next', label: `Start ${next.name}`, url: startUrl(next), icon: 'start' });
+        getActiveRoutines().filter(r => r.id !== next.id).slice(0, 2)
+          .forEach(r => items.push({ id: 'start-' + r.id, label: `Start ${r.name}`, url: startUrl(r), icon: 'start' }));
+      } else items.push({ id: 'new-program', label: 'Create a program', url: APP_URL + 'new-program', icon: 'add' });
+      W.shortcuts({ items }).catch(() => {});
+
+      let w;
+      if (live) {
+        const sets = currentSession.exercises.flatMap(e => e.sets);
+        w = { eyebrow: 'IN PROGRESS', title: currentSession.routineName || 'Workout',
+              meta: `${sets.filter(x => x.completed).length} of ${sets.length} sets done`, actionLabel: 'Continue', actionUrl: APP_URL + 'continue' };
+      } else if (next) {
+        w = { eyebrow: 'NEXT UP', title: next.name, meta: `${next.exercises.length} exercise${next.exercises.length === 1 ? '' : 's'} · ${program.name}`, actionLabel: 'Begin', actionUrl: startUrl(next) };
+      } else {
+        w = { eyebrow: 'GET SET UP', title: 'No program yet', meta: 'Create one to get started', actionLabel: 'Create', actionUrl: APP_URL + 'new-program' };
+      }
+      const since = new Date(Date.now() - 9 * 86400000).toISOString().slice(0, 10);
+      w.dates = [...new Set(appData.sessions.map(x => x.date).filter(d => d && d >= since))];
+      W.widget(w).catch(() => {});
+    }
+    // Shortcut / widget links: dev.nbilic.workout://start/<routineId> | continue | new-program
+    function handleAppUrl(url) {
+      const m = String(url || '').match(/^dev\.nbilic\.workout:\/\/([a-z-]+)\/?(.*)$/);
+      if (!m || !localStorage.getItem('w-onboarded')) return;
+      const [, action, arg] = m;
+      closeAnyOpenSheet();
+      if (action === 'continue' || (action === 'start' && currentSession)) {
+        showScreen(currentSession ? 'workout' : 'home'); // never discard a live workout from a shortcut
+      } else if (action === 'start') {
+        const id = decodeURIComponent(arg);
+        if (appData.routines.some(r => r.id === id)) startWorkoutById(id); else showScreen('home');
+      } else if (action === 'new-program') {
+        openProgramEdit(null, 'home');
+      }
     }
 
     async function requestNotificationPermission() {
@@ -1578,8 +1644,9 @@
     }
     function saveSessionBackup() {
       if (currentSession) localStorage.setItem('workoutBackup', JSON.stringify({ session: currentSession, timestamp: Date.now() }));
+      queueNativeSync();
     }
-    function clearSessionBackup() { localStorage.removeItem('workoutBackup'); }
+    function clearSessionBackup() { localStorage.removeItem('workoutBackup'); queueNativeSync(); }
 
     /* ========== WEEKLY STREAK ========== */
     function calculateWeeklyStreak() {
@@ -4684,6 +4751,15 @@
         checkForUpdate();
       }).catch(() => {});
       NP.App.addListener('resume', () => checkForUpdate());
+      // +30 / Skip on the workout notification drive the same rest timer as the in-app buttons.
+      NP.WorkoutNative.addListener('restAction', ({ action }) => {
+        if (!isResting) { queueNativeSync(); return; }
+        if (action === 'add30') adjustRest(30);
+        else if (action === 'skip') dismissRest();
+      });
+      // Opened from a shortcut or the widget (also delivered on a cold start).
+      NP.App.addListener('appUrlOpen', ({ url }) => handleAppUrl(url));
+      queueNativeSync();
       NP.ApkInstaller.addListener('progress', ({ percent }) => setUpdateButton(`Downloading… ${percent}%`));
       // Session recovery may already have resumed a rest; reschedule it now the channel exists.
       setupRestNotifications().then(() => { if (isResting) scheduleRestAlarm(); }).catch(() => {});
@@ -4755,6 +4831,7 @@
       // Only a rest cleared early has a pending alarm to cancel; once it has fired, leave the
       // notification up (it's cleared when the app comes back to the foreground).
       if (restStartedAt && Date.now() < restStartedAt + restDuration * 1000) cancelRestAlarm();
+      queueNativeSync();
       restStartedAt = 0; restDuration = 0; isResting = false;
       if (currentSession) { delete currentSession.restStartedAt; delete currentSession.restDuration; delete currentSession.restExName; delete currentSession.restKey; delete currentSession.restSet; }
     }

@@ -36,7 +36,7 @@ jobs:
       - name: Debug APK (branch builds)
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         working-directory: android
-        run: ./gradlew assembleDebug -PappVersion=0.0.${{ github.run_number }}
+        run: ./gradlew assembleDebug lintDebug -PappVersion=0.0.${{ github.run_number }}
 
       - uses: actions/upload-artifact@v4
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}

@@ -4,4 +4,5 @@
     <string name="title_activity_main">Workout Tracker</string>
     <string name="package_name">dev.nbilic.workout</string>
     <string name="custom_url_scheme">dev.nbilic.workout</string>
+    <string name="widget_description">Next workout and this week at a glance</string>
 </resources>

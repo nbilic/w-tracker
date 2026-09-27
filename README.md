@@ -41,6 +41,9 @@ The app checks for new versions by itself (at most every few hours, never during
 - **Rest timer:** starts when you tick a set. **±30** changes this rest and is remembered for that set next time. On the app, the alarm fires even with the phone locked.
 - **Getting stronger:** hit the top of the rep range on every set and next time the weight goes up by the exercise's **step** (set it per exercise in **More → Bestiary**). Reps then start again from the bottom of the range.
 - **Off days:** in **History**, open a session and tap **Mark as off day**. It stays in your log but won't count as "last time" or hold your progress back.
+- **During a workout:** a notification shows the elapsed time, and during rests a countdown with **+30s** and **Skip rest**, on the lock screen too.
+- **Shortcuts:** long-press the app icon to start your next routine, or continue the workout you're in.
+- **Widget:** add *Workout Tracker* from your home screen's widget list to see what's next and this week's training days, with a button that starts it.
 - The same guide is in the app under **More → How it works**.
 
 ## Your data

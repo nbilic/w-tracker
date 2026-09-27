@@ -21,6 +21,25 @@
             </intent-filter>
         </activity>
 
+        <!-- Live workout notification (elapsed time / rest countdown with +30 and Skip) -->
+        <service
+            android:name=".WorkoutService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Live workout timer: elapsed time and rest countdown with +30/Skip controls while the user trains" />
+        </service>
+        <receiver android:name=".RestActionReceiver" android:exported="false" />
+
+        <!-- Home-screen widget -->
+        <receiver android:name=".WorkoutWidget" android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/workout_widget_info" />
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -38,4 +57,7 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <!-- In-app updater hands downloaded release APKs to the system installer. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Workout notification runs as a foreground service so Android doesn't kill the app mid-workout -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 </manifest>
