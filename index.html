@@ -1492,6 +1492,7 @@
     const HIDE_TABS_ON = new Set(['workout', 'builder', 'finish', 'onboarding', 'program-edit']);
 
     function showScreen(id) {
+      const prevScreen = activeScreen;
       document.querySelectorAll('.screen-wrap').forEach(s => s.classList.remove('active'));
       const target = document.getElementById('screen-' + id);
       if (!target) return;
@@ -1529,10 +1530,22 @@
 
       if (!navigatingViaPopstate) {
         const cs = history.state;
-        if (!cs || cs.screen !== id) history.pushState({ screen: id }, '', '');
+        if (!cs || cs.screen !== id) history.pushState({ screen: id, prev: prevScreen }, '', '');
       }
     }
     history.replaceState({ screen: 'home' }, '', '');
+
+    // Leave an editor (routine builder, program editor) for the screen it came from. Going back in
+    // history, rather than pushing, keeps the finished editor off the back stack, so Back can't
+    // reopen it with stale state and save a duplicate.
+    function leaveScreen(to) {
+      const st = history.state;
+      if (st && st.screen === activeScreen && st.prev === to) { history.back(); return; }
+      history.replaceState({ screen: to }, '', '');
+      navigatingViaPopstate = true;
+      showScreen(to);
+      navigatingViaPopstate = false;
+    }
 
     function closeAnyOpenSheet() {
       const sheets = document.querySelectorAll('.sheet-overlay.active');
@@ -3631,7 +3644,7 @@
       el.innerHTML = `
         <div style="padding-top:4px">
           <div class="row-between">
-            <button class="icon-btn" onclick="showScreen('programs')">${svg('chevLeft', 18)}</button>
+            <button class="icon-btn" onclick="leaveScreen('programs')">${svg('chevLeft', 18)}</button>
             <span class="eyebrow">${programEditingId ? 'EDITING' : 'NEW PROGRAM'}</span>
             <button class="icon-btn icon-btn-accent" onclick="saveProgramEdit()">${svg('check', 18, 2.5)}</button>
           </div>
@@ -3647,9 +3660,9 @@
                 <button class="icon-btn" style="width:28px;height:22px;${i===0?'opacity:0.3':''}" ${i===0?'disabled':''} onclick="moveProgramRoutine(${i}, -1)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 15l7-7 7 7"/></svg></button>
                 <button class="icon-btn" style="width:28px;height:22px;${i===inProgram.length-1?'opacity:0.3':''}" ${i===inProgram.length-1?'disabled':''} onclick="moveProgramRoutine(${i}, 1)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"/></svg></button>
               </div>
-              <div style="flex:1;min-width:0">
+              <div style="flex:1;min-width:0;cursor:pointer" onclick="editRoutine('${r.id}', 'program-edit')">
                 <div style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${String(i+1).padStart(2,'0')} · ${escapeHtml(r.name)}</div>
-                <div class="mono" style="font-size:10px;color:var(--ink-3);margin-top:2px">${r.exercises.length} EXERCISES</div>
+                <div class="mono" style="font-size:10px;color:var(--ink-3);margin-top:2px">${r.exercises.length} EXERCISES · TAP TO EDIT</div>
               </div>
               <button class="builder-remove-btn" onclick="removeProgramRoutine(${i})">${svg('x', 14)}</button>
             </div>`).join('')}
@@ -3683,12 +3696,19 @@
         <div class="row-between" style="margin-bottom:14px">
           <div>
             <div class="eyebrow eyebrow-accent" style="margin-bottom:3px">Add routine</div>
-            <div class="mono" style="font-size:11px;color:var(--ink-3)">Pick from your library</div>
+            <div class="mono" style="font-size:11px;color:var(--ink-3)">Build a new one or pick from your library</div>
           </div>
           <button class="icon-btn" onclick="closeSheet('program-overlay')" style="width:32px;height:32px">${svg('x', 14)}</button>
         </div>
+        <div onclick="newRoutineForProgram()" style="display:flex;align-items:center;gap:12px;padding:12px;margin-bottom:6px;border:1px dashed var(--accent-line);background:var(--accent-soft);border-radius:12px;cursor:pointer">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:14px;font-weight:500;color:var(--accent)">New routine</div>
+            <div class="mono" style="font-size:10px;color:var(--ink-3);margin-top:2px">BUILD IT NOW · ADDED HERE WHEN SAVED</div>
+          </div>
+          <span style="color:var(--accent)">${svg('plus', 16)}</span>
+        </div>
         <div style="max-height:50vh;overflow-y:auto">
-          ${available.length === 0 ? `<div class="empty-state">All your routines are already in this program.</div>` :
+          ${available.length === 0 ? `<div class="empty-state" style="padding:24px 16px">${appData.routines.length ? 'All your routines are already in this program.' : 'No routines in your library yet.'}</div>` :
             available.map(r => `
               <div onclick="selectProgramAddRoutine('${r.id}')" style="display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line);cursor:pointer">
                 <div style="flex:1;min-width:0">
@@ -3698,6 +3718,10 @@
                 ${svg('plus', 16)}
               </div>`).join('')}
         </div>`;
+    }
+    function newRoutineForProgram() {
+      closeSheet('program-overlay');
+      openBuilder('program-edit');
     }
     function selectProgramAddRoutine(rid) {
       if (!programEditRoutineIds.includes(rid)) programEditRoutineIds.push(rid);
@@ -3721,7 +3745,7 @@
       saveData(appData);
       triggerHaptic('success');
       programEditingId = null;
-      showScreen('programs');
+      leaveScreen('programs');
     }
 
     async function confirmDeleteProgram(id) {
@@ -3801,15 +3825,20 @@
     let builderName = '';
     let builderEditingId = null;
     let builderCat = 'All', builderEquip = 'All', builderQuery = '';
+    // Where the builder goes back to: Routines, or the program being edited (a new routine made there
+    // is added to that program instead of the active one).
+    let builderReturnTo = 'routines';
 
-    function openBuilder() {
+    function openBuilder(returnTo = 'routines') {
       builderEditingId = null; builderExercises = []; builderName = '';
+      builderReturnTo = returnTo;
       showScreen('builder');
     }
-    function editRoutine(routineId) {
+    function editRoutine(routineId, returnTo = 'routines') {
       const r = appData.routines.find(x => x.id === routineId);
       if (!r) return;
       builderEditingId = routineId; builderName = r.name;
+      builderReturnTo = returnTo;
       builderExercises = r.exercises.map(ex => ({
         exerciseId: ex.exerciseId, name: ex.name, equipment: ex.equipment,
         sets: ex.sets, reps: String(ex.reps)
@@ -3822,8 +3851,8 @@
       el.innerHTML = `
         <div style="padding-top:4px">
           <div class="row-between">
-            <button class="icon-btn" onclick="showScreen('routines')">${svg('chevLeft', 18)}</button>
-            <span class="eyebrow">${builderEditingId ? 'EDITING' : 'NEW ROUTINE'}</span>
+            <button class="icon-btn" onclick="leaveScreen(builderReturnTo)">${svg('chevLeft', 18)}</button>
+            <span class="eyebrow">${builderEyebrow()}</span>
             <button class="icon-btn icon-btn-accent" onclick="saveBuilder()">${svg('check', 18, 2.5)}</button>
           </div>
         </div>
@@ -3855,6 +3884,12 @@
         </div>
         <button class="dashed-btn" onclick="openBuilderAdd()">${svg('plus', 14)} Add exercise</button>`;
       initBuilderDragHandles();
+    }
+
+    function builderEyebrow() {
+      if (builderReturnTo !== 'program-edit' || builderEditingId) return builderEditingId ? 'EDITING' : 'NEW ROUTINE';
+      const prog = (programEditName || '').trim();
+      return 'NEW ROUTINE · ADDS TO ' + escapeHtml(prog ? prog.toUpperCase() : 'THIS PROGRAM');
     }
 
     function updateBuilderEx(i, field, value) {
@@ -3891,14 +3926,21 @@
           id: newId, name, colorIndex: appData.routines.length % 4,
           isDefault: false, exercises
         });
-        // Auto-add new routines to the active program so they enter the rotation
-        const active = getActiveProgram();
-        if (active && !active.routineIds.includes(newId)) active.routineIds.push(newId);
+        if (builderReturnTo === 'program-edit') {
+          // Made from a program's "Add routine": it goes into that program (saved with the program).
+          programEditRoutineIds.push(newId);
+        } else {
+          // Auto-add new routines to the active program so they enter the rotation
+          const active = getActiveProgram();
+          if (active && !active.routineIds.includes(newId)) active.routineIds.push(newId);
+        }
       }
       saveData(appData);
       triggerHaptic('success');
       builderEditingId = null;
-      showScreen('routines');
+      const back = builderReturnTo;
+      builderReturnTo = 'routines';
+      leaveScreen(back);
     }
 
     function openBuilderAdd() {
