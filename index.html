@@ -521,9 +521,6 @@
     .dialog-btn-confirm { background: var(--accent); color: var(--accent-ink); }
 
     /* ===== HISTORY ===== */
-    .hist-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-    .hist-stat-val { font-family: 'Geist Mono', monospace; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
-    .hist-stat-label { font-family: 'Geist Mono', monospace; font-size: 9px; color: var(--ink-3); margin-top: 4px; letter-spacing: 0.08em; }
     .hist-item {
       background: var(--surface); border: 1px solid var(--line);
       border-radius: 16px; padding: 0; overflow: hidden;
@@ -537,13 +534,6 @@
     .hist-item.open .hist-chev { transform: rotate(180deg); }
     .hist-detail { display: none; padding: 0 18px 18px; border-top: 1px solid var(--line); padding-top: 14px; }
     .hist-item.open .hist-detail { display: block; }
-    .hist-ex { padding: 8px 0; border-bottom: 1px solid var(--line); }
-    .hist-ex:last-child { border-bottom: none; }
-    .hist-ex-name { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
-    .hist-ex-sets { font-family: 'Geist Mono', monospace; font-size: 11px;
-      color: var(--ink-3); display: flex; gap: 10px; flex-wrap: wrap; }
-    .hist-ex-sets .pr { color: var(--accent); }
-    .hist-ex-sets .drop { color: var(--accent-2); }
     .hist-delete {
       background: none; border: none; color: var(--ink-4); cursor: pointer; padding: 4px;
     }
@@ -567,6 +557,11 @@
 
     .prog-hero .serif { font-size: 22px; }
     .prog-view-tabs { display: flex; gap: 4px; margin-top: 16px; }
+    .prog-range { display: flex; gap: 2px; margin-top: 14px; }
+    .prog-range button { flex: 1; background: none; border: none; padding: 6px 0; border-radius: 8px; cursor: pointer;
+      font-family: 'Geist Mono', monospace; font-size: 11px; letter-spacing: 0.06em; color: var(--ink-3); }
+    .prog-range button.on { background: var(--surface-2); color: var(--ink); }
+    .prog-summary { font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-3); letter-spacing: 0.04em; padding: 0 4px; }
     .prog-view-tabs button {
       flex: 1; padding: 8px 0; border-radius: 8px;
       background: transparent; color: var(--ink-3); border: 1px solid var(--line);
@@ -575,10 +570,6 @@
     }
     .prog-view-tabs button.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-line); }
 
-    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .stat-cell { padding: 14px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); }
-    .stat-cell-val { font-family: 'Geist Mono', monospace; font-size: 18px; font-weight: 600; letter-spacing: -0.02em; }
-    .stat-cell-sub { font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--ink-4); margin-top: 2px; }
 
     .ex-list-row {
       display: flex; align-items: center; gap: 14px;
@@ -1818,8 +1809,6 @@
 
       // Summary stats
       const totalSessions = sessions.length;
-      const totalVolume = sessions.reduce((s, sess) => s + calcSessionVolume(sess), 0);
-      const totalPRs = Object.keys(appData.personalRecords).length;
 
       // Group by month
       const groups = {};
@@ -1835,20 +1824,6 @@
         <div style="padding-top:4px">
           <div class="eyebrow" style="margin-bottom:10px">Log · ${totalSessions} sessions</div>
           <h1 class="screen-title">History.</h1>
-        </div>
-        <div class="hist-stats">
-          <div class="card" style="padding:14px 12px;text-align:left">
-            <div class="hist-stat-val">${totalSessions}</div>
-            <div class="hist-stat-label">SESSIONS · ALL</div>
-          </div>
-          <div class="card" style="padding:14px 12px;text-align:left">
-            <div class="hist-stat-val">${totalVolume >= 1000 ? (totalVolume/1000).toFixed(1)+'k' : totalVolume}</div>
-            <div class="hist-stat-label">VOLUME · ${unit.toUpperCase()}</div>
-          </div>
-          <div class="card" style="padding:14px 12px;text-align:left">
-            <div class="hist-stat-val">${totalPRs}</div>
-            <div class="hist-stat-label">PRS · TRACKED</div>
-          </div>
         </div>
         ${groupKeys.map(gk => {
           const [y, m] = gk.split('-');
@@ -1868,29 +1843,18 @@
       const isOpen = historyExpandedId === String(session.id);
       const rName = session.routineName || ('Workout ' + (session.type || '?'));
       const dot = session.routineId === 'default-b' ? 'badge-dot-b' : 'badge-dot-a';
-      const setCount = session.exercises.reduce((s,e)=>s+e.sets.filter(x=>x.completed).length,0);
-      const vol = calcSessionVolume(session);
-      // Identify PRs held by this session
+      // Same comparison as the recap: each lift against what came before this session.
+      const { lifts, up, compared } = compareToLastTime(session);
+      // PRs: flagged when logged, or a record this session still holds (older logs predate the flag).
       const isRecordSet = (cur, s) => cur && s.completed && !s.drop && Number(s.weight) === cur.maxWeight && (Number(s.reps) || 0) === (Number(cur.reps) || 0);
-      const prsHere = [];
-      session.exercises.forEach(ex => {
-        const cur = appData.personalRecords[ex.name];
-        if (cur && cur.date === session.date && ex.sets.some(s => isRecordSet(cur, s))) prsHere.push(ex.name);
+      lifts.forEach(l => {
+        const cur = appData.personalRecords[l.name];
+        const ex = session.exercises.find(e => e.name === l.name);
+        if (cur && cur.date === session.date && ex && ex.sets.some(s => isRecordSet(cur, s))) l.pr = true; // so the row shows the star too
       });
-
-      const detailHtml = session.exercises.map(ex => {
-        if (!ex.sets.length) return '';
-        const cur = appData.personalRecords[ex.name];
-        const setPills = ex.sets.map(s => {
-          if (!s.completed) return '';
-          const isPR = prsHere.includes(ex.name) && isRecordSet(cur, s);
-          return `<span class="${isPR ? 'pr' : s.drop ? 'drop' : ''}">${s.drop ? '↓' : ''}${s.weight}×${s.reps}${isPR?' ★':''}</span>`;
-        }).filter(x=>x).join('');
-        return `<div class="hist-ex">
-          <div class="hist-ex-name">${escapeHtml(ex.name)}</div>
-          <div class="hist-ex-sets">${setPills}</div>
-        </div>`;
-      }).join('');
+      const prCount = lifts.filter(l => l.pr).length;
+      const progress = compared ? `${up} of ${compared} up` : `${lifts.length} lift${lifts.length === 1 ? '' : 's'}`;
+      const detailHtml = recapListHTML(lifts);
 
       const notesHtml = session.notes ? `<div class="hist-notes">${escapeHtml(session.notes)}</div>` : '';
 
@@ -1900,7 +1864,7 @@
           <div style="flex:1;min-width:0">
             <div class="hist-title">${escapeHtml(rName)} · ${formatDate(session.date)}</div>
             <div class="hist-meta">
-              ${session.totalDuration ? formatTime(session.totalDuration) + ' · ' : ''}${setCount} SETS · ${formatVolume(vol)} ${unit.toUpperCase()}${prsHere.length?` <span class="pr">· ${prsHere.length} PR</span>`:''}
+              ${session.totalDuration ? formatTime(session.totalDuration) + ' · ' : ''}${progress.toUpperCase()}${prCount ? ` <span class="pr">· ★ ${prCount} PR</span>` : ''}
             </div>
           </div>
           <button class="hist-delete" onclick="event.stopPropagation();deleteSession('${session.id}')" title="Delete">${svg('trash', 16)}</button>
@@ -2912,6 +2876,24 @@
       </div>`;
     }
 
+    // One row per lift: result on the right, tap to open last vs today. Used by the recap and History.
+    function recapListHTML(lifts) {
+      if (!lifts.length) return '';
+      return `<div class="recap-list">
+        ${lifts.map(l => `<div class="recap-row ${l.status}" onclick="toggleRecapRow(this)">
+          <div class="recap-head">
+            <div class="recap-name">${escapeHtml(l.name)}</div>
+            <div class="recap-res">${l.pr ? '<span class="recap-star">★</span>' : ''}${l.summary}<span class="recap-chev">${svg('chevRight', 12, 2)}</span></div>
+          </div>
+          <div class="recap-detail">
+            ${l.meta ? `<div class="recap-meta">${escapeHtml(l.meta)}</div>` : ''}
+            ${setsGridHTML(l)}
+            ${l.note ? `<div class="recap-note">${l.note}</div>` : ''}
+          </div>
+        </div>`).join('')}
+      </div>`;
+    }
+
     function renderFinish() {
       const s = finishedSessionMemo;
       const el = document.getElementById('finish-screen');
@@ -2922,8 +2904,6 @@
       }
       const { lifts, up } = compareToLastTime(s);
       const stronger = up > 0 || lifts.some(l => l.pr);
-      // Last/today as a grid so set N lines up under set N; short rows are padded with empty cells.
-      const grid = setsGridHTML;
       el.innerHTML = `
         <div class="finish-head">
           <div class="eyebrow eyebrow-accent" style="margin-bottom:6px">Session complete</div>
@@ -2932,25 +2912,28 @@
             ${escapeHtml(s.routineName || 'WORKOUT').toUpperCase()} · ${formatTime(s.totalDuration || 0)}
           </div>
         </div>
-        ${lifts.length ? `<div class="recap-list">
-          ${lifts.map(l => `<div class="recap-row ${l.status}" onclick="toggleRecapRow(this)">
-            <div class="recap-head">
-              <div class="recap-name">${escapeHtml(l.name)}</div>
-              <div class="recap-res">${l.pr ? '<span class="recap-star">★</span>' : ''}${l.summary}<span class="recap-chev">${svg('chevRight', 12, 2)}</span></div>
-            </div>
-            <div class="recap-detail">
-              ${l.meta ? `<div class="recap-meta">${escapeHtml(l.meta)}</div>` : ''}
-              ${grid(l)}
-              ${l.note ? `<div class="recap-note">${l.note}</div>` : ''}
-            </div>
-          </div>`).join('')}
-        </div>` : ''}
+        ${recapListHTML(lifts)}
         <button class="btn btn-primary btn-block" style="padding:16px;font-size:15px" onclick="finishedSessionMemo=null;showScreen('home')">${svg('check', 16, 2.5)} Save & go home</button>`;
     }
 
     /* ========== PROGRESS ========== */
     let progressSelectedIdx = 0;
     let progressView = 'weight'; // weight | volume | 1rm
+    // Time range for the Progress screen. The chart, headline and list rows all follow it.
+    let progressRange = '3m';
+    const PROGRESS_RANGES = {
+      '4w': { days: 28, label: '4W', span: 'in 4 weeks' },
+      '3m': { days: 91, label: '3M', span: 'in 3 months' },
+      '6m': { days: 182, label: '6M', span: 'in 6 months' },
+      'all': { days: Infinity, label: 'All', span: 'all time' },
+    };
+    function inProgressRange(data) {
+      const { days } = PROGRESS_RANGES[progressRange];
+      if (!isFinite(days)) return data;
+      const cut = new Date(); cut.setDate(cut.getDate() - days);
+      const c = cut.toISOString().slice(0, 10);
+      return data.filter(d => d.date >= c);
+    }
 
     function getExerciseProgressData(exerciseName) {
       const data = [];
@@ -2987,10 +2970,24 @@
       const w = 360, h = 180;
       const padL = 42, padR = 14, padT = 16, padB = 26;
       const minV = Math.min(...vals), maxV = Math.max(...vals);
-      const margin = (maxV - minV) * 0.12 || Math.max(1, maxV * 0.05);
-      const yMin = minV - margin, yMax = maxV + margin;
-      const span = yMax - yMin || 1;
-      const xfn = i => padL + (i / Math.max(1, vals.length - 1)) * (w - padL - padR);
+      // Snap the y-range to round ticks: try steps of 1/2/2.5/5 × 10ⁿ (coarse enough to read as round,
+      // at least a sixth of the range) and keep the tightest fit. An even step count keeps the middle tick round.
+      const range = Math.max(maxV - minV, maxV * 0.1, 2);
+      let fit = null;
+      for (let e = -1; e <= 5; e++) for (const m of [1, 2, 2.5, 5]) {
+        const st = m * 10 ** e;
+        if (st < range / 6) continue;
+        let lo = Math.floor(minV / st) * st, hi = Math.ceil(maxV / st) * st;
+        if (hi === lo) hi += st;
+        if (Math.round((hi - lo) / st) % 2) hi += st;
+        if (!fit || hi - lo < fit.hi - fit.lo) fit = { lo, hi };
+      }
+      const yMin = fit.lo, yMax = fit.hi;
+      const span = yMax - yMin;
+      // X is by date, so breaks and deloads show as real gaps rather than evenly spaced sessions.
+      const ts = filtered.map(p => Date.parse(p.date + 'T12:00:00'));
+      const t0 = ts[0], t1 = ts[ts.length - 1];
+      const xfn = i => padL + (t1 > t0 ? (ts[i] - t0) / (t1 - t0) : 0.5) * (w - padL - padR);
       const yfn = v => padT + (h - padT - padB) * (1 - (v - yMin) / span);
       const path = vals.map((v, i) => `${i === 0 ? 'M' : 'L'} ${xfn(i).toFixed(1)} ${yfn(v).toFixed(1)}`).join(' ');
       const area = path + ` L ${xfn(vals.length - 1).toFixed(1)} ${(h - padB).toFixed(1)} L ${xfn(0).toFixed(1)} ${(h - padB).toFixed(1)} Z`;
@@ -3004,10 +3001,12 @@
       }).join('');
 
       // X-axis ticks — first, middle, last (MM-DD)
-      const xIdxs = vals.length <= 2 ? [0, vals.length - 1] : [0, Math.floor(vals.length / 2), vals.length - 1];
-      const xTicks = [...new Set(xIdxs)].map(i => {
-        const d = filtered[i].date.slice(5).replace('-', '/');
-        return `<text x="${xfn(i).toFixed(1)}" y="${h - 8}" text-anchor="middle" fill="var(--ink-4)" font-family="Geist Mono, monospace" font-size="9">${d}</text>`;
+      // Date ticks at the start, the time midpoint and the end of the range.
+      const md = t => { const d = new Date(t); return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`; };
+      const tickTimes = t1 > t0 ? [t0, (t0 + t1) / 2, t1] : [t0];
+      const xTicks = tickTimes.map(t => {
+        const x = padL + (t1 > t0 ? (t - t0) / (t1 - t0) : 0.5) * (w - padL - padR);
+        return `<text x="${x.toFixed(1)}" y="${h - 8}" text-anchor="middle" fill="var(--ink-4)" font-family="Geist Mono, monospace" font-size="9">${md(t)}</text>`;
       }).join('');
 
       // Dots on every point
@@ -3025,7 +3024,7 @@
       const lblX = lastX > w - padR - 28 ? lastX - 4 : lastX;
 
       // Save state for scrubber interactions
-      chartState = { filtered, field, w, h, padL, padR, padT, padB, yMin, span };
+      chartState = { filtered, field, w, h, padL, padR, padT, padB, yMin, span, ts, t0, t1 };
 
       return `<svg id="prog-chart" viewBox="0 0 ${w} ${h}" width="100%" height="${h}" style="display:block;margin-top:10px;overflow:visible;touch-action:none">
         <defs>
@@ -3049,8 +3048,8 @@
     }
 
     function chartXfn(i) {
-      const { padL, padR, w, filtered } = chartState;
-      return padL + (i / Math.max(1, filtered.length - 1)) * (w - padL - padR);
+      const { padL, padR, w, ts, t0, t1 } = chartState;
+      return padL + (t1 > t0 ? (ts[i] - t0) / (t1 - t0) : 0.5) * (w - padL - padR);
     }
     function chartYfn(v) {
       const { padT, padB, h, yMin, span } = chartState;
@@ -3150,22 +3149,20 @@
       allNames.forEach(n => { if (!names.includes(n)) names.push(n); });
       if (progressSelectedIdx >= names.length) progressSelectedIdx = 0;
       const sel = names[progressSelectedIdx];
-      const data = getExerciseProgressData(sel);
+      const data = inProgressRange(getExerciseProgressData(sel));
+      const range = PROGRESS_RANGES[progressRange];
       const unit = appData.settings.unit;
       const field = progressView === '1rm' ? 'est1rm' : progressView;
       const pr = appData.personalRecords[sel];
-      const est1RM = computeEstimated1RM(sel);
 
       const vals = data.map(d => d[field]).filter(v => v > 0);
       const latest = vals.length ? vals[vals.length - 1] : 0;
       const first = vals.length ? vals[0] : 0;
       const delta = latest - first;
       const deltaTxt = delta > 0 ? `+${delta.toFixed(1)}` : delta < 0 ? delta.toFixed(1) : '0';
-      const avgTop = vals.length ? (vals.reduce((a,b)=>a+b,0) / vals.length).toFixed(1) : '—';
-      const sessions = data.length;
 
       const listHtml = names.map((name, i) => {
-        const d = getExerciseProgressData(name);
+        const d = inProgressRange(getExerciseProgressData(name));
         const pr2 = appData.personalRecords[name];
         const latestW = d.length ? d[d.length - 1].weight : 0;
         const firstW = d.length ? d[0].weight : 0;
@@ -3175,7 +3172,7 @@
           <span class="ex-list-drag" data-pi="${i}">${svg('drag', 16)}</span>
           <div style="flex:1;min-width:0" onclick="progressSelect(${i})">
             <div class="ex-list-name">${escapeHtml(name)}</div>
-            <div class="ex-list-sub">${deltaText.toUpperCase()} · ${d.length} SESSIONS</div>
+            <div class="ex-list-sub">${d.length ? `${deltaText.toUpperCase()} · ${d.length} SESSION${d.length === 1 ? '' : 'S'}` : 'NONE IN RANGE'}</div>
           </div>
           ${miniChart(d, 'weight')}
           <div class="mono" onclick="progressSelect(${i})" style="font-size:13px;color:var(--accent);font-weight:600">${pr2 ? pr2.maxWeight : latestW}<span style="font-size:9px;color:var(--ink-4);margin-left:2px">${unit.toUpperCase()}</span></div>
@@ -3191,40 +3188,22 @@
           <div class="row-between" style="margin-bottom:4px">
             <div style="min-width:0">
               <div class="serif" style="font-size:22px">${escapeHtml(sel)}</div>
-              <div class="mono" style="font-size:11px;color:var(--ink-3);margin-top:3px">${deltaTxt} ${unit.toUpperCase()} over ${sessions} sessions</div>
+              <div class="mono" style="font-size:11px;color:var(--ink-3);margin-top:3px">${data.length ? `${deltaTxt} ${progressView === 'volume' ? '' : unit.toUpperCase() + ' '}${range.span}` : `No sessions ${range.span === 'all time' ? 'yet' : range.span.replace('in ', 'in the last ')}`}</div>
             </div>
             <div style="text-align:right;flex-shrink:0">
               <div class="mono" style="font-size:26px;font-weight:700;color:var(--accent);letter-spacing:-0.02em;line-height:1">${pr ? pr.maxWeight : latest}</div>
               <div class="mono" style="font-size:10px;color:var(--ink-3);margin-top:3px;letter-spacing:0.08em">${unit.toUpperCase()} · PR</div>
             </div>
           </div>
+          <div class="prog-range">
+            ${Object.entries(PROGRESS_RANGES).map(([k, r]) => `<button class="${k === progressRange ? 'on' : ''}" onclick="progressSetRange('${k}')">${r.label}</button>`).join('')}
+          </div>
           ${svgChart(data, field)}
           <div class="prog-view-tabs">
             ${['weight','volume','1rm'].map(v => `<button class="${v===progressView?'on':''}" onclick="progressSetView('${v}')">${v === '1rm' ? 'Est. 1RM' : v}</button>`).join('')}
           </div>
         </div>
-        <div class="stat-grid">
-          <div class="stat-cell">
-            <div class="eyebrow" style="font-size:9px;margin-bottom:6px">TOP SET</div>
-            <div class="stat-cell-val">${pr ? pr.maxWeight : '—'} ${unit}</div>
-            <div class="stat-cell-sub">${pr && pr.reps ? '× ' + pr.reps + ' reps' : ''}</div>
-          </div>
-          <div class="stat-cell">
-            <div class="eyebrow" style="font-size:9px;margin-bottom:6px">AVG ${progressView.toUpperCase()}</div>
-            <div class="stat-cell-val">${avgTop} ${progressView === 'volume' ? '' : unit}</div>
-            <div class="stat-cell-sub">last ${vals.length}</div>
-          </div>
-          <div class="stat-cell">
-            <div class="eyebrow" style="font-size:9px;margin-bottom:6px">SESSIONS</div>
-            <div class="stat-cell-val">${sessions}</div>
-            <div class="stat-cell-sub">this lift</div>
-          </div>
-          <div class="stat-cell">
-            <div class="eyebrow" style="font-size:9px;margin-bottom:6px">EST. 1RM</div>
-            <div class="stat-cell-val">${est1RM ? est1RM + ' ' + unit : '—'}</div>
-            <div class="stat-cell-sub">Epley</div>
-          </div>
-        </div>
+        <div class="prog-summary">${data.length} session${data.length === 1 ? '' : 's'} ${range.span === 'all time' ? 'in total' : range.span}${pr && pr.date ? ` · last PR ${formatDate(pr.date)}` : ''}</div>
         <div>
           <div class="eyebrow" style="margin-bottom:10px;padding:0 2px">ALL EXERCISES</div>
           <div class="card" style="padding:0;overflow:hidden" id="progress-ex-list">${listHtml}</div>
@@ -3306,6 +3285,7 @@
     }
     function progressSelect(i) { progressSelectedIdx = i; renderProgress(); }
     function progressSetView(v) { progressView = v; renderProgress(); }
+    function progressSetRange(r) { progressRange = r; renderProgress(); }
 
     /* ========== ROUTINES ========== */
     function renderRoutines() {
