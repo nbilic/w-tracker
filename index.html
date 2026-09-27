@@ -330,9 +330,21 @@
       margin: -4px 0 12px; }
     .ex-bump.earned { color: var(--accent); font-weight: 600; }
     .exs-section { margin-bottom: 18px; }
-    .exs-target { font-family: 'Geist Mono', monospace; font-size: 15px; font-weight: 600; color: var(--ink); }
-    .exs-target-sub { font-size: 11px; font-weight: 400; color: var(--ink-3); margin-top: 3px; }
-    .exs-focus { font-size: 14px; color: var(--accent); font-weight: 500; line-height: 1.4; }
+    .exs-today { background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 18px; }
+    .exs-today-head { font-family: 'Geist Mono', monospace; font-size: 16px; font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+    .exs-today-focus { font-size: 14px; color: var(--accent); font-weight: 500; line-height: 1.4; }
+    .exs-today-next { font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-3); margin-top: 6px; }
+    .exs-today-next b { color: var(--ink); font-weight: 600; }
+    .exs-pr { font-family: 'Geist Mono', monospace; font-size: 11px; font-weight: 600; color: var(--gold);
+      border: 1px solid color-mix(in srgb, var(--gold) 40%, transparent); border-radius: 999px; padding: 4px 9px; white-space: nowrap; }
+    .exs-takeaway { font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--accent); font-weight: 600; }
+    .exs-note { font-size: 13px; color: var(--ink-2); line-height: 1.45; margin-bottom: 16px; cursor: pointer;
+      padding-left: 10px; border-left: 2px solid var(--line-2); white-space: pre-wrap; }
+    .exs-add-note { background: none; border: none; padding: 6px 0 2px; font: inherit; font-size: 13px; color: var(--ink-2); cursor: pointer; }
+    .exs-add-note span { color: var(--ink-4); margin-left: 4px; }
+    .exs-show-all { background: none; border: none; padding: 10px 0 0; font: inherit; font-size: 12px; color: var(--ink-3);
+      text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+    .exs-hint { color: var(--ink-4); }
     .exs-recent { padding: 9px 0; border-bottom: 1px solid var(--line); }
     .exs-recent-head { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-2); }
     .exs-recent-sets { font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-3); margin-top: 3px; }
@@ -349,7 +361,6 @@
     .exs-res { font-family: 'Geist Mono', monospace; font-size: 12px; color: var(--ink-4); }
     .exs-recent.up .exs-res { color: var(--accent); font-weight: 600; }
     .exs-recent.down .exs-res { color: var(--ink-3); }
-    .exs-stats { font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-3); letter-spacing: 0.04em; }
     .exhist-note { width: 100%; resize: none; margin-bottom: 14px; font-size: 13px; line-height: 1.4; }
     .set-head-row {
       display: grid; grid-template-columns: 20px 1fr 52px 32px; gap: 6px; margin-bottom: 6px;
@@ -2555,10 +2566,11 @@
       }
       const best = Math.max(...prevSets.map(R));
       if (range && best < range.lo) return `Below range last time (${best} at ${top} ${unit}). Build toward ${range.lo}.`;
-      // The weakest set short of the top of the range (latest on ties) is where the next rep comes from.
+      // Double progression fills sets in order: the next rep goes on the first set short of the top of
+      // the range (set 1 while you're freshest), then set 2 once set 1 is there, and so on.
       const all = prevSets.map((s, i) => ({ s, i }));
       const pool = range ? all.filter(({ s }) => R(s) < range.hi) : all;
-      const pick = (pool.length ? pool : all).reduce((a, c) => R(c.s) <= R(a.s) ? c : a);
+      const pick = (pool.length ? pool : all)[0];
       return `+1 rep on set ${pick.i + 1} · ${label(pick.s)} last time`;
     }
 
@@ -2590,30 +2602,52 @@
       const ticks = [...new Set([hi, lo])];
       const last = pts.length - 1;
       return `<div class="exs-section">
-        <div class="eyebrow" style="margin-bottom:6px">Working weight · reps</div>
+        <div class="row-between" style="margin-bottom:6px">
+          <span class="eyebrow">Progress</span>
+          <span class="exs-takeaway">${progressTakeaway(pts, unit)}</span>
+        </div>
         <svg class="exs-chart" viewBox="0 0 ${vw} ${vh}" role="img" aria-label="Working weight over the last ${pts.length} sessions">
           ${ticks.map(t => `<line x1="${padL}" x2="${vw - padR}" y1="${y(t)}" y2="${y(t)}" class="exs-grid"/>
             <text x="${padL - 6}" y="${y(t) + 3}" text-anchor="end" class="exs-axis">${t}</text>`).join('')}
           <path d="${path}" class="exs-line"/>
           ${pts.map((p, i) => `<circle cx="${x(i)}" cy="${y(p.w)}" r="${i === last ? 5 : 4}" class="exs-dot${i === last ? ' on' : ''}${p.off ? ' off' : ''}" data-i="${i}"/>
-            <text x="${x(i)}" y="${vh - 6}" text-anchor="middle" class="exs-reps">${p.reps}</text>
+            <text x="${x(i)}" y="${vh - 6}" text-anchor="middle" class="exs-reps">${shortDate(p.date)}</text>
             <rect x="${x(i) - colW / 2}" y="0" width="${colW}" height="${vh}" fill="transparent" style="cursor:pointer"
               onclick="selectExsChart(this.closest('.exs-section'), ${i})"/>`).join('')}
         </svg>
-        <div class="exs-chart-cap">${formatDate(pts[last].date)} · ${pts[last].sets} <span class="exs-unit">${unit}</span></div>
+        <div class="exs-chart-cap exs-hint">Tap a point to see its sets</div>
       </div>`;
+    }
+    function shortDate(iso) { const d = new Date(iso + 'T12:00:00'); return `${d.getMonth() + 1}/${d.getDate()}`; }
+    // One line on what the chart shows: weight gained over the span, or reps gained at the same weight.
+    function progressTakeaway(pts, unit) {
+      const real = pts.filter(p => !p.off);
+      if (real.length < 2) return '';
+      const a = real[0], b = real[real.length - 1];
+      const days = Math.round((Date.parse(b.date) - Date.parse(a.date)) / 86400000);
+      const span = days < 14 ? `${days} days` : `${Math.round(days / 7)} weeks`;
+      const dw = +(b.w - a.w).toFixed(2);
+      if (dw > 0) return `+${dw} ${unit} in ${span}`;
+      if (dw < 0) return `${dw} ${unit} in ${span}`;
+      const sum = p => p.reps.split('·').reduce((t, r) => t + (Number(r) || 0), 0);
+      const dr = sum(b) - sum(a);
+      return dr > 0 ? `+${dr} reps at ${b.w} ${unit}` : `Holding ${b.w} ${unit}`;
     }
     function selectExsChart(section, i) {
       const p = exsChartData[i];
       if (!p || !section) return;
       section.querySelectorAll('.exs-dot').forEach(d => { const on = +d.dataset.i === i; d.classList.toggle('on', on); d.setAttribute('r', on ? 5 : 4); });
-      section.querySelector('.exs-chart-cap').innerHTML = `${formatDate(p.date)} · ${p.sets} <span class="exs-unit">${appData.settings.unit}</span>`;
+      const cap = section.querySelector('.exs-chart-cap');
+      cap.classList.remove('exs-hint');
+      cap.innerHTML = `${formatDate(p.date)} · ${p.sets} <span class="exs-unit">${appData.settings.unit}</span>`;
     }
 
+    // Exercise sheet: answers "what do I do now?" (Today, mid-workout) and "am I progressing?"
+    // (chart + recent sessions), once each. PR sits by the name; the note is out of the way until used.
+    let exsSheetName = '';
     function renderExerciseHistoryBody(name) {
       const unit = appData.settings.unit;
       const pr = appData.personalRecords[name];
-      const est1rm = computeEstimated1RM(name);
       const libEx = EXERCISE_LIBRARY.find(e => e.name === name);
       const subtitle = libEx ? `${libEx.category.toUpperCase()} · ${libEx.equipment.toUpperCase()}` : '';
       // Same key the workout and exercise library use for notes.
@@ -2631,70 +2665,109 @@
       const label = s => Number(s.weight) ? `${s.weight}×${s.reps}` : String(s.reps);
       const gridLift = lift || { last: prevSets.map(label), tiles: [], drops: [] };
       const focus = exerciseFocus(name, prevSets, curEx);
-      // Target from the routine: sets × rep range, and what earns the next weight.
-      let target = '';
-      const tRange = curEx && parseRepRange(curEx.targetReps);
-      if (tRange) {
-        const nSets = curEx.sets.filter(s => !s.drop).length;
-        const w0 = Number((curEx.sets[0] || {}).weight) || 0;
-        const po = getWeightStep(curEx.equipment, curEx.exerciseId);
-        target = `${nSets} × ${tRange.hi > tRange.lo ? tRange.lo + '–' + tRange.hi : tRange.lo}`
-          + (po > 0 && w0 ? `<div class="exs-target-sub">${tRange.hi} on every set → ${+(w0 + po).toFixed(2)} ${unit}</div>` : '');
-      }
       const fromOther = found && found.sess.routineName && found.sess.routineId !== (currentSession && currentSession.routineId)
         && currentSession;
 
-      // Recent log: the last 5 sessions with this lift, their sets, each judged against its own "last time".
-      const recent = [];
-      for (let i = appData.sessions.length - 1; i >= 0 && recent.length < 5; i--) {
-        const sess = appData.sessions[i];
-        if (!sess.exercises.some(e => e.name === name && e.sets.some(s => s.completed && !s.drop))) continue;
-        const l = compareToLastTime(sess).lifts.find(x => x.name === name);
-        const e = sess.exercises.find(x => x.name === name);
-        const fmt = s => Number(s.weight) ? `${s.weight}×${s.reps}` : `${s.reps}`;
-        const sets = e.sets.filter(s => s.completed).map(s => s.drop ? `<span class="exs-drop">↓${fmt(s)}</span>` : fmt(s)).join(' · ');
-        if (l) recent.push({ date: sess.date, l, sets, off: !!sess.offDay });
-      }
-
-      const stats = [pr ? `PR ${pr.maxWeight}×${pr.reps || 0}` : '', est1rm ? `est. 1RM ${est1rm} ${unit}` : ''].filter(Boolean).join(' · ');
-      const hasHistory = prevSets.length || recent.length;
-
-      return `
-        <div class="row-between" style="margin-bottom:14px">
-          <div style="min-width:0">
-            <div class="eyebrow eyebrow-accent" style="margin-bottom:4px">Exercise</div>
-            <div style="font-size:18px;font-weight:500;margin-bottom:2px">${escapeHtml(name)}</div>
-            ${subtitle ? `<div class="mono" style="font-size:10px;color:var(--ink-3);letter-spacing:0.08em">${subtitle}</div>` : ''}
-          </div>
-          <button class="icon-btn" onclick="closeSheet('exhistory-overlay')" style="width:32px;height:32px">${svg('x', 14)}</button>
-        </div>
-        <textarea class="exhist-note" rows="2" placeholder="Note · seat, pins, grip, cues…"
-          data-key="${escapeHtml(noteKey)}" oninput="saveExerciseNote(this.dataset.key, this.value)">${escapeHtml(note)}</textarea>
-        ${target ? `<div class="exs-section"><div class="eyebrow" style="margin-bottom:6px">Target</div><div class="exs-target">${target}</div></div>` : ''}
-        ${!hasHistory ? `<div class="empty-state" style="padding:20px">First time. No history yet.</div>` : `
-          ${focus ? `<div class="exs-section">
-            <div class="eyebrow" style="margin-bottom:6px">Focus today</div>
-            <div class="exs-focus">${focus}</div>
-          </div>` : ''}
-          ${gridLift.last.length || gridLift.tiles.length ? `<div class="exs-section">
+      // Today (mid-workout): the plan in one line, what to focus on, and what earns the next jump.
+      let todayHtml = '';
+      if (curEx) {
+        const tRange = parseRepRange(curEx.targetReps);
+        const nSets = curEx.sets.filter(x => !x.drop).length;
+        const w0 = Number((curEx.sets[0] || {}).weight) || 0;
+        const step = getWeightStep(curEx.equipment, curEx.exerciseId);
+        const rangeTxt = tRange ? (tRange.hi > tRange.lo ? `${tRange.lo}–${tRange.hi}` : `${tRange.lo}`) : '';
+        const head = rangeTxt ? `${nSets} × ${rangeTxt}${w0 ? ` at ${w0} ${unit}` : ''}` : '';
+        const next = tRange && step > 0 && w0
+          ? `Next jump: ${w0} → <b>${+(w0 + step).toFixed(2)} ${unit}</b> after ${tRange.hi} on every set` : '';
+        todayHtml = `<div class="exs-today">
+          <div class="eyebrow eyebrow-accent" style="margin-bottom:6px">Today</div>
+          ${head ? `<div class="exs-today-head">${head}</div>` : ''}
+          ${focus ? `<div class="exs-today-focus">${focus}</div>` : (prevSets.length ? '' : '<div class="exs-today-focus">First time. Pick a weight you can do for the whole range.</div>')}
+          ${next ? `<div class="exs-today-next">${next}</div>` : ''}
+          ${gridLift.last.length || gridLift.tiles.length ? `<div style="margin-top:12px">
             ${fromOther ? `<div class="recap-meta">vs ${escapeHtml(found.sess.routineName)}</div>` : ''}
             ${setsGridHTML(gridLift)}
           </div>` : ''}
-          ${exerciseChartHTML(name)}
-          ${recent.length ? `<div class="exs-section">
-            <div class="eyebrow" style="margin-bottom:4px">Recent</div>
-            ${recent.map(({ date, l, sets, off }) => `<div class="exs-recent ${off ? 'off' : l.status}">
-              <div class="exs-recent-head">
-                <span>${formatDate(date)}</span>
-                <span class="exs-res">${l.pr ? '<span class="recap-star">★</span>' : ''}${off ? 'off day' : l.summary}</span>
-              </div>
-              <div class="exs-recent-sets">${sets}</div>
-            </div>`).join('')}
-          </div>` : ''}
-          ${stats ? `<div class="exs-stats">${stats}</div>` : ''}`}`;
+        </div>`;
+      } else if (focus) {
+        todayHtml = `<div class="exs-today">
+          <div class="eyebrow eyebrow-accent" style="margin-bottom:6px">Next time</div>
+          <div class="exs-today-focus">${focus}</div>
+        </div>`;
+      }
+
+      // Recent sessions with this lift, each judged against its own "last time". Sets compressed:
+      // "87.5 × 8,8,7,6" when the weight held, drops in purple.
+      const recent = [];
+      for (let i = appData.sessions.length - 1; i >= 0 && recent.length < 20; i--) {
+        const sess = appData.sessions[i];
+        if (!sess.exercises.some(e => e.name === name && e.sets.some(x => x.completed && !x.drop))) continue;
+        const l = compareToLastTime(sess).lifts.find(x => x.name === name);
+        const e = sess.exercises.find(x => x.name === name);
+        if (l) recent.push({ date: sess.date, l, sets: compactSets(e.sets.filter(x => x.completed)), off: !!sess.offDay });
+      }
+      const recentRow = ({ date, l, sets, off }) => `<div class="exs-recent ${off ? 'off' : l.status}">
+          <div class="exs-recent-head">
+            <span>${formatDate(date)}</span>
+            <span class="exs-res">${l.pr ? '<span class="recap-star">★</span>' : ''}${off ? 'off day' : l.summary}</span>
+          </div>
+          <div class="exs-recent-sets">${sets}</div>
+        </div>`;
+
+      const noteHtml = note
+        ? `<div class="exs-note" data-key="${escapeHtml(noteKey)}" onclick="editExerciseNote(this)">${escapeHtml(note)}</div>`
+        : '';
+      const addNoteHtml = note ? ''
+        : `<button class="exs-add-note" data-key="${escapeHtml(noteKey)}" onclick="editExerciseNote(this)">+ Add a note <span>seat, pins, grip, cues…</span></button>`;
+
+      return `
+        <div class="row-between" style="margin-bottom:${note ? 10 : 16}px;align-items:flex-start">
+          <div style="min-width:0">
+            <div style="font-size:18px;font-weight:500;margin-bottom:3px">${escapeHtml(name)}</div>
+            ${subtitle ? `<div class="mono" style="font-size:10px;color:var(--ink-3);letter-spacing:0.08em">${subtitle}</div>` : ''}
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+            ${pr ? `<span class="exs-pr">PR ${pr.maxWeight}${pr.reps ? '×' + pr.reps : ''}</span>` : ''}
+            <button class="icon-btn" onclick="closeSheet('exhistory-overlay')" style="width:32px;height:32px">${svg('x', 14)}</button>
+          </div>
+        </div>
+        ${noteHtml}
+        ${todayHtml}
+        ${exerciseChartHTML(name)}
+        ${recent.length ? `<div class="exs-section">
+          <div class="eyebrow" style="margin-bottom:4px">Recent</div>
+          ${recent.slice(0, 3).map(recentRow).join('')}
+          ${recent.length > 3 ? `<div class="exs-more" hidden>${recent.slice(3).map(recentRow).join('')}</div>
+            <button class="exs-show-all" onclick="this.previousElementSibling.hidden=false;this.remove()">Show all (${recent.length})</button>` : ''}
+        </div>` : (curEx ? '' : '<div class="empty-state" style="padding:20px">No sessions with this exercise yet.</div>')}
+        ${addNoteHtml}`;
+    }
+    // "87.5 × 8,8,7,6" when every regular set shares a weight, else each set; drop sets appended.
+    function compactSets(sets) {
+      const W = x => Number(x.weight) || 0;
+      const fmt = x => W(x) ? `${W(x)}×${x.reps}` : `${x.reps}`;
+      const reg = sets.filter(x => !x.drop), drops = sets.filter(x => x.drop);
+      let out;
+      if (reg.length && reg.every(x => W(x) === W(reg[0]))) out = W(reg[0]) ? `${W(reg[0])} × ${reg.map(x => x.reps).join(',')}` : `${reg.map(x => x.reps).join(',')} reps`;
+      else out = reg.map(fmt).join(' · ');
+      return out + drops.map(x => ` · <span class="exs-drop">↓${fmt(x)}</span>`).join('');
+    }
+    // Tap the note (or "+ Add a note") to edit it in place; it saves as you type.
+    function editExerciseNote(el) {
+      const key = el.dataset.key;
+      const ta = document.createElement('textarea');
+      ta.className = 'exhist-note';
+      ta.rows = 2;
+      ta.placeholder = 'Seat, pins, grip, cues…';
+      ta.value = (appData.exerciseNotes || {})[key] || '';
+      ta.oninput = () => saveExerciseNote(key, ta.value);
+      ta.onblur = () => { document.getElementById('exhistory-sheet').innerHTML = renderExerciseHistoryBody(exsSheetName); };
+      el.replaceWith(ta);
+      ta.focus();
     }
 
     function openExerciseHistory(name) {
+      exsSheetName = name;
       document.getElementById('exhistory-sheet').innerHTML = renderExerciseHistoryBody(name);
       openSheet('exhistory-overlay');
     }
