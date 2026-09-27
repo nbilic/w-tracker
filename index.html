@@ -1185,8 +1185,11 @@
         s.exercises.forEach(ex => {
           if (ex.name === exerciseName) {
             ex.sets.forEach(set => {
-              if (set.completed && set.weight !== '' && set.weight !== null && Number(set.weight) > maxWeight) {
-                maxWeight = Number(set.weight); prDate = s.date; prReps = Number(set.reps) || 0;
+              if (!set.completed || set.weight === '' || set.weight === null) return;
+              const w = Number(set.weight), r = Number(set.reps) || 0;
+              // Heavier beats everything; same weight only counts with more reps.
+              if (w > maxWeight || (w === maxWeight && w > 0 && r > prReps)) {
+                maxWeight = w; prReps = r; prDate = s.date;
               }
             });
           }
@@ -1212,24 +1215,23 @@
       }));
       return best > 0 ? Math.round(best) : null;
     }
-    function checkForNewPR(exerciseName, weight) {
+    // A set beats the record if it is heavier, or the same weight for more reps.
+    function beatsPR(pr, weight, reps) {
+      if (!pr) return false;
+      const w = Number(weight), r = Number(reps) || 0;
+      if (!w) return false;
+      if (w > pr.maxWeight) return true;
+      return w === pr.maxWeight && r > (Number(pr.reps) || 0);
+    }
+    function checkForNewPR(exerciseName, weight, reps) {
       if (weight === '' || weight === null || weight === 0) return false;
       const numWeight = Number(weight);
+      const numReps = Number(reps) || 0;
       const current = appData.personalRecords[exerciseName];
       if (!current) return false;
-      if (numWeight > current.maxWeight) {
-        let prReps = 0;
-        if (currentSession) {
-          const ex = currentSession.exercises.find(e => e.name === exerciseName);
-          if (ex) {
-            const set = ex.sets.find(s => s.completed && Number(s.weight) === numWeight);
-            if (set) prReps = Number(set.reps) || 0;
-          }
-        }
-        appData.personalRecords[exerciseName] = { maxWeight: numWeight, date: todayISO(), reps: prReps };
-        return true;
-      }
-      return false;
+      if (!beatsPR(current, numWeight, numReps)) return false;
+      appData.personalRecords[exerciseName] = { maxWeight: numWeight, date: todayISO(), reps: numReps };
+      return true;
     }
 
     /* ========== HAPTICS + WAKE LOCK + NOTIFY ========== */
@@ -1875,18 +1877,19 @@
       const setCount = session.exercises.reduce((s,e)=>s+e.sets.filter(x=>x.completed).length,0);
       const vol = calcSessionVolume(session);
       // Identify PRs held by this session
+      const isRecordSet = (cur, s) => cur && s.completed && Number(s.weight) === cur.maxWeight && (Number(s.reps) || 0) === (Number(cur.reps) || 0);
       const prsHere = [];
       session.exercises.forEach(ex => {
-        const maxInSess = Math.max(0, ...ex.sets.filter(s => s.completed && s.weight).map(s => Number(s.weight)));
         const cur = appData.personalRecords[ex.name];
-        if (cur && cur.date === session.date && cur.maxWeight === maxInSess) prsHere.push(ex.name);
+        if (cur && cur.date === session.date && ex.sets.some(s => isRecordSet(cur, s))) prsHere.push(ex.name);
       });
 
       const detailHtml = session.exercises.map(ex => {
         if (!ex.sets.length) return '';
+        const cur = appData.personalRecords[ex.name];
         const setPills = ex.sets.map(s => {
           if (!s.completed) return '';
-          const isPR = prsHere.includes(ex.name) && Number(s.weight) === appData.personalRecords[ex.name].maxWeight;
+          const isPR = prsHere.includes(ex.name) && isRecordSet(cur, s);
           return `<span class="${isPR?'pr':''}">${s.weight}×${s.reps}${isPR?' ★':''}</span>`;
         }).filter(x=>x).join('');
         return `<div class="hist-ex">
@@ -2184,7 +2187,7 @@
       set.completed = !set.completed;
       if (set.completed) {
         const exName = currentSession.exercises[ei].name;
-        const isPR = checkForNewPR(exName, set.weight);
+        const isPR = checkForNewPR(exName, set.weight, set.reps);
         set.isPR = isPR;
         if (isPR) { triggerHaptic('pr'); launchConfetti(); }
         else triggerHaptic('setComplete');
@@ -2498,16 +2501,17 @@
       const lastEx = findLastSessionWithExercise(ex.name);
       const lastStr = lastEx ? (lastEx.sets.find(s => s.weight !== '' && s.weight !== null) || {}).weight : '';
       const pr = appData.personalRecords[ex.name];
-      const isPR = pr && numpadW > pr.maxWeight;
+      const isPR = beatsPR(pr, numpadW, numpadR);
+      const isRepPR = isPR && numpadW === pr.maxWeight;
 
       document.getElementById('numpad-sheet').innerHTML = `
         <div class="sheet-grab"></div>
         <div class="row-between" style="margin-bottom:18px">
           <div style="min-width:0">
             <div class="eyebrow eyebrow-accent" style="margin-bottom:4px">Set ${si+1} · ${escapeHtml(ex.name)}</div>
-            <div class="mono" style="font-size:11px;color:var(--ink-3)">${lastStr !== '' ? 'LAST · ' + lastStr + unit : 'NO PRIOR DATA'}</div>
+            <div class="mono" style="font-size:11px;color:var(--ink-3)">${lastStr !== '' ? 'LAST · ' + lastStr + unit : 'NO PRIOR DATA'}${pr ? ' · PR ' + pr.maxWeight + unit + ' × ' + (pr.reps || 0) : ''}</div>
           </div>
-          ${isPR ? `<div class="pill pill-accent">${svg('trophy', 11)} NEW PR</div>` : ''}
+          ${isPR ? `<div class="pill pill-accent">${svg('trophy', 11)} ${isRepPR ? 'REP PR' : 'NEW PR'}</div>` : ''}
         </div>
         <div class="num-tiles">
           <div class="num-tile${numpadFocus==='weight'?' on':''}" onclick="numpadSetFocus('weight')">
@@ -2580,7 +2584,7 @@
       if (!set.completed) {
         set.completed = true;
         const exName = currentSession.exercises[ei].name;
-        const isPR = checkForNewPR(exName, set.weight);
+        const isPR = checkForNewPR(exName, set.weight, set.reps);
         set.isPR = isPR;
         if (isPR) { triggerHaptic('pr'); launchConfetti(); }
         else triggerHaptic('setComplete');
