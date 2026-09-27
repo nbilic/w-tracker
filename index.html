@@ -554,6 +554,10 @@
       letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer;
     }
     .chip.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+    .step-picker { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .step-picker input[type=number] { width: 76px; text-align: center; padding: 7px 8px; border-radius: 999px; font-family: 'Geist Mono', monospace; font-size: 13px; }
+    .step-preview { font-family: 'Geist Mono', monospace; font-size: 12px; color: var(--ink-3); margin-top: 8px; }
+    .step-preview b { color: var(--ink); font-weight: 600; }
 
     .prog-hero .serif { font-size: 22px; }
     .prog-view-tabs { display: flex; gap: 4px; margin-top: 16px; }
@@ -1120,6 +1124,8 @@
       return null;
     }
 
+    // An exercise's step is its next weight increment: what double progression adds once you've earned it,
+    // and the ± on the weight buttons. Set per exercise in the Bestiary.
     function getWeightStep(equipment, exerciseId) {
       if (exerciseId && appData && appData.exerciseOverrides && appData.exerciseOverrides[exerciseId] && appData.exerciseOverrides[exerciseId].step !== undefined) {
         return Math.max(0.5, appData.exerciseOverrides[exerciseId].step);
@@ -1133,11 +1139,9 @@
       const n = parseInt(v);
       return n > 0 ? { lo: n, hi: n } : null;
     }
-    // Rep target for an exercise newly added to a routine: your library override if you set one,
-    // else a range sized to the usual weight jump (big relative jumps need wider ranges).
+    // Rep target for an exercise newly added to a routine: a range sized to the usual weight jump
+    // (big relative jumps need wider ranges).
     function defaultRepTarget(libEx) {
-      const ov = appData.exerciseOverrides && appData.exerciseOverrides[libEx.id];
-      if (ov && ov.defaultReps !== undefined) return String(ov.defaultReps);
       if (parseRepRange(libEx.defaultReps)?.hi > parseRepRange(libEx.defaultReps)?.lo) return String(libEx.defaultReps);
       if (libEx.equipment === 'bodyweight') return String(libEx.defaultReps);
       return { barbell: '5-8', machine: '10-15' }[libEx.equipment] || '8-12';
@@ -1158,13 +1162,6 @@
         streak++;
       }
       return streak >= 2 ? `Below range twice at ${weight} ${appData.settings.unit}. Consider ${+(weight - po).toFixed(2)} for another round.` : '';
-    }
-
-    function getPOStep(equipment, exerciseId) {
-      if (exerciseId && appData && appData.exerciseOverrides && appData.exerciseOverrides[exerciseId] && appData.exerciseOverrides[exerciseId].po !== undefined) {
-        return appData.exerciseOverrides[exerciseId].po;
-      }
-      return equipment === 'barbell' ? 2.5 : 1;
     }
 
     /* ========== DATA LAYER ========== */
@@ -1235,6 +1232,14 @@
       if (!appData.settings.chartOrder) appData.settings.chartOrder = [];
       if (!appData.customExercises) appData.customExercises = [];
       if (!appData.exerciseOverrides) appData.exerciseOverrides = {};
+      // Older saves kept a separate overload ("po") and default sets/reps per exercise. Step is the one
+      // increment now, and routines own sets/reps.
+      Object.entries(appData.exerciseOverrides).forEach(([id, ov]) => {
+        if (!ov || typeof ov !== 'object') { delete appData.exerciseOverrides[id]; return; }
+        if (ov.step === undefined && ov.po > 0) ov.step = ov.po;
+        delete ov.po; delete ov.defaultSets; delete ov.defaultReps;
+        if (ov.step === undefined) delete appData.exerciseOverrides[id];
+      });
       appData.customExercises.forEach(ex => {
         if (!LIBRARY_MAP[ex.id]) { EXERCISE_LIBRARY.push(ex); LIBRARY_MAP[ex.id] = ex; }
       });
@@ -1833,7 +1838,7 @@
           const lastSets = lastEx ? lastEx.sets.filter(s => !s.drop) : [];
           let lastWeight = (lastSets.find(s => s.weight !== '' && s.weight !== null) || {}).weight || '';
           const step = getWeightStep(t.equipment, t.exerciseId);
-          const po = getPOStep(t.equipment, t.exerciseId);
+          const po = getWeightStep(t.equipment, t.exerciseId);
           // Double progression: the weight goes up only once every set reached the TOP of the rep range
           // (a single-number target is a range of one), then reps restart at the bottom of the range.
           const range = parseRepRange(t.reps);
@@ -2192,7 +2197,7 @@
           // set at one weight, all ticked, all at the TOP of the rep range. After a jump that's gone badly
           // twice, the fallback advice takes its place.
           const range = parseRepRange(ex.targetReps);
-          const po = getPOStep(ex.equipment, ex.exerciseId);
+          const po = getWeightStep(ex.equipment, ex.exerciseId);
           const regular = sets.filter(s => !s.drop);
           const w0 = regular.length ? Number(regular[0].weight) || 0 : 0;
           let bump = belowRangeAdvice(ex.name, w0, range, po), earned = false;
@@ -2407,7 +2412,7 @@
         return `Weight's up: ${curEx.prevWeight} → ${curEx.sets[0].weight} ${unit}. ${range ? `Aim for ${range.lo}+ on each set.` : "Match last time's reps."}`;
       }
       if (!prevSets.length) return '';
-      const po = getPOStep(libEx ? libEx.equipment : (curEx && curEx.equipment), libEx ? libEx.id : (curEx && curEx.exerciseId));
+      const po = getWeightStep(libEx ? libEx.equipment : (curEx && curEx.equipment), libEx ? libEx.id : (curEx && curEx.exerciseId));
       const top = Math.max(...prevSets.map(W));
       const fallback = belowRangeAdvice(name, top, range, po);
       if (fallback) return fallback;
@@ -2498,7 +2503,7 @@
       if (tRange) {
         const nSets = curEx.sets.filter(s => !s.drop).length;
         const w0 = Number((curEx.sets[0] || {}).weight) || 0;
-        const po = getPOStep(curEx.equipment, curEx.exerciseId);
+        const po = getWeightStep(curEx.equipment, curEx.exerciseId);
         target = `${nSets} × ${tRange.hi > tRange.lo ? tRange.lo + '–' + tRange.hi : tRange.lo}`
           + (po > 0 && w0 ? `<div class="exs-target-sub">${tRange.hi} on every set → ${+(w0 + po).toFixed(2)} ${unit}</div>` : '');
       }
@@ -2766,7 +2771,7 @@
         </div>
         <div style="position:relative;margin-bottom:10px">
           <span style="position:absolute;left:12px;top:12px;color:var(--ink-4)">${svg('search', 14)}</span>
-          <input id="swap-search-input" placeholder="Search exercises" value="${escapeHtml(swapQuery)}"
+          <input id="swap-search-input" type="text" placeholder="Search exercises" value="${escapeHtml(swapQuery)}"
             oninput="swapQuery=this.value;renderSwapSheetList()"
             style="width:100%;padding:10px 12px 10px 34px;border-radius:10px" />
         </div>
@@ -2889,7 +2894,7 @@
           <div class="eyebrow eyebrow-accent" style="margin-bottom:3px">Routine modified</div>
           <div class="mono" style="font-size:11px;color:var(--ink-3)">You swapped exercises during this workout</div>
         </div>
-        <input id="new-routine-name-input" placeholder="New routine name..." style="width:100%;padding:12px 14px;margin-bottom:12px" />
+        <input id="new-routine-name-input" type="text" placeholder="New routine name..." style="width:100%;padding:12px 14px;margin-bottom:12px" />
         <div class="v-stack" style="gap:8px">
           <button class="btn btn-primary btn-block" style="padding:14px" onclick="saveAsNewRoutine()">Save as new routine</button>
           <button class="btn btn-block" style="padding:14px" onclick="updateExistingRoutine()">Update "${escapeHtml(rName)}"</button>
@@ -3916,7 +3921,7 @@
         </div>
         <div style="position:relative;margin-bottom:10px">
           <span style="position:absolute;left:12px;top:12px;color:var(--ink-4)">${svg('search', 14)}</span>
-          <input id="builder-search-input" placeholder="Search exercises" value="${escapeHtml(builderQuery)}"
+          <input id="builder-search-input" type="text" placeholder="Search exercises" value="${escapeHtml(builderQuery)}"
             oninput="builderQuery=this.value;renderBuilderAddList()"
             style="width:100%;padding:10px 12px 10px 34px;border-radius:10px"/>
         </div>
@@ -4315,7 +4320,7 @@
         </div>
         <div style="position:relative">
           <span style="position:absolute;left:12px;top:12px;color:var(--ink-4)">${svg('search', 14)}</span>
-          <input id="bestiary-search-input" placeholder="Search exercises" value="${escapeHtml(bestiaryQuery)}"
+          <input id="bestiary-search-input" type="text" placeholder="Search exercises" value="${escapeHtml(bestiaryQuery)}"
             oninput="bestiaryQuery=this.value;renderBestiaryList()"
             style="width:100%;padding:10px 12px 10px 34px;border-radius:10px"/>
         </div>
@@ -4342,12 +4347,11 @@
       inner.innerHTML = filtered.length === 0 ? `<div class="empty-state">No matches</div>` :
         filtered.map(ex => {
           const isCustom = appData.customExercises.some(c => c.id === ex.id);
-          const override = appData.exerciseOverrides[ex.id] || {};
-          const step = override.step !== undefined ? override.step : getWeightStep(ex.equipment, ex.id);
+          const step = getWeightStep(ex.equipment, ex.id);
           return `<div class="menu-row" onclick="openExerciseEditModal('${ex.id}')">
             <div style="flex:1;min-width:0">
               <div class="menu-row-name">${escapeHtml(ex.name)}${isCustom ? ` <span class="pill pill-accent" style="margin-left:6px">CUSTOM</span>` : ''}</div>
-              <div class="menu-row-sub">${ex.category} · ${ex.equipment} · STEP ${step}</div>
+              <div class="menu-row-sub">${ex.category} · ${ex.equipment} · +${step} ${appData.settings.unit}</div>
             </div>
             ${svg('chevRight', 14)}
           </div>`;
@@ -4357,12 +4361,9 @@
     function openExerciseEditModal(exerciseId) {
       const ex = LIBRARY_MAP[exerciseId]; if (!ex) return;
       bestiaryEditingId = exerciseId;
-      const override = appData.exerciseOverrides[exerciseId] || {};
       const isCustom = appData.customExercises.some(c => c.id === exerciseId);
-      const curStep = override.step !== undefined ? override.step : getWeightStep(ex.equipment, exerciseId);
-      const curPO = override.po !== undefined ? override.po : getPOStep(ex.equipment, exerciseId);
-      const curSets = override.defaultSets !== undefined ? override.defaultSets : ex.defaultSets;
-      const curReps = override.defaultReps !== undefined ? override.defaultReps : ex.defaultReps;
+      const curStep = getWeightStep(ex.equipment, exerciseId);
+      stepEditLastWeight = lastWorkingWeight(ex.name);
       const curNote = appData.exerciseNotes[exerciseId] || '';
       const pr = appData.personalRecords[ex.name];
       const est1rm = computeEstimated1RM(ex.name);
@@ -4402,37 +4403,18 @@
             <span class="field-label">Notes</span>
             <textarea id="edit-note" rows="3" placeholder="Form cues...">${escapeHtml(curNote)}</textarea>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <div class="field">
-              <span class="field-label">Step</span>
-              <input id="edit-step" type="number" step="0.5" min="0.5" value="${curStep}" inputmode="decimal"/>
-            </div>
-            <div class="field">
-              <span class="field-label">Overload</span>
-              <input id="edit-po" type="number" step="0.5" min="0" value="${curPO}" inputmode="decimal"/>
-            </div>
-            <div class="field">
-              <span class="field-label">Default sets</span>
-              <input id="edit-sets" type="number" min="1" max="10" value="${curSets}" inputmode="numeric"/>
-            </div>
-            <div class="field">
-              <span class="field-label">Default reps</span>
-              <input id="edit-reps" type="text" value="${escapeHtml(String(curReps))}"/>
-            </div>
-          </div>
+          ${stepPickerHTML(curStep)}
           <button class="btn btn-primary btn-block" style="padding:14px;margin-top:4px" onclick="saveExerciseOverride()">Save</button>
           ${isCustom ? `<button class="btn btn-ghost btn-block" style="color:var(--bad)" onclick="deleteCustomExercise('${exerciseId}')">Delete exercise</button>` : ''}
         </div>`;
       openSheet('exedit-overlay');
+      updateStepPreview();
     }
     function saveExerciseOverride() {
       if (!bestiaryEditingId) return;
-      const step = parseFloat(document.getElementById('edit-step').value);
-      const po = parseFloat(document.getElementById('edit-po').value);
-      const sets = parseInt(document.getElementById('edit-sets').value);
-      const reps = (document.getElementById('edit-reps').value || '').trim();
-      if (isNaN(step) || step < 0.5 || isNaN(po) || po < 0 || isNaN(sets) || sets < 1) return;
-      appData.exerciseOverrides[bestiaryEditingId] = { step, po, defaultSets: sets, defaultReps: reps || '10' };
+      const step = readStepInput();
+      if (!step) { customAlert('Step needs to be at least 0.5.'); return; }
+      appData.exerciseOverrides[bestiaryEditingId] = { step };
       const note = (document.getElementById('edit-note').value || '').trim();
       if (note) appData.exerciseNotes[bestiaryEditingId] = note;
       else delete appData.exerciseNotes[bestiaryEditingId];
@@ -4451,7 +4433,7 @@
         <div class="v-stack" style="gap:14px">
           <div class="field">
             <span class="field-label">Name</span>
-            <input id="create-name" placeholder="Exercise name"/>
+            <input id="create-name" type="text" placeholder="Exercise name" autocomplete="off"/>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div class="field">
@@ -4462,43 +4444,76 @@
             </div>
             <div class="field">
               <span class="field-label">Equipment</span>
-              <select id="create-equipment" style="padding:10px 12px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:14px">
+              <select id="create-equipment" onchange="setStepInput(this.value === 'barbell' ? 2.5 : 1)" style="padding:10px 12px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:14px">
                 <option value="barbell">Barbell</option><option value="dumbbell">Dumbbell</option><option value="cable">Cable</option><option value="machine">Machine</option><option value="bodyweight">Bodyweight</option>
               </select>
             </div>
-            <div class="field">
-              <span class="field-label">Sets</span>
-              <input id="create-sets" type="number" value="3" min="1" max="10" inputmode="numeric"/>
-            </div>
-            <div class="field">
-              <span class="field-label">Reps</span>
-              <input id="create-reps" type="text" value="10"/>
-            </div>
-            <div class="field" style="grid-column:1 / -1">
-              <span class="field-label">Weight step</span>
-              <input id="create-step" type="number" value="2.5" step="0.5" min="0.5" inputmode="decimal"/>
-            </div>
           </div>
+          ${stepPickerHTML(2.5)}
           <button class="btn btn-primary btn-block" style="padding:14px;margin-top:4px" onclick="saveNewExercise()">Create</button>
         </div>`;
+      stepEditLastWeight = null;
       openSheet('exedit-overlay');
+      updateStepPreview();
     }
     function saveNewExercise() {
       const name = (document.getElementById('create-name').value || '').trim();
       if (!name) return;
       const category = document.getElementById('create-category').value;
       const equipment = document.getElementById('create-equipment').value;
-      const sets = parseInt(document.getElementById('create-sets').value) || 3;
-      const reps = (document.getElementById('create-reps').value || '').trim() || '10';
-      const step = parseFloat(document.getElementById('create-step').value) || 2.5;
+      const step = readStepInput();
+      if (!step) { customAlert('Step needs to be at least 0.5.'); return; }
       const id = 'custom-' + Date.now();
-      const newEx = { id, name, category, equipment, defaultSets: sets, defaultReps: reps, defaultRest: 90 };
+      // Sets/reps here are only the starting point when it's added to a routine; routines own them.
+      const newEx = { id, name, category, equipment, defaultSets: 3, defaultReps: '10', defaultRest: 90 };
       appData.customExercises.push(newEx);
       EXERCISE_LIBRARY.push(newEx);
       LIBRARY_MAP[id] = newEx;
-      appData.exerciseOverrides[id] = { step, defaultSets: sets, defaultReps: reps };
+      appData.exerciseOverrides[id] = { step };
       saveData(appData); closeSheet('exedit-overlay'); renderBestiary(); triggerHaptic('success');
     }
+    // Step picker: common increments as chips, or type your own. The preview shows the jump from your
+    // last working weight, so it's clear what the number does.
+    let stepEditLastWeight = null;
+    function stepPresets() { return appData.settings.unit === 'lbs' ? [1, 2.5, 5, 10] : [0.5, 1, 1.25, 2, 2.5, 5]; }
+    function lastWorkingWeight(name) {
+      for (let i = appData.sessions.length - 1; i >= 0; i--) {
+        const e = appData.sessions[i].exercises.find(x => x.name === name);
+        const ws = e ? e.sets.filter(st => st.completed && !st.drop).map(st => Number(st.weight) || 0) : [];
+        if (ws.length && Math.max(...ws) > 0) return Math.max(...ws);
+      }
+      return null;
+    }
+    function stepPickerHTML(step) {
+      return `<div class="field">
+            <span class="field-label">Weight step</span>
+            <div class="step-picker" id="step-picker">
+              ${stepPresets().map(v => `<button class="chip${v === step ? ' on' : ''}" data-v="${v}" onclick="setStepInput(${v})">+${v}</button>`).join('')}
+              <input id="edit-step" type="number" step="0.25" min="0.5" inputmode="decimal" value="${step}" oninput="updateStepPreview()" aria-label="Custom step"/>
+            </div>
+            <div class="step-preview" id="step-preview"></div>
+          </div>`;
+    }
+    function setStepInput(v) {
+      const el = document.getElementById('edit-step'); if (!el) return;
+      el.value = v;
+      updateStepPreview();
+    }
+    function readStepInput() {
+      const v = parseFloat((document.getElementById('edit-step') || {}).value);
+      return v >= 0.5 ? +v.toFixed(2) : null;
+    }
+    function updateStepPreview() {
+      const step = readStepInput();
+      document.querySelectorAll('#step-picker .chip').forEach(c => c.classList.toggle('on', Number(c.dataset.v) === step));
+      const el = document.getElementById('step-preview'); if (!el) return;
+      const unit = appData.settings.unit;
+      if (!step) { el.textContent = 'At least 0.5'; return; }
+      el.innerHTML = stepEditLastWeight
+        ? `Next jump: ${stepEditLastWeight} → <b>${+(stepEditLastWeight + step).toFixed(2)} ${unit}</b> once you hit the top of the range`
+        : `Adds ${step} ${unit} once you hit the top of the range. Also the ± on the weight buttons.`;
+    }
+
     async function deleteCustomExercise(exerciseId) {
       if (!await customConfirm('Delete this custom exercise?')) return;
       appData.customExercises = appData.customExercises.filter(e => e.id !== exerciseId);
