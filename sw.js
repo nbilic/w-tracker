@@ -1,4 +1,4 @@
-const CACHE_NAME = 'workout-v74-redesign';
+const CACHE_NAME = 'workout-v75-redesign';
 const ASSETS = [
   './',
   './index.html',

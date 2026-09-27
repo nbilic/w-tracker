@@ -4016,8 +4016,8 @@
                 <div class="setting-label">Restore from backup</div>
                 <div class="setting-sub">Pick a backup file · replaces current data</div>
               </div>
-              <span class="setting-value">JSON</span>
-              <input type="file" accept=".json,application/json" onchange="importData(event)" style="position:absolute;inset:0;opacity:0;cursor:pointer"/>
+              <span class="setting-value">FILE</span>
+              <input type="file" accept=".txt,.json,text/plain,application/json" onchange="importData(event)" style="position:absolute;inset:0;opacity:0;cursor:pointer"/>
             </div>
             ${(() => { const snap = getSnapshot(); return snap ? `<div class="setting-row" style="cursor:pointer" onclick="restoreSnapshot()">
               <div style="flex:1;min-width:0">
@@ -4070,21 +4070,28 @@
           only land in Downloads on the same phone. We remember when, and nudge after a month.
        3. Before anything replaces all data (import, delete all), a snapshot is kept so it can be undone. */
     function downloadFile(text, name) {
-      const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+      const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
       const a = document.createElement('a');
       a.href = url; a.download = name; a.click();
       URL.revokeObjectURL(url);
     }
     async function backupData() {
       const json = JSON.stringify(appData, null, 2);
-      const name = 'workout-backup-' + todayISO() + '.json';
-      const file = new File([json], name, { type: 'application/json' });
+      // Plain text on purpose: Android Chrome only shares allow-listed file types, and .json isn't one
+      // (canShare() says no and we'd fall back to a download). The content is the same JSON.
+      const name = 'workout-backup-' + todayISO() + '.txt';
+      const file = new File([json], name, { type: 'text/plain' });
+      // Downloading only puts the file in Downloads on this same phone, so say so when that's what happened.
+      const fallback = async () => {
+        downloadFile(json, name);
+        await customAlert('The share menu wasn\'t available, so the backup was saved to Downloads. Move it to Google Drive (or email it to yourself) so it\'s safe if you lose this phone.');
+      };
       try {
         if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: 'Workout backup' });
-        else downloadFile(json, name);
+        else await fallback();
       } catch (e) {
         if (e && e.name === 'AbortError') return; // closed the share sheet: nothing was saved
-        downloadFile(json, name);
+        await fallback();
       }
       appData.settings.lastBackupAt = Date.now();
       saveData(appData);
