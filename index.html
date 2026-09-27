@@ -419,40 +419,6 @@
       letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-3); font-weight: 500; }
     .field input, .field select, .field textarea { width: 100%; }
 
-    .num-tiles { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; margin-bottom: 18px; }
-    .num-tile {
-      padding: 18px 14px; border-radius: 14px; cursor: pointer;
-      background: var(--surface-2); border: 1px solid var(--line);
-      transition: all .15s;
-    }
-    .num-tile.on { background: var(--accent-soft); border-color: var(--accent-line); }
-    .num-tile-label { font-family: 'Geist Mono', monospace; font-size: 9px; margin-bottom: 6px;
-      letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-4); font-weight: 500; }
-    .num-tile.on .num-tile-label { color: var(--accent); }
-    .num-tile-val {
-      font-family: 'Geist Mono', monospace; font-size: 40px; font-weight: 700;
-      letter-spacing: -0.03em; line-height: 1; color: var(--ink);
-    }
-    .num-tile.on .num-tile-val { color: var(--accent); }
-
-    .quick-adj-row { display: flex; gap: 6px; margin-bottom: 14px; }
-    .quick-adj-btn {
-      flex: 1; padding: 10px 0; border-radius: 10px; border: 1px solid var(--line);
-      background: var(--surface-2); color: var(--ink-2);
-      font-family: 'Geist Mono', monospace; font-size: 11px; font-weight: 600; cursor: pointer;
-    }
-    .quick-adj-btn:active { transform: scale(0.96); }
-
-    .numpad-grid {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 14px;
-    }
-    .numpad-key {
-      padding: 14px 0; border-radius: 12px; border: 1px solid var(--line);
-      background: var(--surface-2); color: var(--ink);
-      font-family: 'Geist Mono', monospace; font-size: 20px; font-weight: 500; cursor: pointer;
-    }
-    .numpad-key:active { transform: scale(0.97); background: var(--surface-3); }
-
     /* ===== SEGMENTED + TOGGLE + STEPPER ===== */
     .setting-group { }
     .setting-row {
@@ -716,7 +682,6 @@
     }
     .plate-tag { padding: 2px 6px; background: var(--surface-3); border-radius: 4px; color: var(--ink-2); }
 
-    /* Quick weight +/- adjusters on set row (hidden inline; shown in numpad) */
   </style>
 </head>
 <body>
@@ -832,9 +797,6 @@
   </div>
 
   <!-- SHEETS (outside app-root so they can cover the full viewport) -->
-  <div class="sheet-overlay" id="numpad-overlay">
-    <div class="sheet" id="numpad-sheet"></div>
-  </div>
   <div class="sheet-overlay" id="swap-overlay">
     <div class="sheet" id="swap-sheet"></div>
   </div>
@@ -1751,7 +1713,7 @@
           body: 'No streaks to chase. No flames. Just a quiet, honest record of what you lifted — and how it has changed over time.',
           cta: 'Begin' },
         { eyebrow: '02 · Logging', headHTML: 'Tap a set. <em>Log it.</em>',
-          body: 'Every set opens a numpad sheet with big weight and reps tiles, quick ±5 / ±2.5 / ±1.25 adjustments, and a 3×4 keypad. One thumb, one tap.',
+          body: 'Every set is pre-filled from last time. Nudge the weight with ± or type it in, then tick the set — the rest timer starts on its own.',
           cta: 'Continue' },
         { eyebrow: '03 · Ready', headHTML: 'Numbers are the <em>hero</em>.',
           body: 'Log a set with one tap. Rest with an ambient ring. See your PRs, your volume, your delta. Everything else gets out of the way.',
@@ -2449,138 +2411,6 @@
     }
     let restPauseStart = 0;
 
-    /* ========== NUMPAD SHEET ========== */
-    let numpadPayload = null;
-    let numpadFocus = 'weight'; // 'weight' or 'reps'
-    let numpadW = 0, numpadR = 0, numpadWStr = '', numpadRStr = '';
-
-    function openNumpadFor(ei, si) {
-      if (!currentSession) return;
-      const ex = currentSession.exercises[ei];
-      const set = ex.sets[si];
-      numpadPayload = { ei, si };
-      numpadW = set.weight !== '' && set.weight !== null ? Number(set.weight) : 0;
-      numpadR = set.reps !== '' && set.reps !== null ? Number(set.reps) : 0;
-      numpadWStr = String(numpadW || '');
-      numpadRStr = String(numpadR || '');
-      numpadFocus = 'weight';
-      renderNumpad();
-      openSheet('numpad-overlay');
-    }
-
-    function renderNumpad() {
-      if (!numpadPayload) return;
-      const { ei, si } = numpadPayload;
-      const ex = currentSession.exercises[ei];
-      const set = ex.sets[si];
-      const unit = appData.settings.unit;
-      const lastEx = findLastSessionWithExercise(ex.name);
-      const lastStr = lastEx ? (lastEx.sets.find(s => s.weight !== '' && s.weight !== null) || {}).weight : '';
-      const pr = appData.personalRecords[ex.name];
-      const isPR = beatsPR(pr, numpadW, numpadR);
-      const isRepPR = isPR && numpadW === pr.maxWeight;
-
-      document.getElementById('numpad-sheet').innerHTML = `
-        <div class="sheet-grab"></div>
-        <div class="row-between" style="margin-bottom:18px">
-          <div style="min-width:0">
-            <div class="eyebrow eyebrow-accent" style="margin-bottom:4px">Set ${si+1} · ${escapeHtml(ex.name)}</div>
-            <div class="mono" style="font-size:11px;color:var(--ink-3)">${lastStr !== '' ? 'LAST · ' + lastStr + unit : 'NO PRIOR DATA'}${pr ? ' · PR ' + pr.maxWeight + unit + ' × ' + (pr.reps || 0) : ''}</div>
-          </div>
-          ${isPR ? `<div class="pill pill-accent">${svg('trophy', 11)} ${isRepPR ? 'REP PR' : 'NEW PR'}</div>` : ''}
-        </div>
-        <div class="num-tiles">
-          <div class="num-tile${numpadFocus==='weight'?' on':''}" onclick="numpadSetFocus('weight')">
-            <div class="num-tile-label">WEIGHT (${unit.toUpperCase()})</div>
-            <div class="num-tile-val">${numpadW}</div>
-          </div>
-          <div class="num-tile${numpadFocus==='reps'?' on':''}" onclick="numpadSetFocus('reps')">
-            <div class="num-tile-label">REPS</div>
-            <div class="num-tile-val">${numpadR || 0}</div>
-          </div>
-        </div>
-        <div class="quick-adj-row">
-          ${[-5,-2.5,-1.25,1.25,2.5,5].map(d => `<button class="quick-adj-btn" onclick="numpadAdjust(${d})">${d>0?'+':''}${d}</button>`).join('')}
-        </div>
-        <div class="numpad-grid">
-          ${['1','2','3','4','5','6','7','8','9','.','0','⌫'].map(k => `<button class="numpad-key" onclick="numpadPress('${k}')">${k}</button>`).join('')}
-        </div>
-        <button class="btn btn-primary btn-block" style="padding:16px;font-size:15px" onclick="numpadCommit()">${svg('check', 16, 2.5)} Complete set · start rest</button>
-      `;
-    }
-
-    function numpadSetFocus(f) { numpadFocus = f; renderNumpad(); }
-
-    function numpadAdjust(d) {
-      numpadW = Math.max(0, Math.round((Number(numpadW) + d) * 100) / 100);
-      numpadWStr = String(numpadW);
-      triggerHaptic('weightAdjust');
-      renderNumpad();
-    }
-
-    function numpadPress(k) {
-      if (numpadFocus === 'weight') {
-        if (k === '⌫') {
-          numpadWStr = numpadWStr.slice(0, -1);
-          numpadW = Number(numpadWStr) || 0;
-        } else if (k === '.') {
-          if (!numpadWStr.includes('.')) numpadWStr = (numpadWStr || '0') + '.';
-        } else {
-          numpadWStr = numpadWStr === '0' ? k : numpadWStr + k;
-          numpadW = Number(numpadWStr) || 0;
-        }
-      } else {
-        if (k === '⌫') {
-          numpadRStr = numpadRStr.slice(0, -1);
-          numpadR = Number(numpadRStr) || 0;
-        } else if (k === '.') {
-          // noop
-        } else {
-          numpadRStr = numpadRStr === '0' ? k : numpadRStr + k;
-          numpadR = Number(numpadRStr) || 0;
-        }
-      }
-      renderNumpad();
-    }
-
-    function numpadCommit() {
-      if (!numpadPayload || !currentSession) return;
-      const { ei, si } = numpadPayload;
-      const set = currentSession.exercises[ei].sets[si];
-      set.weight = numpadW;
-      set.reps = numpadR;
-      // Propagate weight to subsequent empty sets if this is set 0
-      if (si === 0) {
-        const ex = currentSession.exercises[ei];
-        for (let i = 1; i < ex.sets.length; i++) {
-          if (ex.sets[i].weight === '' || ex.sets[i].weight === null) ex.sets[i].weight = numpadW;
-        }
-      }
-      // Mark completed + start rest
-      if (!set.completed) {
-        set.completed = true;
-        const exName = currentSession.exercises[ei].name;
-        const isPR = checkForNewPR(exName, set.weight, set.reps);
-        set.isPR = isPR;
-        if (isPR) { triggerHaptic('pr'); launchConfetti(); }
-        else triggerHaptic('setComplete');
-
-        const allDone = currentSession.exercises.every(ex => ex.sets.every(s => s.completed));
-        if (allDone) { dismissRest(); showAutoFinishToast(); }
-        else {
-          startRestTimer(ei);
-          const thisEx = currentSession.exercises[ei];
-          if (thisEx.sets.every(s => s.completed)) {
-            const nextIdx = currentSession.exercises.findIndex((e, i) => i !== ei && e.sets.some(s => !s.completed));
-            if (nextIdx >= 0) expandedExerciseId = exKey(currentSession.exercises[nextIdx], nextIdx);
-          }
-        }
-      }
-      saveSessionBackup();
-      closeSheet('numpad-overlay');
-      renderWorkoutExercises();
-    }
-
     /* ========== SHEET HELPERS ========== */
     function openSheet(id) {
       const el = document.getElementById(id);
@@ -2791,6 +2621,21 @@
     }
 
     /* ========== FINISH SCREEN ========== */
+    // Completed sets from the last time this exercise was done before sessions[before]:
+    // same routine first (same position, same fatigue), then any routine. Returns { sets, sess } or null.
+    function findPreviousSets(session, name, before = appData.sessions.length) {
+      const lastWith = sameRoutine => {
+        for (let i = before - 1; i >= 0; i--) {
+          const sess = appData.sessions[i];
+          if (sameRoutine && sess.routineId !== session.routineId) continue;
+          const e = sess.exercises.find(e => e.name === name);
+          if (e && e.sets.some(s => s.completed)) return { sets: e.sets.filter(s => s.completed), sess };
+        }
+        return null;
+      };
+      return (session.routineId && lastWith(true)) || lastWith(false);
+    }
+
     // Compare each exercise against the last time it was done — same routine first, since
     // position in the workout changes how fresh you are — falling back to any routine.
     // Returns { lifts, up, compared }. Each lift:
@@ -2808,16 +2653,7 @@
         const cur = ex.sets.filter(s => s.completed);
         if (!cur.length) return;
         const pr = cur.some(s => s.isPR);
-        const lastWith = sameRoutine => {
-          for (let i = before - 1; i >= 0; i--) {
-            const sess = appData.sessions[i];
-            if (sameRoutine && sess.routineId !== session.routineId) continue;
-            const e = sess.exercises.find(e => e.name === ex.name);
-            if (e && e.sets.some(s => s.completed)) return { sets: e.sets.filter(s => s.completed), sess };
-          }
-          return null;
-        };
-        const found = (session.routineId && lastWith(true)) || lastWith(false);
+        const found = findPreviousSets(session, ex.name, before);
         const prev = found ? found.sets : [];
         // Always weight×reps; bodyweight sets show reps only.
         const label = s => W(s) ? `${W(s)}×${R(s)}` : String(R(s));
