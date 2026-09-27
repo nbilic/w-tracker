@@ -370,6 +370,11 @@
       color: var(--ink-3); padding: 8px 0; border-radius: 10px;
       font-family: 'Geist', inherit; font-size: 12px; cursor: pointer;
     }
+    /* Drop sets: one-off lighter extras, marked in light purple everywhere they appear */
+    .add-set-btn.drop { color: var(--accent-2); border-color: color-mix(in srgb, var(--accent-2) 45%, transparent); }
+    .set-row.drop { background: color-mix(in srgb, var(--accent-2) 9%, transparent); }
+    .set-row.drop .set-num { color: var(--accent-2); font-weight: 700; }
+    .set-row.drop .set-input { color: var(--accent-2); }
     .ex-pr-strip {
       font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--ink-3);
       margin-top: 12px; padding: 6px 10px;
@@ -504,6 +509,7 @@
     .hist-ex-sets { font-family: 'Geist Mono', monospace; font-size: 11px;
       color: var(--ink-3); display: flex; gap: 10px; flex-wrap: wrap; }
     .hist-ex-sets .pr { color: var(--accent); }
+    .hist-ex-sets .drop { color: var(--accent-2); }
     .hist-delete {
       background: none; border: none; color: var(--ink-4); cursor: pointer; padding: 4px;
     }
@@ -653,6 +659,7 @@
     .recap-grid .v.last { color: var(--ink-2); opacity: 0.7; }
     .recap-grid .v.up, .recap-grid .v.new { color: var(--accent); background: var(--accent-soft); font-weight: 600; }
     .recap-grid .v.down { color: var(--ink-3); }
+    .recap-grid .v.drop { color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 14%, transparent); }
     .recap-grid .v.pr { color: var(--gold); background: color-mix(in srgb, var(--gold) 18%, transparent); font-weight: 600; }
 
     /* ===== UTIL ===== */
@@ -1152,7 +1159,7 @@
         s.exercises.forEach(ex => {
           if (ex.name === exerciseName) {
             ex.sets.forEach(set => {
-              if (!set.completed || set.weight === '' || set.weight === null) return;
+              if (!set.completed || set.drop || set.weight === '' || set.weight === null) return;
               const w = Number(set.weight), r = Number(set.reps) || 0;
               // Heavier beats everything; same weight only counts with more reps.
               if (w > maxWeight || (w === maxWeight && w > 0 && r > prReps)) {
@@ -1633,13 +1640,15 @@
         originalExerciseNames: routine.exercises.map(e => e.name),
         exercises: routine.exercises.map(t => {
           const lastEx = findLastSessionWithExercise(t.name);
-          let lastWeight = lastEx ? (lastEx.sets.find(s => s.weight !== '' && s.weight !== null) || {}).weight || '' : '';
+          // Drop sets are one-off extras: they don't block the weight bump or seed next session's reps.
+          const lastSets = lastEx ? lastEx.sets.filter(s => !s.drop) : [];
+          let lastWeight = (lastSets.find(s => s.weight !== '' && s.weight !== null) || {}).weight || '';
           const step = getWeightStep(t.equipment, t.exerciseId);
           const po = getPOStep(t.equipment, t.exerciseId);
           let autoAdvanced = false, prevWeight = lastWeight;
           if (lastEx && lastWeight !== '' && po > 0) {
-            const completedSets = lastEx.sets.filter(s => s.completed && s.weight !== '' && s.weight !== null);
-            const allCompleted = lastEx.sets.every(s => s.completed);
+            const completedSets = lastSets.filter(s => s.completed && s.weight !== '' && s.weight !== null);
+            const allCompleted = lastSets.every(s => s.completed);
             if (allCompleted && completedSets.length > 0) {
               const weights = completedSets.map(s => Number(s.weight));
               const maxW = Math.max(...weights);
@@ -1651,7 +1660,7 @@
           }
           const sets = [];
           for (let i = 0; i < t.sets; i++) {
-            const lastReps = lastEx && lastEx.sets[i] && lastEx.sets[i].reps !== '' && lastEx.sets[i].reps !== null ? lastEx.sets[i].reps : t.reps;
+            const lastReps = lastSets[i] && lastSets[i].reps !== '' && lastSets[i].reps !== null ? lastSets[i].reps : t.reps;
             sets.push({ weight: lastWeight, reps: lastReps, completed: false });
           }
           return { name: t.name, exerciseId: t.exerciseId, equipment: t.equipment, targetSets: t.sets,
@@ -1815,7 +1824,7 @@
       const setCount = session.exercises.reduce((s,e)=>s+e.sets.filter(x=>x.completed).length,0);
       const vol = calcSessionVolume(session);
       // Identify PRs held by this session
-      const isRecordSet = (cur, s) => cur && s.completed && Number(s.weight) === cur.maxWeight && (Number(s.reps) || 0) === (Number(cur.reps) || 0);
+      const isRecordSet = (cur, s) => cur && s.completed && !s.drop && Number(s.weight) === cur.maxWeight && (Number(s.reps) || 0) === (Number(cur.reps) || 0);
       const prsHere = [];
       session.exercises.forEach(ex => {
         const cur = appData.personalRecords[ex.name];
@@ -1828,7 +1837,7 @@
         const setPills = ex.sets.map(s => {
           if (!s.completed) return '';
           const isPR = prsHere.includes(ex.name) && isRecordSet(cur, s);
-          return `<span class="${isPR?'pr':''}">${s.weight}×${s.reps}${isPR?' ★':''}</span>`;
+          return `<span class="${isPR ? 'pr' : s.drop ? 'drop' : ''}">${s.drop ? '↓' : ''}${s.weight}×${s.reps}${isPR?' ★':''}</span>`;
         }).filter(x=>x).join('');
         return `<div class="hist-ex">
           <div class="hist-ex-name">${escapeHtml(ex.name)}</div>
@@ -2007,8 +2016,8 @@
             const checkCls = 'set-check-btn' + (s.completed ? ' done' : '');
             const checkInner = s.completed ? svg('check', 14, 2.5) : '';
             const doneClass = s.completed ? ' done' : '';
-            html += `<div class="set-row">
-              <div class="set-num">${si+1}</div>
+            html += `<div class="set-row${s.drop ? ' drop' : ''}">
+              <div class="set-num">${s.drop ? '↓' : si+1}</div>
               <div class="weight-cell">
                 <button class="w-adj" onclick="adjSetWeight(${ei},${si},-1)">−</button>
                 <input class="set-input${doneClass}" id="wi-${ei}-${si}" type="number" inputmode="decimal"
@@ -2025,7 +2034,7 @@
             </div>`;
           });
           html += `<div class="ex-actions">
-            <button class="add-set-btn" onclick="addSet(${ei})">+ Add set</button>
+            <button class="add-set-btn drop" onclick="addDropSet(${ei})">↓ Drop set</button>
             <button class="icon-btn" style="width:36px;height:36px;border-radius:10px" onclick="openSwapSheet(${ei})" title="Swap">${svg('swap', 14)}</button>
             ${ex.sets.length > 1 ? `<button class="icon-btn" style="width:36px;height:36px;border-radius:10px" onclick="removeSet(${ei})" title="Remove set">${svg('minus', 14)}</button>` : ''}
           </div>`;
@@ -2125,7 +2134,7 @@
       set.completed = !set.completed;
       if (set.completed) {
         const exName = currentSession.exercises[ei].name;
-        const isPR = checkForNewPR(exName, set.weight, set.reps);
+        const isPR = !set.drop && checkForNewPR(exName, set.weight, set.reps);
         set.isPR = isPR;
         if (isPR) { triggerHaptic('pr'); launchConfetti(); }
         else triggerHaptic('setComplete');
@@ -2152,11 +2161,17 @@
       renderWorkoutExercises();
     }
 
-    function addSet(ei) {
+    // One-off drop set: ~23% lighter than the last set (65 → 50), rounded to the exercise's step.
+    // Flagged so it never counts toward PRs, comparisons or next session's prefill.
+    function addDropSet(ei) {
       if (!currentSession) return;
       const ex = currentSession.exercises[ei];
       const last = ex.sets[ex.sets.length - 1];
-      ex.sets.push({ weight: last.weight, reps: '', completed: false });
+      const step = ex.step !== undefined && ex.step !== null ? ex.step : getWeightStep(ex.equipment, ex.exerciseId);
+      const unitStep = step > 0 ? step : 1;
+      const from = Number(last.weight) || 0;
+      const weight = from ? +Math.max(unitStep, Math.round(from * 0.77 / unitStep) * unitStep).toFixed(2) : '';
+      ex.sets.push({ weight, reps: '', completed: false, drop: true });
       renderWorkoutExercises();
       saveSessionBackup();
     }
@@ -2246,7 +2261,8 @@
                   const w = s.weight !== '' && s.weight !== null ? s.weight : '—';
                   const r = s.reps !== '' && s.reps !== null ? s.reps : '—';
                   const done = s.completed;
-                  return `<span style="color:${done ? 'var(--ink)' : 'var(--ink-4)'}">${done ? '' : '◯ '}${w}×${r}</span>`;
+                  const color = !done ? 'var(--ink-4)' : s.drop ? 'var(--accent-2)' : 'var(--ink)';
+                  return `<span style="color:${color}">${done ? '' : '◯ '}${s.drop ? '↓' : ''}${w}×${r}</span>`;
                 }).join('')}
               </div>
             </div>`).join('');
@@ -2629,7 +2645,9 @@
           const sess = appData.sessions[i];
           if (sameRoutine && sess.routineId !== session.routineId) continue;
           const e = sess.exercises.find(e => e.name === name);
-          if (e && e.sets.some(s => s.completed)) return { sets: e.sets.filter(s => s.completed), sess };
+          // Drop sets are extras, never part of the comparison.
+          const done = e ? e.sets.filter(s => s.completed && !s.drop) : [];
+          if (done.length) return { sets: done, sess };
         }
         return null;
       };
@@ -2650,19 +2668,21 @@
       const signed = (d, suffix = '') => `${d > 0 ? '+' : '−'}${+Math.abs(d).toFixed(2)}${suffix}`;
       const lifts = [];
       session.exercises.forEach(ex => {
-        const cur = ex.sets.filter(s => s.completed);
+        const cur = ex.sets.filter(s => s.completed && !s.drop);
         if (!cur.length) return;
         const pr = cur.some(s => s.isPR);
         const found = findPreviousSets(session, ex.name, before);
         const prev = found ? found.sets : [];
         // Always weight×reps; bodyweight sets show reps only.
         const label = s => W(s) ? `${W(s)}×${R(s)}` : String(R(s));
+        // Shown alongside today's sets, but never compared.
+        const drops = ex.sets.filter(s => s.completed && s.drop).map(label);
         const from = found && !(found.sess.routineId && found.sess.routineId === session.routineId)
           ? `vs ${found.sess.routineName || 'other workout'}` : '';
         const meta = from;
 
         if (!found) {
-          lifts.push({ name: ex.name, meta, status: 'first', summary: 'new', pr, last: [],
+          lifts.push({ name: ex.name, meta, status: 'first', summary: 'new', pr, last: [], drops,
             tiles: cur.map(s => ({ val: label(s), delta: '', kind: s.isPR ? 'pr' : 'same' })) });
           return;
         }
@@ -2718,7 +2738,7 @@
             note = `Top set ${tc > tp ? 'up' : 'down'} · total volume ${dv > 0 ? '+' : '−'}${pct}%`;
           }
         }
-        lifts.push({ name: ex.name, meta, status, summary, note, pr, tiles, last: prev.map(label) });
+        lifts.push({ name: ex.name, meta, status, summary, note, pr, tiles, drops, last: prev.map(label) });
       });
       // Forward (and PRs) first, then held, then dipped, then new lifts.
       const rank = l => l.status === 'up' || l.pr ? 0 : { steady: 1, down: 2, first: 3 }[l.status];
@@ -2749,13 +2769,16 @@
       const stronger = up > 0 || lifts.some(l => l.pr);
       // Last/today as a grid so set N lines up under set N; short rows are padded with empty cells.
       const grid = l => {
+        // Drop sets trail today's row, past both rows' regular sets, so they never sit under a "last" value.
         const today = l.tiles.filter(t => t.kind !== 'missed');
-        const n = Math.max(l.last.length, today.length);
+        const regular = Math.max(l.last.length, today.length);
+        const todayCells = [...today, ...Array(regular - today.length).fill(null), ...l.drops.map(val => ({ val, kind: 'drop' }))];
+        const n = todayCells.length;
         const row = (tag, cells) => `<span class="recap-tag">${tag}</span>` +
           Array.from({ length: n }, (_, i) => cells[i] ? `<span class="v ${cells[i].kind}">${cells[i].val}</span>` : '<span></span>').join('');
         return `<div class="recap-grid" style="--n:${n}">
           ${l.last.length ? row('Last', l.last.map(val => ({ val, kind: 'last' }))) : ''}
-          ${row('Today', today)}
+          ${row('Today', todayCells)}
         </div>`;
       };
       el.innerHTML = `
