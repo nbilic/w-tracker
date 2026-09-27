@@ -697,7 +697,9 @@
       font-size: 12px; color: var(--ink-3); }
     .offday button { background: none; border: none; padding: 4px 2px; font: inherit; color: var(--ink-3);
       text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-    .offday.suggest button { color: var(--ink); }
+    .offday.suggest button, .backup-nudge button { color: var(--ink); }
+    .setting-sub { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+    .setting-sub.due { color: var(--accent); }
     .exs-dot.off { fill: var(--surface); stroke: var(--chart-line); stroke-width: 1.75; }
     .exs-recent.off .exs-res { color: var(--ink-4); font-style: italic; }
     .recap-grid .v.last { color: var(--ink-2); opacity: 0.7; }
@@ -3015,6 +3017,7 @@
         </div>
         ${recapListHTML(lifts, s.offDay)}
         ${s.id !== undefined ? offDayControlHTML(s, lifts, compared) : ''}
+        ${backupDue() ? `<div class="offday backup-nudge"><span>Last backup: ${backupAgeText()}</span><button onclick="backupData()">Back up now</button></div>` : ''}
         <button class="btn btn-primary btn-block" style="padding:16px;font-size:15px" onclick="finishedSessionMemo=null;showScreen('home')">${svg('check', 16, 2.5)} Save & go home</button>`;
     }
 
@@ -4001,15 +4004,28 @@
         <div>
           <div class="eyebrow" style="margin-bottom:10px;padding:0 2px">DATA</div>
           <div class="card setting-group" style="padding:0;overflow:hidden">
-            <div class="setting-row" style="cursor:pointer" onclick="exportData()">
-              <div class="setting-label">Export all data</div>
-              <span class="setting-value">JSON</span>
+            <div class="setting-row" style="cursor:pointer" onclick="backupData()">
+              <div style="flex:1;min-width:0">
+                <div class="setting-label">Back up</div>
+                <div class="setting-sub${backupDue() ? ' due' : ''}">Last backup: ${backupAgeText()} · save it to Drive, email…</div>
+              </div>
+              <span class="setting-value">${svg('chevRight', 14)}</span>
             </div>
             <div class="setting-row" style="cursor:pointer;position:relative">
-              <div class="setting-label">Import data</div>
+              <div style="flex:1;min-width:0">
+                <div class="setting-label">Restore from backup</div>
+                <div class="setting-sub">Pick a backup file · replaces current data</div>
+              </div>
               <span class="setting-value">JSON</span>
               <input type="file" accept=".json,application/json" onchange="importData(event)" style="position:absolute;inset:0;opacity:0;cursor:pointer"/>
             </div>
+            ${(() => { const snap = getSnapshot(); return snap ? `<div class="setting-row" style="cursor:pointer" onclick="restoreSnapshot()">
+              <div style="flex:1;min-width:0">
+                <div class="setting-label">Undo last ${escapeHtml(snap.reason)}</div>
+                <div class="setting-sub">Restore data from ${new Date(snap.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+              </div>
+              <span class="setting-value">${svg('chevRight', 14)}</span>
+            </div>` : ''; })()}
           </div>
         </div>
 
@@ -4048,13 +4064,74 @@
       saveData(appData); renderSettings();
     }
 
-    function exportData() {
-      const json = JSON.stringify(appData, null, 2);
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
+    /* ===== DATA SAFETY =====
+       1. storage.persist() at boot, so Chrome won't clear storage under space pressure.
+       2. Backups go off the phone through the share sheet (Drive, email, …) — a download would
+          only land in Downloads on the same phone. We remember when, and nudge after a month.
+       3. Before anything replaces all data (import, delete all), a snapshot is kept so it can be undone. */
+    function downloadFile(text, name) {
+      const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
       const a = document.createElement('a');
-      a.href = url; a.download = 'workout-backup-' + todayISO() + '.json'; a.click();
+      a.href = url; a.download = name; a.click();
       URL.revokeObjectURL(url);
+    }
+    async function backupData() {
+      const json = JSON.stringify(appData, null, 2);
+      const name = 'workout-backup-' + todayISO() + '.json';
+      const file = new File([json], name, { type: 'application/json' });
+      try {
+        if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: 'Workout backup' });
+        else downloadFile(json, name);
+      } catch (e) {
+        if (e && e.name === 'AbortError') return; // closed the share sheet: nothing was saved
+        downloadFile(json, name);
+      }
+      appData.settings.lastBackupAt = Date.now();
+      saveData(appData);
+      triggerHaptic('success');
+      if (activeScreen === 'settings') renderSettings();
+      else if (activeScreen === 'finish') renderFinish();
+    }
+    function backupAgeText() {
+      const t = appData.settings.lastBackupAt;
+      if (!t) return 'never';
+      const d = Math.floor((Date.now() - t) / 86400000);
+      if (d <= 0) return 'today';
+      if (d === 1) return 'yesterday';
+      if (d < 14) return `${d} days ago`;
+      if (d < 60) return `${Math.round(d / 7)} weeks ago`;
+      return `${Math.round(d / 30)} months ago`;
+    }
+    // Nudge once there's something worth losing and the last backup is over a month old.
+    function backupDue() {
+      const t = appData.settings.lastBackupAt;
+      return appData.sessions.length >= 3 && (!t || Date.now() - t > 30 * 86400000);
+    }
+
+    const SNAPSHOT_KEY = 'w-snapshot';
+    function takeSnapshot(reason) {
+      try {
+        const raw = localStorage.getItem('workoutData');
+        if (raw) localStorage.setItem(SNAPSHOT_KEY, JSON.stringify({ at: Date.now(), reason, data: raw }));
+      } catch (e) {} // storage full: carry on without a snapshot rather than block the action
+    }
+    function getSnapshot() {
+      try { return JSON.parse(localStorage.getItem(SNAPSHOT_KEY) || 'null'); } catch (e) { return null; }
+    }
+    // Swaps current data and the snapshot, so a restore can itself be undone.
+    async function restoreSnapshot() {
+      const snap = getSnapshot();
+      if (!snap) return;
+      let n = 0;
+      try { n = (JSON.parse(snap.data).sessions || []).length; } catch (e) { await customAlert('The saved snapshot is unreadable.'); return; }
+      const when = new Date(snap.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      if (!await customConfirm(`Restore your data from before the ${snap.reason} on ${when}? (${n} sessions) You can undo this the same way.`)) return;
+      const current = localStorage.getItem('workoutData');
+      localStorage.setItem('workoutData', snap.data);
+      if (current) localStorage.setItem(SNAPSHOT_KEY, JSON.stringify({ at: Date.now(), reason: 'restore', data: current }));
+      appData = loadData();
+      migrateData();
+      showScreen('home');
     }
     function importData(event) {
       const file = event.target.files[0]; if (!file) return;
@@ -4063,7 +4140,8 @@
         try {
           const imported = JSON.parse(e.target.result);
           if (!imported.sessions || !imported.settings) { await customAlert('Invalid backup file.'); return; }
-          if (!await customConfirm('Replace all data with this backup? (' + imported.sessions.length + ' sessions)')) return;
+          if (!await customConfirm('Replace all data with this backup? (' + imported.sessions.length + ' sessions) Your current data is kept so you can undo this in Settings.')) return;
+          takeSnapshot('import');
           appData = imported;
           if (!appData.routines) appData.routines = JSON.parse(JSON.stringify(DEFAULT_ROUTINES));
           if (!appData.personalRecords) appData.personalRecords = {};
@@ -4080,8 +4158,9 @@
       customAlert('PRs rebuilt from history.');
     }
     async function clearAllData() {
-      if (!await customConfirm('Delete ALL workout history? This cannot be undone.')) return;
+      if (!await customConfirm('Delete ALL workout history? A copy is kept on this phone so you can undo it in Settings.')) return;
       if (!await customConfirm('Are you really sure?')) return;
+      takeSnapshot('delete');
       localStorage.removeItem('workoutData');
       clearSessionBackup();
       currentSession = null;
@@ -4317,6 +4396,10 @@
       }
       // Service worker
       if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+      // Ask for persistent storage so Chrome won't clear the data under space pressure (granted silently for installed apps)
+      if (navigator.storage && navigator.storage.persist) {
+        navigator.storage.persisted().then(p => p || navigator.storage.persist()).catch(() => {});
+      }
       // Session recovery
       checkSessionRecovery();
     })();
