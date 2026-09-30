@@ -3146,15 +3146,14 @@
     }
 
     /* ========== FINISH SCREEN ========== */
-    // Completed sets from the last time this exercise was done before sessions[before]:
-    // same routine first (same position, same fatigue), then any routine. Returns { sets, sess } or null.
+    // Completed sets from the last time this exercise was done before sessions[before], in any
+    // routine. Returns { sets, sess } or null.
     // Off days are skipped as a baseline, so a weak day doesn't make the next one look like a big gain.
     function findPreviousSets(session, name, before = appData.sessions.length) {
-      const lastWith = (sameRoutine, skipOff = true) => {
+      const lastWith = (skipOff = true) => {
         for (let i = before - 1; i >= 0; i--) {
           const sess = appData.sessions[i];
           if (skipOff && sess.offDay) continue;
-          if (sameRoutine && sess.routineId !== session.routineId) continue;
           const e = sess.exercises.find(e => e.name === name);
           // Drop sets are extras, never part of the comparison.
           const done = e ? e.sets.filter(s => s.completed && !s.drop) : [];
@@ -3162,11 +3161,11 @@
         }
         return null;
       };
-      return (session.routineId && lastWith(true)) || lastWith(false) || lastWith(false, false);
+      return lastWith() || lastWith(false);
     }
 
-    // Compare each exercise against the last time it was done — same routine first, since
-    // position in the workout changes how fresh you are — falling back to any routine.
+    // Compare each exercise against the last time it was done, in any routine. When that was
+    // a different routine, the lift's meta says which, since position changes how fresh you are.
     // Returns { lifts, up, compared }. Each lift:
     //   { name, meta, status: 'up'|'steady'|'down'|'first', summary, pr, tiles: [{ val, delta, kind }] }
     // Tile kinds: up, same, down, new (extra set today), missed (done last time, not today), pr.
