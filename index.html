@@ -2443,7 +2443,18 @@
         exs.splice(target, 0, moved);
         saveSessionBackup();
       }
-      expandedExerciseId = reopen ? exKey(reopen, exs.indexOf(reopen)) : null;
+      // Reordering around what's up next (machine taken) changes what you do now. Drag one ahead of
+      // it and that one opens; drag the up-next one itself down and whatever is now first opens.
+      // An open exercise that's already under way stays open.
+      const started = x => x.sets.some(s => s.completed);
+      const pending = x => x.sets.some(s => !s.completed);
+      const moved = exs[target];
+      let open = reopen;
+      if (target !== ei && !(reopen && started(reopen))) {
+        if (moved === reopen) open = target > ei ? exs.find(pending) : reopen;
+        else if (pending(moved) && (reopen ? target < exs.indexOf(reopen) : exs.findIndex(pending) === target)) open = moved;
+      }
+      expandedExerciseId = open ? exKey(open, exs.indexOf(open)) : null;
       renderWorkoutExercises();
     }
 
