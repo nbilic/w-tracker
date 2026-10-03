@@ -2497,7 +2497,9 @@
       renderWorkoutExercises();
     }
 
-    // One-off drop set: ~23% lighter than the last set (65 → 50), rounded to the exercise's step.
+    // One-off drop set: ~23% lighter than the last set, in whole steps down from it (65 → 50 at a
+    // step of 5), so it lands on a weight the machine actually has even when the stack doesn't start
+    // at zero (56 → 41, not 43). Always at least one step lighter.
     // Flagged so it never counts toward PRs, comparisons or next session's prefill.
     function addDropSet(ei) {
       if (!currentSession) return;
@@ -2506,7 +2508,8 @@
       const step = ex.step !== undefined && ex.step !== null ? ex.step : getWeightStep(ex.equipment, ex.exerciseId);
       const unitStep = step > 0 ? step : 1;
       const from = Number(last.weight) || 0;
-      const weight = from ? +Math.max(unitStep, Math.round(from * 0.77 / unitStep) * unitStep).toFixed(2) : '';
+      const down = Math.max(1, Math.round(from * 0.23 / unitStep)) * unitStep;
+      const weight = from ? +Math.max(from - down, Math.min(from, unitStep)).toFixed(2) : '';
       ex.sets.push({ weight, reps: '', completed: false, drop: true });
       renderWorkoutExercises();
       saveSessionBackup();
