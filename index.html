@@ -2505,7 +2505,7 @@
       if (!currentSession) return;
       const ex = currentSession.exercises[ei];
       const last = ex.sets[ex.sets.length - 1];
-      const step = ex.step !== undefined && ex.step !== null ? ex.step : getWeightStep(ex.equipment, ex.exerciseId);
+      const step = getWeightStep(ex.equipment, ex.exerciseId);
       const unitStep = step > 0 ? step : 1;
       const from = Number(last.weight) || 0;
       const down = Math.max(1, Math.round(from * 0.23 / unitStep)) * unitStep;
@@ -2535,7 +2535,7 @@
     function adjSetWeight(ei, si, direction) {
       if (!currentSession) return;
       const ex = currentSession.exercises[ei];
-      const step = ex.step !== undefined && ex.step !== null ? ex.step : getWeightStep(ex.equipment, ex.exerciseId);
+      const step = getWeightStep(ex.equipment, ex.exerciseId);
       const old = ex.sets[si].weight;
       const current = (old !== '' && old !== null) ? Number(old) : 0;
       const newWeight = Math.max(0, +(current + direction * step).toFixed(2));
