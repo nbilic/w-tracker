@@ -629,7 +629,12 @@
     .builder-row .builder-drag-handle { margin-top: 1px; }
     .builder-name { font-size: 14px; font-weight: 500; line-height: 1.3; }
     .builder-type { font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--ink-3); margin-top: 2px; }
-    .builder-fields { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
+    .builder-fields { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    /* Planned back-off sets: tap cycles none → 1 → 2. Drop-set purple once set. */
+    .builder-backoff { background: none; border: 1px dashed var(--line-2); color: var(--ink-4); border-radius: 999px;
+      padding: 4px 9px; font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.06em; cursor: pointer; }
+    .builder-backoff.on { border-style: solid; color: var(--accent-2); border-color: color-mix(in srgb, var(--accent-2) 45%, transparent);
+      background: color-mix(in srgb, var(--accent-2) 9%, transparent); }
     .builder-unit { font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.06em; color: var(--ink-4); }
     .builder-remove-btn { background: none; border: none; color: var(--ink-4); cursor: pointer; padding: 4px; }
     .dashed-btn {
@@ -1647,6 +1652,25 @@
       }
       return null;
     }
+    // Planned back-off sets (the routine's "+1 back-off"): lighter volume after the working sets. They're
+    // flagged drop too, so like drop sets they never count toward weight bumps, PRs or comparisons.
+    // Weight: what you did last time, moved by however much the working weight moved since (55 → 57.5
+    // takes 50 → 52.5); the first time, ~10% under the working weight in whole steps.
+    function backoffSets(lastEx, n, workWeight, prevWeight, step, reps) {
+      const sets = [];
+      const last = lastEx ? lastEx.sets.filter(s => s.backoff && s.weight !== '' && s.weight !== null) : [];
+      const work = Number(workWeight) || 0, shift = work && Number(prevWeight) ? work - Number(prevWeight) : 0;
+      const unitStep = step > 0 ? step : 1;
+      for (let i = 0; i < (n || 0); i++) {
+        const lb = last[Math.min(i, last.length - 1)];
+        let weight = '';
+        if (lb) weight = +Math.max(0, Number(lb.weight) + shift).toFixed(2);
+        else if (work) weight = +Math.max(work - Math.max(1, Math.round(work * 0.1 / unitStep)) * unitStep, Math.min(work, unitStep)).toFixed(2);
+        const lr = lb && lb.reps !== '' && lb.reps !== null ? lb.reps : reps;
+        sets.push({ weight, reps: lr, completed: false, drop: true, backoff: true });
+      }
+      return sets;
+    }
     function getLastUsedWeight(name) {
       for (let i = appData.sessions.length - 1; i >= 0; i--) {
         const ex = appData.sessions[i].exercises.find(e => e.name === name);
@@ -1929,8 +1953,9 @@
             const reps = autoAdvanced && range ? range.lo : (lastReps !== '' ? lastReps : (range ? range.lo : ''));
             sets.push({ weight: lastWeight, reps, completed: false });
           }
+          sets.push(...backoffSets(lastEx, t.backoff, lastWeight, prevWeight, step, sets.length ? sets[0].reps : ''));
           return { name: t.name, exerciseId: t.exerciseId, equipment: t.equipment, targetSets: t.sets,
-            targetReps: t.reps, step, sets, autoAdvanced, prevWeight };
+            targetReps: t.reps, targetBackoff: t.backoff || 0, step, sets, autoAdvanced, prevWeight };
         })
       };
       expandedExerciseId = currentSession.exercises[0] ? exKey(currentSession.exercises[0], 0) : null;
@@ -2239,10 +2264,10 @@
         const fmt = s => {
           const w = s.weight !== '' && s.weight !== null && Number(s.weight) ? s.weight : '';
           const r = s.reps !== '' && s.reps !== null ? s.reps : '—';
-          return (s.drop ? '↓' : '') + (w ? `${w}×${r}` : `${r}`);
+          return (s.backoff ? 'B ' : s.drop ? '↓' : '') + (w ? `${w}×${r}` : `${r}`);
         };
         const doneSets = sets.filter(s => s.completed);
-        const left = sets.filter(s => !s.completed && !s.drop).length;
+        const left = sets.filter(s => !s.completed && (!s.drop || s.backoff)).length;
         const subtitle = !doneSets.length ? ''
           : doneSets.map(fmt).join(' · ') + (isDone || !left ? '' : ` · ${left} left`);
 
@@ -2290,7 +2315,7 @@
             const checkInner = s.completed ? svg('check', 14, 2.5) : '';
             const doneClass = s.completed ? ' done' : '';
             html += `<div class="set-row${s.drop ? ' drop' : ''}">
-              <div class="set-num">${s.drop ? '↓' : si+1}</div>
+              <div class="set-num">${s.backoff ? 'B' : s.drop ? '↓' : si+1}</div>
               <div class="weight-cell">
                 <button class="w-adj" onclick="adjSetWeight(${ei},${si},-1)">−</button>
                 <input class="set-input${doneClass}" id="wi-${ei}-${si}" type="number" inputmode="decimal"
@@ -2367,11 +2392,12 @@
       }, 480));
     }
 
-    // Thin bar under the header filling as sets are ticked (drop sets are extras, not counted).
+    // Thin bar under the header filling as sets are ticked (drop sets are extras, not counted; planned
+    // back-off sets are).
     function updateSessionProgress() {
       const el = document.getElementById('session-progress');
       if (!el || !currentSession) return;
-      const sets = currentSession.exercises.flatMap(e => e.sets.filter(s => !s.drop));
+      const sets = currentSession.exercises.flatMap(e => e.sets.filter(s => !s.drop || s.backoff));
       const done = sets.filter(s => s.completed).length;
       const width = `${sets.length ? done / sets.length * 100 : 0}%`, label = `${done} of ${sets.length} sets`;
       const fill = el.querySelector('.sp-fill');
@@ -2764,7 +2790,7 @@
       let out;
       if (reg.length && reg.every(x => W(x) === W(reg[0]))) out = W(reg[0]) ? `${W(reg[0])} × ${reg.map(x => x.reps).join(',')}` : `${reg.map(x => x.reps).join(',')} reps`;
       else out = reg.map(fmt).join(' · ');
-      return out + drops.map(x => ` · <span class="exs-drop">↓${fmt(x)}</span>`).join('');
+      return out + drops.map(x => ` · <span class="exs-drop">${x.backoff ? 'B ' : '↓'}${fmt(x)}</span>`).join('');
     }
     // Tap the note (or "+ Add a note") to edit it in place; it saves as you type.
     function editExerciseNote(el) {
@@ -3054,15 +3080,19 @@
       const step = getWeightStep(libEx.equipment, libEx.id);
       const lastEx = findLastSessionWithExercise(libEx.name);
       const lastWeight = lastEx ? (lastEx.sets.find(s => s.weight !== '' && s.weight !== null) || {}).weight || '' : '';
-      const setCount = (swapMode === 'swap' && swapExerciseIndex !== null)
-        ? currentSession.exercises[swapExerciseIndex].sets.length : libEx.defaultSets;
+      // A swap keeps the slot's plan: its working-set count and its back-off sets (drop sets don't carry).
+      const old = swapMode === 'swap' && swapExerciseIndex !== null ? currentSession.exercises[swapExerciseIndex] : null;
+      const setCount = old ? old.sets.filter(s => !s.drop).length || libEx.defaultSets : libEx.defaultSets;
+      const backoff = old ? old.targetBackoff || 0 : 0;
+      const lastReg = lastEx ? lastEx.sets.filter(s => !s.drop) : [];
       const sets = [];
       for (let i = 0; i < setCount; i++) {
-        const lastReps = lastEx && lastEx.sets[i] && lastEx.sets[i].reps !== '' && lastEx.sets[i].reps !== null ? lastEx.sets[i].reps : '';
+        const lastReps = lastReg[i] && lastReg[i].reps !== '' && lastReg[i].reps !== null ? lastReg[i].reps : '';
         sets.push({ weight: lastWeight, reps: lastReps, completed: false });
       }
+      sets.push(...backoffSets(lastEx, backoff, lastWeight, lastWeight, step, sets.length ? sets[0].reps : ''));
       const newEx = { name: libEx.name, exerciseId: libEx.id, equipment: libEx.equipment,
-        targetSets: libEx.defaultSets, targetReps: defaultRepTarget(libEx), step, sets };
+        targetSets: libEx.defaultSets, targetReps: defaultRepTarget(libEx), targetBackoff: backoff, step, sets };
       if (swapMode === 'add') { currentSession.exercises.push(newEx); }
       else { currentSession.exercises[swapExerciseIndex] = newEx; }
       expandedExerciseId = exKey(newEx, swapMode === 'add' ? currentSession.exercises.length - 1 : swapExerciseIndex);
@@ -3130,7 +3160,7 @@
         isDefault: false,
         exercises: currentSession.exercises.map(ex => ({
           exerciseId: ex.exerciseId || '', name: ex.name, sets: ex.targetSets,
-          reps: ex.targetReps, equipment: ex.equipment
+          reps: ex.targetReps, equipment: ex.equipment, ...(ex.targetBackoff ? { backoff: ex.targetBackoff } : {})
         }))
       });
       saveData(appData);
@@ -3144,7 +3174,7 @@
         if (r) {
           r.exercises = currentSession.exercises.map(ex => ({
             exerciseId: ex.exerciseId || '', name: ex.name, sets: ex.targetSets,
-            reps: ex.targetReps, equipment: ex.equipment
+            reps: ex.targetReps, equipment: ex.equipment, ...(ex.targetBackoff ? { backoff: ex.targetBackoff } : {})
           }));
           saveData(appData);
         }
@@ -3200,7 +3230,7 @@
         // Always weight×reps; bodyweight sets show reps only.
         const label = s => W(s) ? `${W(s)}×${R(s)}` : String(R(s));
         // Shown alongside today's sets, but never compared.
-        const drops = ex.sets.filter(s => s.completed && s.drop).map(label);
+        const drops = ex.sets.filter(s => s.completed && s.drop).map(s => (s.backoff ? 'B ' : '') + label(s));
         const from = found && !(found.sess.routineId && found.sess.routineId === session.routineId)
           ? `vs ${found.sess.routineName || 'other workout'}` : '';
         const meta = from;
@@ -3745,7 +3775,7 @@
                   <div class="routine-exercise-peek">
                     <span class="mono" style="font-size:10px;color:var(--ink-4);width:18px">${String(j+1).padStart(2,'0')}</span>
                     <span style="flex:1;font-size:13px">${escapeHtml(ex.name)}</span>
-                    <span class="mono" style="font-size:11px;color:var(--ink-3)">${ex.sets}×${ex.reps}</span>
+                    <span class="mono" style="font-size:11px;color:var(--ink-3)">${ex.sets}×${ex.reps}${ex.backoff ? ` +${ex.backoff}B` : ''}</span>
                   </div>`).join('')}
                 ${r.exercises.length > 4 ? `<div class="mono" style="font-size:10px;color:var(--ink-4);padding-left:28px">+${r.exercises.length - 4} more</div>` : ''}
               </div>
@@ -4054,7 +4084,7 @@
       builderReturnTo = returnTo;
       builderExercises = r.exercises.map(ex => ({
         exerciseId: ex.exerciseId, name: ex.name, equipment: ex.equipment,
-        sets: ex.sets, reps: String(ex.reps)
+        sets: ex.sets, reps: String(ex.reps), backoff: ex.backoff || 0
       }));
       showScreen('builder');
     }
@@ -4089,6 +4119,7 @@
                   <input class="builder-field-input" type="number" min="1" placeholder="max" aria-label="Max reps" value="${r.hi}"
                     oninput="updateBuilderEx(${i},'repsHi',this.value)" onchange="renderBuilder()" inputmode="numeric"/>`; })()}
                   <span class="builder-unit">reps</span>
+                  <button class="builder-backoff${ex.backoff ? ' on' : ''}" onclick="cycleBuilderBackoff(${i})">+${ex.backoff || ''} back-off</button>
                 </div>
               </div>
               <button class="builder-remove-btn" onclick="removeBuilderEx(${i})">${svg('x', 14)}</button>
@@ -4120,6 +4151,12 @@
         builderExercises[i].reps = hi > lo ? `${lo}-${hi}` : `${lo}`;
       }
     }
+    function cycleBuilderBackoff(i) {
+      const ex = builderExercises[i]; if (!ex) return;
+      ex.backoff = ((ex.backoff || 0) + 1) % 3;
+      triggerHaptic('light');
+      renderBuilder();
+    }
     function removeBuilderEx(i) { builderExercises.splice(i, 1); renderBuilder(); triggerHaptic('light'); }
 
     async function saveBuilder() {
@@ -4128,7 +4165,7 @@
       if (builderExercises.length === 0) { customAlert('Add at least one exercise'); return; }
       const exercises = builderExercises.map(ex => ({
         exerciseId: ex.exerciseId, name: ex.name, sets: ex.sets,
-        reps: ex.reps, equipment: ex.equipment
+        reps: ex.reps, equipment: ex.equipment, ...(ex.backoff ? { backoff: ex.backoff } : {})
       }));
       if (builderEditingId) {
         const r = appData.routines.find(x => x.id === builderEditingId);
